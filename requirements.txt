@@ -1,0 +1,6 @@
+numpy>=2.0
+PyYAML>=6.0
+pytest>=8.0
+torch>=2.2
+xarray>=2024.1
+netCDF4>=1.6

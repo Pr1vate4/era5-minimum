@@ -1,0 +1,15 @@
+.venv/
+__pycache__/
+.pytest_cache/
+*.pyc
+*.nc
+*.grib
+*.grib2
+*.zarr/
+*.pt
+*.pth
+outputs/*
+!outputs/.gitkeep
+data/
+.cdsapirc
+.env

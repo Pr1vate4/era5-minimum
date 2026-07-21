@@ -1,0 +1,23 @@
+seed: 42
+device: cuda
+output_dir: outputs/research
+
+data:
+  source: netcdf
+  path: data/prepared_era5.nc
+  channels: [t2m, mslp, u10, v10, tp6h, sst, tcwv, tcc]
+  validation_samples: 168
+  test_samples: 168
+  temporal_gap_samples: 24
+
+model:
+  type: conv
+  latent_channels: 16
+  downsample_stages: 3
+
+training:
+  train_sizes: [24, 72, 168, 336, 720]
+  epochs: 20
+  batch_size: 4
+  learning_rate: 0.0003
+  num_workers: 4

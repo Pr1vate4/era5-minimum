@@ -1,0 +1,18 @@
+seed: 42
+device: auto
+output_dir: outputs/mvp
+
+data:
+  source: synthetic
+  samples: 80
+  channels: [t2m, mslp, u10, v10, tp6h, sst, tcwv, tcc]
+  height: 8
+  width: 8
+  validation_samples: 16
+
+model:
+  type: pca
+  latent_dim: 16
+
+training:
+  train_sizes: [20, 40, 64]
