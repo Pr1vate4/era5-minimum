@@ -11,6 +11,9 @@
 - синтетический ERA5-подобный датасет из 8 каналов;
 - быстрый PCA-autoencoder smoke baseline с честными 32× по числу значений;
 - каркас ConvAutoencoder для GPU-экспериментов 32× или 64×;
+- schema inspector и strict loader подтверждённой пары raw ERA5 NetCDF;
+- SST mask, half-degree subsampling и tensor `[4, 8, 361, 720]` для тестовой pair;
+- безопасный ERA5 downloader с offline dry-run и SHA-256 provenance artifacts;
 - обучение на нескольких размерах выборки;
 - обычные и широтно-взвешенные метрики;
 - CSV/JSON-отчёт;
@@ -45,7 +48,10 @@ make download-dry-run
 - `docs/CURRENT_STATE.md` — подтверждённое текущее состояние и блокеры;
 - `docs/TEAM_ROLES.md` — роли и ownership;
 - `docs/WORKFLOW.md` — GitHub workflow;
-- `docs/HANDOFF_DAY2.md` — актуальный handoff после real ERA5 loader;
+- `docs/HANDOFF_DAY2.md` — historical handoff после реализации real ERA5 loader;
+- `docs/TEAM_ONBOARDING.md` — практический старт нового участника за 20 минут;
+- `docs/TASKS.md` — актуальный backlog первого этапа и ownership;
+- `SECURITY.md` — правила работы с credentials, raw data и Codex-generated code;
 - [docs/DATA_CONTRACT.md](docs/DATA_CONTRACT.md) — единственный актуальный контракт ERA5 schema, channels и units;
 - `docs/CONFIG_CONTRACT_GAP.md` — известное расхождение planned real-data config и текущего runner;
 - `docs/DEVELOPMENT.md` — установка Python 3.12, local commands и CI-equivalent workflow;

@@ -14,7 +14,7 @@
 - Исходная сетка: 721 × 1440, 0.25°; latitude убывает от 90 до -90, longitude возрастает от 0 до 359.75.
 - `expver` тестовой выборки равен `0001`.
 - `sst` содержит пропуски над сушей; valid fraction после subsampling около `0.660934`.
-- В исходных данных давление называется `msl`, а accumulated precipitation называется `tp`. Текущий `tp` — `tp1h`, не `tp6h`.
+- В исходных данных давление называется `msl`, а accumulated precipitation называется `tp`; loader использует каноническое имя `tp1h`, не `tp6h`.
 - Четырёх timestamps недостаточно для честного temporal split, обучения модели или построения `tp6h`.
 
 ## Implemented
@@ -28,18 +28,21 @@
 - Output tensor `[4, 8, 361, 720]` и отдельная SST mask.
 - `loader_report.json`, тесты loader и inspector, запрет молчаливого создания `tp6h`.
 - Единый безопасный ERA5 downloader с offline dry-run, request/metadata/checksum artifacts и deprecated wrappers старых scripts.
+- Team onboarding, assigned first-stage backlog, security policy, CODEOWNERS, Issue/PR templates и Python 3.12 CI.
 
-## In progress
+## Completed in current milestone
 
-- Team Bootstrap: ownership, GitHub workflow, Issue/PR templates и handoff.
+- Team Bootstrap final verification: documentation, ownership, workflow, security policy и onboarding audit.
 
 ## Not started
 
 - Temporal split без утечки.
 - Train-only normalization.
-- Real-data training baseline.
+- PCA baseline на достаточных подготовленных real data.
+- ConvAE 32× baseline на real data.
 - Sample-efficiency research.
-- Реальное файловое сжатие и frontend/demo.
+- FastAPI, React frontend и Prometheus/Grafana.
+- Реальное файловое сжатие.
 
 ## Known conflicts
 
@@ -49,11 +52,11 @@
 
 ## Current milestone
 
-Team Bootstrap.
+Team Bootstrap final verification — completed; нет blocking issues для командного старта.
 
-## Next technical milestone
+## Next milestone
 
-Temporal split и train-only normalization — только после документирования командного процесса и получения достаточного временного диапазона.
+DATA-002 — расширение последовательного ERA5 dataset. Только после его подтверждённого результата возможны DATA-003 temporal split и train-only normalization.
 
 ## Blocking conditions
 

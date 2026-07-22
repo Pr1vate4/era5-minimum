@@ -1,5 +1,7 @@
 # HANDOFF — PRE-HACK DAY 1
 
+> Historical handoff. Актуальное состояние проекта находится в [docs/CURRENT_STATE.md](docs/CURRENT_STATE.md), а актуальный data contract — в [docs/DATA_CONTRACT.md](docs/DATA_CONTRACT.md).
+
 **Date:** 2026-07-21  
 **Project:** ERA5-Minimum  
 **Status:** стартовый каркас готов и проверен

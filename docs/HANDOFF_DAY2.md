@@ -1,5 +1,7 @@
 # HANDOFF — DAY 2: real ERA5 loader
 
+> Historical handoff. Текущий milestone и blockers ведутся в [CURRENT_STATE.md](CURRENT_STATE.md); актуальный raw contract находится в [DATA_CONTRACT.md](DATA_CONTRACT.md).
+
 **Дата:** 2026-07-22
 **Текущий milestone:** Team Bootstrap
 

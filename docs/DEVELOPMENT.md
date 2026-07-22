@@ -94,6 +94,7 @@ python -m era5_minimum.data.era5_loader \
 - `make mvp` — synthetic MVP.
 - `make smoke` — alias synthetic MVP.
 - `make verify` — tests и synthetic smoke test.
+- `make download-dry-run` — offline validation ERA5 request без CDS, сети и файлов.
 - `make clean` — удаляет generated synthetic outputs и cache directories, но не raw data.
 
 ## 13. Data locations
