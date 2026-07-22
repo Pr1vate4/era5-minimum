@@ -1,0 +1,57 @@
+name: Research
+description: Проверяемая научная гипотеза или эксперимент.
+title: "research: "
+labels: [research]
+body:
+  - type: textarea
+    id: hypothesis
+    attributes:
+      label: Hypothesis
+    validations:
+      required: true
+  - type: textarea
+    id: baseline
+    attributes:
+      label: Baseline
+    validations:
+      required: true
+  - type: textarea
+    id: independent_variable
+    attributes:
+      label: Independent variable
+    validations:
+      required: true
+  - type: textarea
+    id: fixed_conditions
+    attributes:
+      label: Fixed conditions
+    validations:
+      required: true
+  - type: input
+    id: dataset_version
+    attributes:
+      label: Dataset version
+    validations:
+      required: true
+  - type: textarea
+    id: metrics
+    attributes:
+      label: Metrics
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance_rule
+    attributes:
+      label: Acceptance rule
+    validations:
+      required: true
+  - type: textarea
+    id: artifacts
+    attributes:
+      label: Required artifacts
+    validations:
+      required: true
+  - type: textarea
+    id: risks
+    attributes:
+      label: Risks

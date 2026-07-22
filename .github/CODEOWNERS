@@ -1,0 +1,19 @@
+# Data platform and infrastructure
+/src/era5_minimum/data/ @Pr1vate4
+/scripts/ @Pr1vate4
+/.github/ @Pr1vate4
+/monitoring/ @Pr1vate4
+
+# ML
+/src/era5_minimum/models/ @VsevolodCod
+/src/era5_minimum/training.py @VsevolodCod
+/src/era5_minimum/metrics.py @VsevolodCod
+
+# Product
+/frontend/ @devlifeee
+
+# Critical project contracts
+/AGENTS.md @Pr1vate4 @VsevolodCod
+/docs/DECISIONS.md @Pr1vate4 @VsevolodCod
+/docs/CURRENT_STATE.md @Pr1vate4 @VsevolodCod
+/docs/DATA_CONTRACT.md @Pr1vate4 @VsevolodCod

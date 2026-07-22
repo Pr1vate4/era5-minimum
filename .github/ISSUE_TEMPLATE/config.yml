@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Team workflow
+    url: https://github.com/Pr1vate4/era5-minimum/blob/main/docs/WORKFLOW.md
+    about: Прочитайте workflow и назначьте одного основного владельца задачи.

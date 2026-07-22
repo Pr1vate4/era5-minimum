@@ -1,0 +1,42 @@
+name: Bug
+description: Воспроизводимая ошибка.
+title: "fix: "
+labels: [bug]
+body:
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected result
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual result
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: "Не включайте tokens, credentials или raw data."
+  - type: input
+    id: module
+    attributes:
+      label: Suspected module
+  - type: input
+    id: data_config
+    attributes:
+      label: Data/config version

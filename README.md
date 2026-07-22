@@ -35,6 +35,11 @@ python -m era5_minimum.experiments --config configs/mvp.yaml
 ## Главные документы
 
 - `AGENTS.md` — постоянные инструкции Codex;
+- `CONTRIBUTING.md` — правила командного вклада и Definition of Done;
+- `docs/CURRENT_STATE.md` — подтверждённое текущее состояние и блокеры;
+- `docs/TEAM_ROLES.md` — роли и ownership;
+- `docs/WORKFLOW.md` — GitHub workflow;
+- `docs/HANDOFF_DAY2.md` — актуальный handoff после real ERA5 loader;
 - `docs/DAY1_PLAN.md` — задачи первого дня;
 - `docs/ROADMAP.md` — этапы до защиты;
 - `docs/THEORY.md` — теория и методология;
