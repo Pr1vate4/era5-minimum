@@ -1,0 +1,9 @@
+Metadata-Version: 2.4
+Name: era5-minimum
+Version: 0.1.0
+Summary: Sample-efficient ERA5 autoencoder research framework
+Requires-Python: >=3.10
+Requires-Dist: numpy>=2.0
+Requires-Dist: PyYAML>=6.0
+Requires-Dist: torch>=2.2
+Requires-Dist: xarray>=2024.1

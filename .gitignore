@@ -10,6 +10,6 @@ __pycache__/
 *.pth
 outputs/*
 !outputs/.gitkeep
-data/
+/data/
 .cdsapirc
 .env
