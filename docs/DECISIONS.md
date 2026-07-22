@@ -86,3 +86,47 @@
 **Decision:** historical documents сохраняются, но должны ссылаться на актуальный data contract или иметь historical banner.
 
 **Consequences:** история не переписывается; при конфликте приоритет имеет `docs/DATA_CONTRACT.md`.
+
+## DEC-012 — Canonical dependency source
+
+**Status:** accepted
+**Date:** 2026-07-22
+
+**Context:** `pyproject.toml` и `requirements.txt` содержали разные dependency sets, а CI не получал NetCDF backend.
+
+**Decision:** canonical dependency source — `pyproject.toml`; `requirements.txt` остаётся compatibility-file и зеркалит core плюс test dependency.
+
+**Consequences:** dependency changes сначала вносятся в `pyproject.toml`; CI и Makefile устанавливают project extras через editable install.
+
+## DEC-013 — Official Python version
+
+**Status:** accepted
+**Date:** 2026-07-22
+
+**Context:** командная версия Python не была зафиксирована.
+
+**Decision:** официальная командная и CI-версия — Python 3.12.
+
+**Consequences:** `pyproject.toml` требует Python 3.12 или новее; CI проверяет Python 3.12 без необоснованного верхнего предела.
+
+## DEC-014 — Optional CDS download support
+
+**Status:** accepted
+**Date:** 2026-07-22
+
+**Context:** только download scripts импортируют `cdsapi`; loader, tests и CI не требуют CDS credentials.
+
+**Decision:** `cdsapi` оформлен optional extra `download`.
+
+**Consequences:** обычная установка и CI не устанавливают CDS client; скачивающий участник явно выбирает `.[download]` и использует только `~/.cdsapirc`.
+
+## DEC-015 — Generated package metadata
+
+**Status:** accepted
+**Date:** 2026-07-22
+
+**Context:** generated `src/era5_minimum.egg-info` был отслеживаемым и мог расходиться с package source.
+
+**Decision:** generated package metadata, включая `*.egg-info`, не хранится в Git.
+
+**Consequences:** metadata создаётся editable install локально и игнорируется Git; source package остаётся в `src/era5_minimum`.

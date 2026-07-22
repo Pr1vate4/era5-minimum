@@ -48,7 +48,7 @@ python -m era5_minimum.experiments --config configs/mvp.yaml
 - у задачи есть один основной владелец;
 - код, тесты и документация соответствуют Issue;
 - человек проверил Codex diff;
-- запущены релевантные тесты и `make mvp`, если изменялся Python-код;
+- запущен `make verify`, если изменялся Python-код;
 - data contract и metric changes явно отражены в PR;
 - нет secrets, raw data, outputs или необъяснённых изменений;
 - все замечания review устранены.

@@ -1,6 +1,9 @@
+# Compatibility file for pip users. The canonical dependency source is
+# pyproject.toml. This file mirrors core runtime dependencies plus pytest;
+# use `pip install -e ".[download]"` for CDS support.
 numpy>=2.0
 PyYAML>=6.0
-pytest>=8.0
 torch>=2.2
 xarray>=2024.1
 netCDF4>=1.6
+pytest>=8.0

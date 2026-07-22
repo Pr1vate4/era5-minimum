@@ -19,11 +19,11 @@
 ## Быстрый запуск
 
 ```bash
-python -m venv .venv
+python3.12 -m venv .venv
 source .venv/bin/activate
-pip install -r requirements.txt
-pytest -q
-python -m era5_minimum.experiments --config configs/mvp.yaml
+python -m pip install --upgrade pip
+make install-dev
+make verify
 ```
 
 Результаты появятся в `outputs/mvp/summary.csv`.
@@ -42,6 +42,7 @@ python -m era5_minimum.experiments --config configs/mvp.yaml
 - `docs/HANDOFF_DAY2.md` — актуальный handoff после real ERA5 loader;
 - [docs/DATA_CONTRACT.md](docs/DATA_CONTRACT.md) — единственный актуальный контракт ERA5 schema, channels и units;
 - `docs/CONFIG_CONTRACT_GAP.md` — известное расхождение planned real-data config и текущего runner;
+- `docs/DEVELOPMENT.md` — установка Python 3.12, local commands и CI-equivalent workflow;
 - `docs/DAY1_PLAN.md` — задачи первого дня;
 - `docs/ROADMAP.md` — этапы до защиты;
 - `docs/THEORY.md` — теория и методология;

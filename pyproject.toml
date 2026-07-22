@@ -6,13 +6,18 @@ build-backend = "setuptools.build_meta"
 name = "era5-minimum"
 version = "0.1.0"
 description = "Sample-efficient ERA5 autoencoder research framework"
-requires-python = ">=3.10"
+requires-python = ">=3.12"
 dependencies = [
   "numpy>=2.0",
   "PyYAML>=6.0",
   "torch>=2.2",
   "xarray>=2024.1",
+  "netCDF4>=1.6",
 ]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0"]
+download = ["cdsapi>=0.7.7"]
 
 [tool.setuptools]
 package-dir = {"" = "src"}

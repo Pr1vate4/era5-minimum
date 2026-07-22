@@ -17,7 +17,7 @@ Build a reproducible research system that estimates the minimum representative E
 - Never commit ERA5 credentials, `.cdsapirc`, large datasets, model checkpoints, or generated outputs.
 
 ## Project conventions
-- Python 3.10+.
+- Official team and CI version: Python 3.12; the canonical dependency source is `pyproject.toml`.
 - Source code lives in `src/era5_minimum`.
 - Config-driven experiments live in `configs/`.
 - Tests live in `tests/`.
@@ -30,8 +30,7 @@ Build a reproducible research system that estimates the minimum representative E
 After Python changes run:
 
 ```bash
-pytest -q
-python -m era5_minimum.experiments --config configs/mvp.yaml
+make verify
 ```
 
 ## Definition of done

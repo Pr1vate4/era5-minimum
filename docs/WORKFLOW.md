@@ -22,3 +22,4 @@
 8. Предпочтителен squash merge.
 9. Commit messages используют Conventional Commits.
 10. Нельзя объединять PR с неизвестными или необъяснёнными изменениями.
+11. Dependency changes обновляются сначала в `pyproject.toml`; `requirements.txt` остаётся compatibility-file.

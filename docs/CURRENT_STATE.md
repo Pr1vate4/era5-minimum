@@ -19,6 +19,8 @@
 
 ## Implemented
 
+- `pyproject.toml` — canonical dependency source; CI использует Python 3.12 и project extras.
+- Generated `*.egg-info` удалены из Git и игнорируются.
 - NetCDF schema inspector.
 - Строгий loader пары instant/accumulated NetCDF с проверками variables, units, coordinates, `expver`, NaN и SST mask.
 - Канонический порядок: `u10, v10, t2m, msl, sst, tcc, tcwv, tp1h`.
@@ -43,8 +45,6 @@
 - Старые документы и шаблоны всё ещё содержат `tp6h` и `mslp`, хотя raw pipeline использует `tp1h` и `msl`.
 - `configs/research_template.yaml` содержит `source=netcdf`, но `experiments.py` пока поддерживает только synthetic source.
 - Два download-скрипта используют конфликтующий output path.
-- `pyproject.toml` и `requirements.txt` содержат разные наборы зависимостей.
-- `src/era5_minimum.egg-info` отслеживается Git, хотя это generated metadata.
 - Подробное расхождение planned config и current runner: [CONFIG_CONTRACT_GAP.md](CONFIG_CONTRACT_GAP.md).
 
 ## Current milestone
