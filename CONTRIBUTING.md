@@ -41,6 +41,7 @@ python -m era5_minimum.experiments --config configs/mvp.yaml
 - raw ERA5, архивы данных и локальные выгрузки;
 - generated outputs, checkpoints и большие артефакты;
 - `.cdsapirc`, `.env`, токены, ключи и пароли;
+- результаты реального CDS download, включая raw pair, archive, request metadata и checksums;
 - изменения, не относящиеся к Issue.
 
 ## Definition of Done
@@ -51,4 +52,5 @@ python -m era5_minimum.experiments --config configs/mvp.yaml
 - запущен `make verify`, если изменялся Python-код;
 - data contract и metric changes явно отражены в PR;
 - нет secrets, raw data, outputs или необъяснённых изменений;
+- download changes проверены offline через `make download-dry-run` и tests без CDS credentials;
 - все замечания review устранены.

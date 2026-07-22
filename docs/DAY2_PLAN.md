@@ -1,6 +1,6 @@
 # DAY 2 — Реальные данные ERA5 и NetCDF pipeline
 
-> Historical planning document. Актуальная схема данных находится в [DATA_CONTRACT.md](DATA_CONTRACT.md).
+> Historical planning document. Актуальная схема данных находится в [DATA_CONTRACT.md](DATA_CONTRACT.md). Указанный ниже single-file path `data/raw/era5_single_2024_01_01.nc` устарел и запрещён для нового workflow; используйте raw pair и [DOWNLOAD_WORKFLOW.md](DOWNLOAD_WORKFLOW.md).
 
 ## Цель дня
 

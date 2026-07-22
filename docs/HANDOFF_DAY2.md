@@ -16,14 +16,12 @@
 - SST mask возвращается и сохраняется отдельно; SST valid fraction около `0.660934`.
 - Есть явное предупреждение: `tp1h` не является `tp6h`; автоматическое создание `tp6h` запрещено.
 - Добавлены тесты loader и inspector.
+- Единый `scripts/download_era5.py` строит versioned CDS request, использует staging, безопасно извлекает ZIP и сохраняет request/metadata/SHA-256 artifacts. Старые download scripts стали deprecated wrappers.
 
 ## Current known conflicts
 
 - В старых документах, configs и synthetic MVP встречаются `tp6h` и `mslp`.
 - `research_template.yaml` задаёт `source=netcdf`, но текущий runner поддерживает только synthetic source.
-- Download-скрипты используют конфликтующий output path.
-- `pyproject.toml` и `requirements.txt` расходятся.
-- `src/era5_minimum.egg-info` отслеживается Git.
 
 ## Чего нельзя делать дальше
 
@@ -38,4 +36,4 @@
 
 ## Следующий технический шаг
 
-После получения достаточного временного диапазона реализовать temporal split без утечки и train-only normalization с тестами и timestamp metadata.
+После получения достаточного временного диапазона через documented download workflow реализовать temporal split без утечки и train-only normalization с тестами и timestamp metadata.

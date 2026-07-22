@@ -14,7 +14,7 @@
 
 ## 4. Raw storage layout
 
-Локальный raw input находится в `data/raw/era5_single_2024_01_01/`. Контролируемая storage-копия находится в `storage-upload/era5-single-levels/2024-01-01/`. Raw data не коммитятся и не перезаписываются.
+Локальный raw input находится в `data/raw/era5_single_2024_01_01/`. Контролируемая storage-копия находится в `storage-upload/era5-single-levels/2024-01-01/`. Raw data не коммитятся и не перезаписываются без явного `--overwrite` в безопасном downloader. Воспроизводимая выгрузка описана в [DOWNLOAD_WORKFLOW.md](DOWNLOAD_WORKFLOW.md).
 
 ## 5. Raw file pair
 
@@ -52,7 +52,7 @@
 7. `tcwv`
 8. `tp1h`
 
-Raw `tp` переименовывается loader-ом в `tp1h`. Каноническое имя давления — `msl`, не `mslp`.
+Raw `tp` переименовывается loader-ом в `tp1h`; downloader сохраняет raw name `tp` и не создаёт `tp6h`. Каноническое имя давления — `msl`, не `mslp`.
 
 ## 9. Units
 

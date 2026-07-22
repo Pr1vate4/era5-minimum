@@ -104,13 +104,32 @@ Raw pair ожидается в `data/raw/era5_single_2024_01_01/`. Storage copy 
 
 `cdsapi` не обязателен для tests, loader или CI. CDS credentials находятся только в `~/.cdsapirc`; не помещайте token в `.env`, `.env.example`, repository или Issue.
 
-## 15. Common problems
+## 15. ERA5 download workflow
+
+Единственный downloader — `scripts/download_era5.py`. Перед реальным запросом всегда выполните offline-проверку:
+
+```bash
+make download-dry-run
+```
+
+Для реальной выгрузки нужен только optional extra `download` и настроенный `~/.cdsapirc`:
+
+```bash
+python scripts/download_era5.py \
+  --date 2024-01-01 \
+  --times 00:00 06:00 12:00 18:00 \
+  --output-root data/raw
+```
+
+Подробные правила staging, ZIP safety, checksums и overwrite: [DOWNLOAD_WORKFLOW.md](DOWNLOAD_WORKFLOW.md).
+
+## 16. Common problems
 
 - Если `netCDF4` не импортируется, переустановите base environment через `make install`.
 - Если `research_template.yaml` не запускается, это ожидаемо: current runner поддерживает только synthetic source. См. [CONFIG_CONTRACT_GAP.md](CONFIG_CONTRACT_GAP.md).
 - Не используйте четыре текущих timestamp для обучения, split или создания `tp6h`.
 
-## 16. Clean generated files
+## 17. Clean generated files
 
 ```bash
 make clean
@@ -118,7 +137,7 @@ make clean
 
 Команда не удаляет raw data.
 
-## 17. Before creating a Pull Request
+## 18. Before creating a Pull Request
 
 ```bash
 make verify

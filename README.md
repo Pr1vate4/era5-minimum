@@ -28,6 +28,12 @@ make verify
 
 Результаты появятся в `outputs/mvp/summary.csv`.
 
+Проверить ERA5 download request без CDS credentials, сети и записи файлов:
+
+```bash
+make download-dry-run
+```
+
 ## Честное ограничение MVP
 
 Текущий коэффициент сжатия — **отношение числа исходных float-значений к числу latent-значений**. Это ещё не размер итогового бинарного файла. Реальное битовое сжатие требует квантизации и энтропийного кодирования и вынесено в следующий этап.
@@ -43,6 +49,7 @@ make verify
 - [docs/DATA_CONTRACT.md](docs/DATA_CONTRACT.md) — единственный актуальный контракт ERA5 schema, channels и units;
 - `docs/CONFIG_CONTRACT_GAP.md` — известное расхождение planned real-data config и текущего runner;
 - `docs/DEVELOPMENT.md` — установка Python 3.12, local commands и CI-equivalent workflow;
+- `docs/DOWNLOAD_WORKFLOW.md` — безопасная воспроизводимая выгрузка ERA5 через CDS;
 - `docs/DAY1_PLAN.md` — задачи первого дня;
 - `docs/ROADMAP.md` — этапы до защиты;
 - `docs/THEORY.md` — теория и методология;

@@ -130,3 +130,47 @@
 **Decision:** generated package metadata, включая `*.egg-info`, не хранится в Git.
 
 **Consequences:** metadata создаётся editable install локально и игнорируется Git; source package остаётся в `src/era5_minimum`.
+
+## DEC-016 — Unified ERA5 downloader
+
+**Status:** accepted
+**Date:** 2026-07-22
+
+**Context:** два scripts содержали разные CDS request schemas, time coverage и конфликтующий single-file output path.
+
+**Decision:** единый downloader находится в `scripts/download_era5.py`; старые scripts остаются только deprecated wrappers без request schema.
+
+**Consequences:** documentation и новые integrations используют один CLI; wrappers предупреждают участника и делегируют ему аргументы.
+
+## DEC-017 — Safe download staging and overwrite
+
+**Status:** accepted
+**Date:** 2026-07-22
+
+**Context:** raw ERA5 files нельзя частично записывать или молча заменять.
+
+**Decision:** download идёт во temporary `.part` и staging directory; существующий day dataset отклоняется без `--overwrite` и заменяется только после подготовки новой полной пары.
+
+**Consequences:** failed request не выглядит как successful dataset; overwrite требует явного user intent и оставляет старые данные до готовности replacement.
+
+## DEC-018 — CDS credential boundary
+
+**Status:** accepted
+**Date:** 2026-07-22
+
+**Context:** tests, CI и data loader не должны зависеть от личных CDS credentials.
+
+**Decision:** credentials хранятся только в `~/.cdsapirc`; downloader lazy-imports `cdsapi` только для real request.
+
+**Consequences:** dry-run и tests offline; credentials никогда не входят в repository, request.json, metadata.json, manifests или logs.
+
+## DEC-019 — Download provenance artifacts
+
+**Status:** accepted
+**Date:** 2026-07-22
+
+**Context:** raw data должны быть проверяемыми и воспроизводимыми без хранения credentials.
+
+**Decision:** каждая successful raw download сохраняет `request.json`, `metadata.json` и `SHA256SUMS.txt` рядом с confirmed NetCDF pair.
+
+**Consequences:** request, files and hashes можно проверить перед shared-storage upload; manifest не содержит self-referential metadata hash.

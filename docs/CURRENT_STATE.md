@@ -27,6 +27,7 @@
 - Детерминированный subsampling 0.25° → 0.5°.
 - Output tensor `[4, 8, 361, 720]` и отдельная SST mask.
 - `loader_report.json`, тесты loader и inspector, запрет молчаливого создания `tp6h`.
+- Единый безопасный ERA5 downloader с offline dry-run, request/metadata/checksum artifacts и deprecated wrappers старых scripts.
 
 ## In progress
 
@@ -44,7 +45,6 @@
 
 - Старые документы и шаблоны всё ещё содержат `tp6h` и `mslp`, хотя raw pipeline использует `tp1h` и `msl`.
 - `configs/research_template.yaml` содержит `source=netcdf`, но `experiments.py` пока поддерживает только synthetic source.
-- Два download-скрипта используют конфликтующий output path.
 - Подробное расхождение planned config и current runner: [CONFIG_CONTRACT_GAP.md](CONFIG_CONTRACT_GAP.md).
 
 ## Current milestone

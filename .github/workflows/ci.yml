@@ -19,4 +19,5 @@ jobs:
       - run: python -m pip check
       - run: python -c "import era5_minimum; from era5_minimum.data import era5_loader, inspect_netcdf; print('imports ok')"
       - run: python -m pytest -q
+      - run: make download-dry-run
       - run: make smoke

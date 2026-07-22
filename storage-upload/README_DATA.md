@@ -28,6 +28,10 @@ ERA5 hourly data on single levels from 1940 to present.
 - разрешение: 0.25°
 - размер: 721 × 1440
 
+## Воспроизводимая выгрузка
+
+Для CDS используется только `scripts/download_era5.py`. Он сохраняет рядом с raw pair `request.json`, `metadata.json` и `SHA256SUMS.txt`; до upload проверьте manifest командой из [DOWNLOAD_WORKFLOW.md](../docs/DOWNLOAD_WORKFLOW.md). Старые `download_era5_day.py` и `download_era5_example.py` — только deprecated wrappers.
+
 ## Мгновенные поля
 
 Файл:
@@ -80,3 +84,4 @@ ERA5 hourly data on single levels from 1940 to present.
 4. Обработанные данные сохранять только в Team Workspace.
 5. CDS API-токены в хранилище не загружать.
 6. Файл `.cdsapirc` никому не передавать.
+7. Перед upload проверить SHA-256 и не заменять существующую shared raw copy без согласования.
