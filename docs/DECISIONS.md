@@ -1,5 +1,7 @@
 # Decision log
 
+Актуальный contract данных: [DATA_CONTRACT.md](DATA_CONTRACT.md).
+
 ## D-001 — Основной объект исследования
 
 **Решение:** искать минимальную репрезентативную выборку, а не максимизировать размер модели.
@@ -29,3 +31,58 @@
 **Решение:** проверить программный цикл до доступа к реальному датасету.
 
 **Причина:** synthetic data не доказывает качество модели, но быстро обнаруживает ошибки форм, метрик, конфигов и автоматизации.
+
+## DEC-007 — Единый источник истины по данным
+
+**Status:** accepted
+**Date:** 2026-07-22
+
+**Context:** schema, names и пути данных были распределены между planning documents и loader implementation.
+
+**Decision:** единственным актуальным источником истины по структуре данных является `docs/DATA_CONTRACT.md`.
+
+**Consequences:** актуальные документы ссылаются на contract; historical documents сохраняются с явным предупреждением.
+
+## DEC-008 — Canonical precipitation channel
+
+**Status:** accepted
+**Date:** 2026-07-22
+
+**Context:** raw accumulated variable называется `tp`, а четыре разреженных timestamps не подтверждают семантику `tp6h`.
+
+**Decision:** raw precipitation сохраняет имя `tp`, а после loader rename canonical model channel называется `tp1h`.
+
+**Consequences:** `tp6h` нельзя создавать или использовать без шести последовательных часовых значений и отдельной документированной агрегации.
+
+## DEC-009 — Canonical sea-level pressure name
+
+**Status:** accepted
+**Date:** 2026-07-22
+
+**Context:** confirmed raw instant file использует variable name `msl`, тогда как часть historical material использует `mslp`.
+
+**Decision:** каноническое имя давления на уровне моря — `msl`.
+
+**Consequences:** новые consumers используют `msl`; legacy references требуют явной классификации или adapter-а.
+
+## DEC-010 — Raw input layout
+
+**Status:** accepted
+**Date:** 2026-07-22
+
+**Context:** фактическая выгрузка разделена по GRIB step type на два NetCDF.
+
+**Decision:** рабочий raw input — пара instant/accumulated NetCDF, а не единый `prepared_era5.nc`.
+
+**Consequences:** loader и future pipeline принимают pair paths; single-file legacy plan не считается текущим contract.
+
+## DEC-011 — Historical documentation compatibility
+
+**Status:** accepted
+**Date:** 2026-07-22
+
+**Context:** historical planning documents важны для происхождения решений, но могут содержать устаревшие names и planned architecture.
+
+**Decision:** historical documents сохраняются, но должны ссылаться на актуальный data contract или иметь historical banner.
+
+**Consequences:** история не переписывается; при конфликте приоритет имеет `docs/DATA_CONTRACT.md`.

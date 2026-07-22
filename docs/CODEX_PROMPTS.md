@@ -1,5 +1,7 @@
 # Готовые промты для Codex
 
+> Historical planning document. Актуальная схема данных находится в [DATA_CONTRACT.md](DATA_CONTRACT.md).
+
 Каждый промт построен по схеме Goal / Context / Constraints / Done when.
 
 ## 0. Аудит стартового каркаса

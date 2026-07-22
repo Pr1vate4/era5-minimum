@@ -3,6 +3,8 @@
 **Дата:** 2026-07-22
 **Текущий milestone:** Team Bootstrap
 
+Актуальная schema данных зафиксирована в [DATA_CONTRACT.md](DATA_CONTRACT.md).
+
 ## Выполнено
 
 - Реализован NetCDF schema inspector.

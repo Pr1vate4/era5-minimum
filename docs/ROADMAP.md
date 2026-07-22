@@ -1,5 +1,7 @@
 # Roadmap до победы
 
+Актуальная ERA5 schema и ограничения raw input определены в [DATA_CONTRACT.md](DATA_CONTRACT.md).
+
 ## Этап 0 — постановка
 
 Зафиксировать:

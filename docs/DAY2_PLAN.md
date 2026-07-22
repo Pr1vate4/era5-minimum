@@ -1,5 +1,7 @@
 # DAY 2 — Реальные данные ERA5 и NetCDF pipeline
 
+> Historical planning document. Актуальная схема данных находится в [DATA_CONTRACT.md](DATA_CONTRACT.md).
+
 ## Цель дня
 
 Перевести проект с synthetic-only MVP на первый честный real-data pipeline:

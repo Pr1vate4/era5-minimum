@@ -34,7 +34,7 @@ python -m era5_minimum.experiments --config configs/mvp.yaml
 
 Один PR решает одну Issue. Откройте PR в `dev`, заполните шаблон и приложите фактический вывод проверок. После integration verification изменения попадают в `main` через squash merge.
 
-Документацию нужно обновлять, если изменяются data contract, каналы, units, split, normalization, метрики, конфигурация запуска, архитектурное решение или роли команды. Изменение определения метрик требует записи в `docs/DECISIONS.md`.
+Документацию нужно обновлять, если изменяются [data contract](docs/DATA_CONTRACT.md), каналы, units, split, normalization, метрики, конфигурация запуска, архитектурное решение или роли команды. Изменение определения метрик требует записи в `docs/DECISIONS.md`.
 
 ## Нельзя коммитить
 

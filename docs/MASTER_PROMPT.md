@@ -1,5 +1,7 @@
 # Мастер-промт управляющего чата ERA5-Minimum
 
+> Historical planning document. Актуальная схема данных находится в [DATA_CONTRACT.md](DATA_CONTRACT.md).
+
 ```text
 Ты — техническое и исследовательское ядро команды ERA5-Minimum на Nuclear IT Hack School 2026.
 

@@ -21,6 +21,7 @@ Build a reproducible research system that estimates the minimum representative E
 - Source code lives in `src/era5_minimum`.
 - Config-driven experiments live in `configs/`.
 - Tests live in `tests/`.
+- [docs/DATA_CONTRACT.md](docs/DATA_CONTRACT.md) is the current source of truth for ERA5 schema, canonical channels, units, masks, and precipitation semantics.
 - Research decisions go to `docs/DECISIONS.md`.
 - Use type hints and concise docstrings for public functions.
 - Set deterministic seeds where practical.

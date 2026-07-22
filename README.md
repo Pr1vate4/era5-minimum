@@ -40,6 +40,8 @@ python -m era5_minimum.experiments --config configs/mvp.yaml
 - `docs/TEAM_ROLES.md` — роли и ownership;
 - `docs/WORKFLOW.md` — GitHub workflow;
 - `docs/HANDOFF_DAY2.md` — актуальный handoff после real ERA5 loader;
+- [docs/DATA_CONTRACT.md](docs/DATA_CONTRACT.md) — единственный актуальный контракт ERA5 schema, channels и units;
+- `docs/CONFIG_CONTRACT_GAP.md` — известное расхождение planned real-data config и текущего runner;
 - `docs/DAY1_PLAN.md` — задачи первого дня;
 - `docs/ROADMAP.md` — этапы до защиты;
 - `docs/THEORY.md` — теория и методология;

@@ -8,6 +8,7 @@
 
 ## Confirmed
 
+- Актуальный source of truth по данным: [DATA_CONTRACT.md](DATA_CONTRACT.md).
 - Получена пара raw NetCDF за 2024-01-01: instant-поля и accumulated-поле.
 - Временные точки: 00:00, 06:00, 12:00 и 18:00 UTC.
 - Исходная сетка: 721 × 1440, 0.25°; latitude убывает от 90 до -90, longitude возрастает от 0 до 359.75.
@@ -44,6 +45,7 @@
 - Два download-скрипта используют конфликтующий output path.
 - `pyproject.toml` и `requirements.txt` содержат разные наборы зависимостей.
 - `src/era5_minimum.egg-info` отслеживается Git, хотя это generated metadata.
+- Подробное расхождение planned config и current runner: [CONFIG_CONTRACT_GAP.md](CONFIG_CONTRACT_GAP.md).
 
 ## Current milestone
 

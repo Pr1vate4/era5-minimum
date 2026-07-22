@@ -1,5 +1,7 @@
 # ERA5-Minimum — данные
 
+Актуальный versioned contract для этой выгрузки: [docs/DATA_CONTRACT.md](../docs/DATA_CONTRACT.md).
+
 ## Источник
 
 Copernicus Climate Data Store.
