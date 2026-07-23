@@ -26,6 +26,17 @@
 - [x] Проверена SST mask.
 - [x] Подтверждено, что `tp1h` не является `tp6h`.
 
+### DATA-002B — range downloader implementation — completed
+
+- [x] Реализован последовательный range downloader, переиспользующий safe daily downloader.
+- [x] Добавлены offline tests для range planning, checksums, resume и error policy.
+- [x] Добавлены offline CLI и CI dry-run checks без CDS credentials или сети.
+
+### DATA-002C — seven-day real CDS pilot
+
+- [ ] Выполнить отдельную real CDS pilot за семь последовательных дней после явного запуска владельцем задачи.
+- [ ] Проверить daily manifests и передать только подтверждённый результат в shared storage.
+
 ### Remaining DATA-002 work
 
 - [ ] Определить итоговый временной диапазон для исследования.

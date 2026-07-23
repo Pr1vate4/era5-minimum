@@ -130,7 +130,17 @@ python scripts/download_era5.py \
 - Если `research_template.yaml` не запускается, это ожидаемо: current runner поддерживает только synthetic source. См. [CONFIG_CONTRACT_GAP.md](CONFIG_CONTRACT_GAP.md).
 - Не используйте четыре текущих timestamp для обучения, split или создания `tp6h`.
 
-## 17. Clean generated files
+## 17. Range download dry-run
+
+Range downloader обрабатывает дни последовательно и переиспользует safe daily downloader. Offline-проверка не создаёт dataset:
+
+```bash
+make download-range-dry-run
+```
+
+Реальный range запуск, resume, checksums и seven-day pilot описаны в [RANGE_DOWNLOAD_WORKFLOW.md](RANGE_DOWNLOAD_WORKFLOW.md).
+
+## 18. Clean generated files
 
 ```bash
 make clean
@@ -138,7 +148,7 @@ make clean
 
 Команда не удаляет raw data.
 
-## 18. Before creating a Pull Request
+## 19. Before creating a Pull Request
 
 ```bash
 make verify

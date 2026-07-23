@@ -174,3 +174,47 @@
 **Decision:** каждая successful raw download сохраняет `request.json`, `metadata.json` и `SHA256SUMS.txt` рядом с confirmed NetCDF pair.
 
 **Consequences:** request, files and hashes можно проверить перед shared-storage upload; manifest не содержит self-referential metadata hash.
+
+## DEC-020 — Independent daily raw datasets
+
+**Status:** accepted
+**Date:** 2026-07-23
+
+**Context:** multi-day raw ERA5 downloads must be resumable, individually verifiable and safe to replace one day at a time.
+
+**Decision:** многодневный ERA5 dataset хранится отдельными дневными наборами, а не одним огромным raw-файлом.
+
+**Consequences:** каждая дата сохраняет собственные request, metadata и checksums; failure одного дня не повреждает остальные.
+
+## DEC-021 — Range downloader delegates to daily downloader
+
+**Status:** accepted
+**Date:** 2026-07-23
+
+**Context:** CDS request schema, ZIP safety, credentials and daily provenance уже реализованы и проверены в одном месте.
+
+**Decision:** range downloader переиспользует однодневный downloader и не дублирует CDS request schema.
+
+**Consequences:** изменения per-day download logic остаются централизованными; range layer отвечает только за dates, resume и range metadata.
+
+## DEC-022 — Verified-day resume rule
+
+**Status:** accepted
+**Date:** 2026-07-23
+
+**Context:** наличие директории не доказывает целостность raw data.
+
+**Decision:** повторный запуск пропускает только полные дни с успешно проверенными checksums.
+
+**Consequences:** incomplete или corrupted daily directory без `--overwrite` фиксируется как failure; range layer самостоятельно ничего не удаляет.
+
+## DEC-023 — Honest range failure reporting
+
+**Status:** accepted
+**Date:** 2026-07-23
+
+**Context:** partial range downloads требуют проверяемого статуса для каждого дня и безопасного resume.
+
+**Decision:** ошибки диапазона фиксируются в `range_manifest.json`, а наличие хотя бы одного failed day запрещает status `completed`.
+
+**Consequences:** default run stops at first failure; `--continue-on-error` processes later dates but still returns a non-zero result when failures remain.

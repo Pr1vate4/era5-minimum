@@ -14,6 +14,7 @@
 - schema inspector и strict loader подтверждённой пары raw ERA5 NetCDF;
 - SST mask, half-degree subsampling и tensor `[4, 8, 361, 720]` для тестовой pair;
 - безопасный ERA5 downloader с offline dry-run и SHA-256 provenance artifacts;
+- последовательный range downloader, который переиспользует daily downloader и проверен offline;
 - обучение на нескольких размерах выборки;
 - обычные и широтно-взвешенные метрики;
 - CSV/JSON-отчёт;
@@ -35,6 +36,7 @@ make verify
 
 ```bash
 make download-dry-run
+make download-range-dry-run
 ```
 
 ## Честное ограничение MVP
@@ -56,6 +58,7 @@ make download-dry-run
 - `docs/CONFIG_CONTRACT_GAP.md` — известное расхождение planned real-data config и текущего runner;
 - `docs/DEVELOPMENT.md` — установка Python 3.12, local commands и CI-equivalent workflow;
 - `docs/DOWNLOAD_WORKFLOW.md` — безопасная воспроизводимая выгрузка ERA5 через CDS;
+- `docs/RANGE_DOWNLOAD_WORKFLOW.md` — последовательная пакетная выгрузка и resume по независимым дням;
 - `docs/DAY1_PLAN.md` — задачи первого дня;
 - `docs/ROADMAP.md` — этапы до защиты;
 - `docs/THEORY.md` — теория и методология;

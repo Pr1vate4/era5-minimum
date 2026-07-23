@@ -22,7 +22,7 @@ Build a reproducible research system that estimates the minimum representative E
 - Config-driven experiments live in `configs/`.
 - Tests live in `tests/`.
 - [docs/DATA_CONTRACT.md](docs/DATA_CONTRACT.md) is the current source of truth for ERA5 schema, canonical channels, units, masks, and precipitation semantics.
-- ERA5 downloads use only `scripts/download_era5.py`; its dry-run must remain offline and must not import `cdsapi`.
+- ERA5 daily downloads use `scripts/download_era5.py`; `scripts/download_era5_range.py` may only orchestrate it. Both dry-runs must remain offline and must not import `cdsapi`.
 - CDS credentials belong only in `~/.cdsapirc`; never read, print, copy, or place them in project artifacts.
 - Research decisions go to `docs/DECISIONS.md`.
 - Use type hints and concise docstrings for public functions.

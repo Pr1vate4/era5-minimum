@@ -114,3 +114,7 @@ Never commit raw data, archives, `request.json`, `metadata.json`, checksums cont
 ## 18. Precipitation warning
 
 Raw `tp` is accumulated precipitation. The four sparse timestamps 00:00, 06:00, 12:00, and 18:00 do not create `tp6h`. This downloader does not rename `tp`, create `tp1h`, or derive `tp6h`.
+
+## 19. Multiple dates
+
+For a sequential multi-day request, use [RANGE_DOWNLOAD_WORKFLOW.md](RANGE_DOWNLOAD_WORKFLOW.md). Its range CLI orchestrates this daily downloader without duplicating CDS request, credential, ZIP, checksum or per-day provenance logic.

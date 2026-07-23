@@ -29,6 +29,7 @@
 - Output tensor `[4, 8, 361, 720]` и отдельная SST mask.
 - `loader_report.json`, тесты loader и inspector, запрет молчаливого создания `tp6h`.
 - Единый безопасный ERA5 downloader с offline dry-run, request/metadata/checksum artifacts и deprecated wrappers старых scripts.
+- Sequential range downloader, который переиспользует daily downloader, хранит дни независимо и проверен только offline tests/dry-run.
 - Team onboarding, assigned first-stage backlog, security policy, CODEOWNERS, Issue/PR templates и Python 3.12 CI.
 
 ### Real 24-hour ERA5 smoke test — completed
@@ -66,7 +67,7 @@
 
 ## Current milestone
 
-DATA-002 — расширение последовательного ERA5 dataset. 24-часовой smoke-test completed, но DATA-002 остаётся in progress до получения достаточно длинного, разнообразного и shared-storage verified hourly range.
+DATA-002 — расширение последовательного ERA5 dataset. 24-часовой smoke-test и range downloader implementation completed offline, но DATA-002 остаётся in progress до получения достаточно длинного, разнообразного и shared-storage verified hourly range. Семидневная real CDS pilot ещё не выполнялась.
 
 ## Blocking conditions
 

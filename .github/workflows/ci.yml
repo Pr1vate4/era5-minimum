@@ -20,4 +20,7 @@ jobs:
       - run: python -c "import era5_minimum; from era5_minimum.data import era5_loader, inspect_netcdf; print('imports ok')"
       - run: python -m pytest -q
       - run: make download-dry-run
+      - run: |
+          python scripts/download_era5_range.py --start-date 2024-01-01 --end-date 2024-01-03 --output-root /tmp/era5-range-ci --dry-run
+          test ! -e /tmp/era5-range-ci
       - run: make smoke
