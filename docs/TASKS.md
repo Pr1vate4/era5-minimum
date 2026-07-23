@@ -6,13 +6,34 @@
 
 - **Цель:** получить достаточный последовательный hourly ERA5 range для честных future split и research.
 - **Owner:** @Pr1vate4.
-- **Priority / status:** P0 / ready.
+- **Priority / status:** P0 / in progress.
 - **Dependencies:** none.
 - **Inputs:** confirmed CDS request schema, safe downloader, approved Team Workspace.
 - **Expected outputs:** полный hourly range; `request.json`; `metadata.json`; `SHA256SUMS.txt`; shared-storage upload; подтверждённая schema.
 - **Acceptance criteria:** raw pair не в Git; manifest проходит verification; schema соответствует contract либо расхождение документировано и заблокировало consumer work.
 - **Verification:** downloader dry-run, checksum verification, inspector и strict loader на representative pair.
 - **Risks:** CDS licence/access, storage capacity, changed schema, insufficient temporal coverage.
+
+### Completed checkpoint: 24-hour real-data smoke test
+
+- [x] Выполнен настоящий CDS-запрос за 2024-01-02.
+- [x] Получены 24 последовательных hourly timestamps.
+- [x] Получена пара instant/accumulated NetCDF.
+- [x] Downloader создал `request.json`, `metadata.json` и `SHA256SUMS.txt`.
+- [x] Проверена целостность файлов: `sha256sum -c SHA256SUMS.txt` завершилась с `OK` для обоих NetCDF и `request.json`.
+- [x] Real loader создал tensor `[24, 8, 361, 720]`.
+- [x] Проверены canonical channels и физические единицы.
+- [x] Проверена SST mask.
+- [x] Подтверждено, что `tp1h` не является `tp6h`.
+
+### Remaining DATA-002 work
+
+- [ ] Определить итоговый временной диапазон для исследования.
+- [ ] Скачать достаточно длинный последовательный hourly dataset.
+- [ ] Обеспечить сезонное и погодное разнообразие данных.
+- [ ] Загрузить подтверждённый raw dataset в общее хранилище.
+- [ ] Проверить schema и checksums всего итогового набора.
+- [ ] Передать dataset в DATA-003 для temporal split и train-only normalization.
 
 ## DATA-003 — Temporal split and train-only normalization
 
