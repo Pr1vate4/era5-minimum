@@ -29,7 +29,7 @@
 - Output tensor `[4, 8, 361, 720]` и отдельная SST mask.
 - `loader_report.json`, тесты loader и inspector, запрет молчаливого создания `tp6h`.
 - Единый безопасный ERA5 downloader с offline dry-run, request/metadata/checksum artifacts и deprecated wrappers старых scripts.
-- Sequential range downloader, который переиспользует daily downloader, хранит дни независимо и проверен только offline tests/dry-run.
+- Sequential range downloader, который переиспользует daily downloader, хранит дни независимо, имеет offline tests/dry-run и прошёл реальный семидневный pipeline pilot.
 - Team onboarding, assigned first-stage backlog, security policy, CODEOWNERS, Issue/PR templates и Python 3.12 CI.
 
 ### Real 24-hour ERA5 smoke test — completed
@@ -44,6 +44,16 @@
 - Timestamps имеют shape `[24]`; latitude и longitude — `[361]` и `[720]`; coordinate ranges в loader report: latitude `-90.0`—`90.0`, longitude `0.0`—`359.5`; downsampling — `subsampling_every_second_grid_point`.
 - Warning loader остаётся явным: `tp1h` — one-hour accumulation, не `tp6h`; `tp6h` не создан.
 - Одних суток недостаточно для temporal split, train-only normalization, честного обучения, PCA/ConvAE research, sample-efficiency research или вывода о минимальном размере выборки.
+
+### Real ERA5 seven-day pilot — completed (DATA-002C)
+
+- Локально проверен период `2024-01-02`—`2024-01-08` UTC: семь последовательных дней и 168 последовательных hourly timestamps от `2024-01-02T00:00:00Z` до `2024-01-08T23:00:00Z`; пропусков и дубликатов нет.
+- Все семь дневных raw-наборов содержат instant/accumulated NetCDF pair, `request.json`, `metadata.json` и `SHA256SUMS.txt`; все проверяемые SHA-256 entries прошли.
+- `range_manifest.json` содержит `requested_days=7`, `verified_days=7`, `skipped_days=1`, `failed_days=0` и `completed=true`. День `2024-01-02` корректно пропущен как уже complete (`skip-existing`); `2024-01-03`—`2024-01-08` загружены и verified.
+- Loader успешно обработал каждый день: найдены семь NPZ и семь valid JSON loader reports. Каждый NPZ имеет shape `[24, 8, 361, 720]`, dtype `float32`, а всего получено 168 time slices.
+- Во всех NPZ совпадают canonical channel order `u10, v10, t2m, msl, sst, tcc, tcwv, tp1h`, units, coordinates и SST mask. `tp1h` не переименовывался в `tp6h`; `tp6h` не создавался.
+
+The seven-day dataset is a real multi-day pipeline pilot, not the final research dataset.
 
 ## Completed in current milestone
 
@@ -67,7 +77,9 @@
 
 ## Current milestone
 
-DATA-002 — расширение последовательного ERA5 dataset. 24-часовой smoke-test и range downloader implementation completed offline, но DATA-002 остаётся in progress до получения достаточно длинного, разнообразного и shared-storage verified hourly range. Семидневная real CDS pilot ещё не выполнялась.
+DATA-002 — расширение последовательного ERA5 dataset. 24-часовой smoke-test, range downloader и семидневный real pipeline pilot completed, но DATA-002 остаётся in progress до согласования и получения достаточно длинного, разнообразного final research dataset с verified shared-storage copy.
+
+Следующий этап DATA-002: согласовать итоговый временной диапазон с ML Lead, определить сезонные блоки или иной способ обеспечить разнообразие, оценить доступное хранилище, загрузить итоговый исследовательский набор и передать его в DATA-003.
 
 ## Blocking conditions
 

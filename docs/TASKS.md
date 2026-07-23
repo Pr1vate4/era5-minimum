@@ -32,19 +32,32 @@
 - [x] Добавлены offline tests для range planning, checksums, resume и error policy.
 - [x] Добавлены offline CLI и CI dry-run checks без CDS credentials или сети.
 
-### DATA-002C — seven-day real CDS pilot
+### DATA-002C — seven-day real CDS pilot — completed
 
-- [ ] Выполнить отдельную real CDS pilot за семь последовательных дней после явного запуска владельцем задачи.
-- [ ] Проверить daily manifests и передать только подтверждённый результат в shared storage.
+### Completed checkpoint: seven-day real ERA5 pilot
+
+- [x] Загружен период `2024-01-02`—`2024-01-08`.
+- [x] Подтверждены 7 последовательных дней.
+- [x] Подтверждены 168 последовательных hourly timestamps.
+- [x] Пропуски и дубликаты timestamps отсутствуют.
+- [x] Каждый день содержит пару instant/accumulated NetCDF.
+- [x] SHA-256 checksums всех дневных наборов прошли.
+- [x] Range manifest завершён без failed days.
+- [x] Проверено безопасное skip-existing для `2024-01-02`.
+- [x] Loader успешно обработал все семь дней.
+- [x] Создано семь NPZ формы `[24, 8, 361, 720]`.
+- [x] Проверены channel order, units, coordinates и SST mask.
+- [x] Подтверждено, что `tp1h` не является `tp6h`.
 
 ### Remaining DATA-002 work
 
-- [ ] Определить итоговый временной диапазон для исследования.
-- [ ] Скачать достаточно длинный последовательный hourly dataset.
-- [ ] Обеспечить сезонное и погодное разнообразие данных.
-- [ ] Загрузить подтверждённый raw dataset в общее хранилище.
-- [ ] Проверить schema и checksums всего итогового набора.
-- [ ] Передать dataset в DATA-003 для temporal split и train-only normalization.
+- [ ] Согласовать финальный исследовательский временной диапазон.
+- [ ] Обеспечить достаточное сезонное и погодное разнообразие.
+- [ ] Оценить необходимый объём диска и общего хранилища.
+- [ ] Скачать финальный исследовательский dataset.
+- [ ] Загрузить финальный raw dataset в общее хранилище.
+- [ ] Проверить полноту и checksums финального набора.
+- [ ] Передать финальный dataset в DATA-003.
 
 ## DATA-003 — Temporal split and train-only normalization
 

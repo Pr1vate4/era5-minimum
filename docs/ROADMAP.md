@@ -9,10 +9,12 @@
 | Real loader | completed | Inspector, strict pair loader, `tp → tp1h` в loader и 0.5° subsampling. |
 | Team Bootstrap | completed | Python 3.12 CI, workflow, templates, onboarding, security policy и offline downloader checks. |
 | Safe downloader | completed | Один CDS CLI, dry-run, staging, ZIP safety, provenance и SHA-256. |
-| Extended real dataset | next | DATA-002: verified sequential hourly ERA5 range в shared storage. |
+| Range downloader | completed | Sequential orchestration, resume/skip-existing и independent daily verification. |
+| Seven-day real ERA5 pilot | completed | Реальный multi-day pipeline pilot за 2024-01-02—2024-01-08: 168 hourly timestamps, verified daily raw pairs и loader outputs. |
+| Final research dataset | next | DATA-002: согласование selection/diversity, storage assessment и verified sequential hourly range в shared storage. |
 | Split and normalization | planned | DATA-003 после DATA-002, без temporal leakage и с train-only statistics. |
 | Baselines | planned | PCA и ConvAE 32× на достаточных real data. |
 | Sample-efficiency research | planned | Fixed validation/test, controlled train sizes и documented selection strategies. |
 | Product/demo | planned | Visualization contract, mock dashboard, затем API/frontend/monitoring по отдельным задачам. |
 
-Нельзя переходить к честному real-data baseline или research, пока DATA-002 и DATA-003 не приняты. Текущие четыре timestamps не являются training dataset.
+Нельзя переходить к честному real-data baseline или research, пока DATA-002 и DATA-003 не приняты. Семидневный pipeline pilot не является финальным training dataset.

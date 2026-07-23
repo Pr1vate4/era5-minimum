@@ -107,6 +107,10 @@ Raw range outputs remain ignored by Git. Verify every successful day before copy
 
 Seven consecutive days are a technical pilot for request volume, daily manifests and storage workflow. They are **not** the final research dataset and cannot alone establish seasonal or weather-regime diversity.
 
+## Verified real seven-day pilot
+
+The local pilot for `2024-01-02`—`2024-01-08` verified seven daily raw pairs and 168 consecutive hourly timestamps. The range downloader safely skipped the already complete first day and downloaded/verified the remaining six; all daily checksums passed and the range manifest completed without failures. The real loader processed all seven days into daily `[24, 8, 361, 720]` NPZ artifacts with consistent channels, units, coordinates and SST mask. This confirms resume/skip-existing and multi-day workflow behavior, not a final research dataset.
+
 ## Shared storage upload
 
 Upload only after the owner verifies complete daily manifests and checksums. Do not mark DATA-002 complete until the final intended range, diversity criteria and shared-storage verification are accepted.
@@ -124,7 +128,7 @@ No token CLI argument exists. Dry-run needs no credentials. Do not commit range 
 
 ## Relationship to DATA-002
 
-The range tool implements DATA-002B only. DATA-002C, a real seven-day CDS pilot, and the final diverse sequential dataset remain separate, uncompleted checkpoints in [TASKS.md](TASKS.md).
+The range tool implements DATA-002B. DATA-002C, the real seven-day CDS pilot, is completed; the final diverse sequential dataset remains a separate uncompleted checkpoint in [TASKS.md](TASKS.md).
 
 ## Limitations
 

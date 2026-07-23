@@ -218,3 +218,14 @@
 **Decision:** ошибки диапазона фиксируются в `range_manifest.json`, а наличие хотя бы одного failed day запрещает status `completed`.
 
 **Consequences:** default run stops at first failure; `--continue-on-error` processes later dates but still returns a non-zero result when failures remain.
+
+## DEC-024 — Seven-day range is a pipeline pilot, not a research dataset
+
+**Status:** accepted
+**Date:** 2026-07-23
+
+**Context:** локально подтверждённый диапазон `2024-01-02`—`2024-01-08` показывает, что multi-day download, checksum verification, resume/skip-existing и loader workflow технически устойчивы на 168 hourly timestamps.
+
+**Decision:** считать этот семидневный диапазон техническим multi-day pipeline pilot, а не окончательным исследовательским dataset.
+
+**Consequences:** пилот не подтверждает сезонную или погодную репрезентативность и не открывает temporal split, train-only normalization или model research. Итоговый объём и selection strategy определяются отдельно совместно с ML Lead до завершения DATA-002.
