@@ -29,3 +29,15 @@ def test_normalization_spec_keeps_train_only_provenance() -> None:
 
     assert payload["train_only"] is True
     assert payload["source_manifest_sha256"] == "abc123"
+
+
+def test_normalization_spec_coerces_channel_order_to_tuple() -> None:
+    spec = NormalizationSpec(
+        channel_order=["t2m", "msl"],
+        mean=np.array([1.0, 2.0], dtype=np.float32),
+        std=np.array([3.0, 4.0], dtype=np.float32),
+        source_manifest_sha256="abc123",
+        train_only=True,
+    )
+
+    assert isinstance(spec.channel_order, tuple)

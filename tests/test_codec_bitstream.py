@@ -33,3 +33,13 @@ def test_canonical_huffman_roundtrips_single_symbol_stream() -> None:
     decoded = coder.decode(payload, symbol_count=symbols.size)
 
     assert np.array_equal(decoded, symbols)
+
+
+def test_canonical_huffman_decodes_symbol_count_from_header() -> None:
+    symbols = np.array([4, 4, 5, 6, 6], dtype=np.int32)
+    coder = CanonicalHuffmanCoder.from_symbols(symbols)
+
+    payload = coder.encode(symbols)
+    decoded = coder.decode(payload)
+
+    assert np.array_equal(decoded, symbols)

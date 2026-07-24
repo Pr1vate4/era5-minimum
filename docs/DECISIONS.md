@@ -251,3 +251,14 @@
 **Decision:** first latent probe uses frozen PCA latents, trains a compact predictor on consecutive latent pairs, and records improvement against persistence.
 
 **Consequences:** probe workflow becomes runnable now, stays reproducible, and keeps encoder/decoder frozen during probe training.
+
+## DEC-027 — Codec smoke uses synthetic 28-channel ConvAE baseline
+
+**Status:** accepted
+**Date:** 2026-07-24
+
+**Context:** ML-001 still needs a runnable smoke codec path before the full real-data 32x/64x training stack lands.
+
+**Decision:** smoke codec training uses a synthetic 28-channel tensor, a small ConvAE, masked SST on land, real canonical Huffman bitstreams, and separate validation/test bitstreams.
+
+**Consequences:** the repo now has a reproducible local codec contour with checkpoint, resource log, metrics, and exact symbol roundtrip, while remaining explicit that it is a smoke baseline rather than the final research model.

@@ -91,7 +91,7 @@ class CanonicalHuffmanCoder:
         ).encode("utf-8")
         return struct.pack("<I", len(header)) + header + writer.finish()
 
-    def decode(self, payload: bytes, symbol_count: int) -> np.ndarray:
+    def decode(self, payload: bytes, symbol_count: int | None = None) -> np.ndarray:
         if len(payload) < _HEADER_SIZE:
             raise BitstreamError("bitstream is truncated")
 
@@ -107,7 +107,10 @@ class CanonicalHuffmanCoder:
 
         if header.get("format") != _FORMAT_VERSION:
             raise BitstreamError(f"unsupported bitstream format: {header.get('format')!r}")
-        if int(header.get("symbol_count", -1)) != int(symbol_count):
+        header_symbol_count = int(header.get("symbol_count", -1))
+        if symbol_count is None:
+            symbol_count = header_symbol_count
+        if header_symbol_count != int(symbol_count):
             raise BitstreamError("symbol count does not match bitstream header")
 
         try:

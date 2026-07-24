@@ -1,0 +1,29 @@
+seed: 7
+output_dir: outputs/codec_0p5_64x
+
+data:
+  samples: 20
+  height: 8
+  width: 8
+  validation_samples: 4
+  test_samples: 4
+
+model:
+  latent_channels: 4
+  parameter_limit: 2000000
+
+codec:
+  version: ml-001
+  grid: 0.5deg
+  quantization_step: 0.25
+  target_compression_ratio: 64
+
+training:
+  batch_size: 4
+  epochs: 2
+  learning_rate: 0.001
+  max_steps: 4
+
+resources:
+  max_vram_gb: 24
+  max_gpu_hours: 48
