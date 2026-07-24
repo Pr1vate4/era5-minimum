@@ -4,6 +4,7 @@ export default defineConfig(function (_a) {
     var mode = _a.mode;
     var env = loadEnv(mode, '.', '');
     return {
+        base: './',
         plugins: [react()],
         server: {
             host: env.VITE_HOST || '0.0.0.0',

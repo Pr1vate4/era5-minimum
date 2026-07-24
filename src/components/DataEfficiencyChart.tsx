@@ -1,27 +1,107 @@
-import { CartesianGrid, Line, LineChart, ResponsiveContainer, XAxis, YAxis } from 'recharts'
-import type { DataEfficiencyPoint } from '../types'
+import {
+  CartesianGrid,
+  Line,
+  LineChart,
+  ResponsiveContainer,
+  XAxis,
+  YAxis,
+} from 'recharts'
+import type { DataEfficiencyChartPoint } from '../data/resultsSelectors'
+import { chartTheme } from '../data/chartTheme'
 import { ChartTooltip } from './ChartTooltip'
 
-const BLUE = '#3B82F6'
+export type DataEfficiencyMetric = 'overall_nrmse' | 'surface_nrmse' | 'pressure_nrmse'
 
-export function DataEfficiencyChart({ data }: { data: DataEfficiencyPoint[] }) {
+const metricLabels: Record<DataEfficiencyMetric, string> = {
+  overall_nrmse: 'Общий NRMSE',
+  surface_nrmse: 'Surface NRMSE',
+  pressure_nrmse: 'Pressure NRMSE',
+}
+
+export function DataEfficiencyChart({
+  data,
+  metric = 'overall_nrmse',
+  showReference = false,
+  showConfidence = false,
+}: {
+  data: DataEfficiencyChartPoint[]
+  metric?: DataEfficiencyMetric
+  showReference?: boolean
+  showConfidence?: boolean
+}) {
+  const ticks = data.map((point) => point.n_samples)
+
   return (
-    <section id="data-efficiency" className="rounded-2xl border border-slate-200 bg-white p-4">
-      <div className="mb-3">
-        <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">Эффективность данных</div>
-        <h2 className="mt-1 text-[17px] font-semibold text-slate-900">Зависимость качества от объёма данных</h2>
-      </div>
-      <div className="h-[260px]">
-        <ResponsiveContainer width="100%" height="100%">
-          <LineChart data={data}>
-            <CartesianGrid vertical={false} stroke="#E5E7EB" strokeDasharray="3 3" />
-            <XAxis type="number" dataKey="n_samples" scale="log" stroke="#64748B" tick={{ fill: '#64748B', fontSize: 11 }} />
-            <YAxis stroke="#64748B" tick={{ fill: '#64748B', fontSize: 11 }} />
-            <ChartTooltip />
-            <Line type="monotone" dataKey="overall_nrmse" stroke={BLUE} strokeWidth={2.2} dot={{ r: 3, fill: BLUE }} />
-          </LineChart>
-        </ResponsiveContainer>
-      </div>
-    </section>
+    <div className="h-[360px] min-h-[320px] w-full">
+      <ResponsiveContainer width="100%" height="100%">
+        <LineChart data={data} margin={{ top: 12, right: 18, bottom: 8, left: 4 }}>
+          <CartesianGrid vertical={false} stroke={chartTheme.grid} strokeDasharray="3 3" />
+          <XAxis
+            type="number"
+            dataKey="n_samples"
+            scale="log"
+            domain={['dataMin', 'dataMax']}
+            ticks={ticks}
+            allowDataOverflow
+            stroke={chartTheme.axis}
+            tick={{ fill: chartTheme.axis, fontSize: 11 }}
+            tickFormatter={(value: number) => value.toLocaleString('ru-RU')}
+          />
+          <YAxis
+            domain={['auto', 'auto']}
+            stroke={chartTheme.axis}
+            tick={{ fill: chartTheme.axis, fontSize: 11 }}
+            tickFormatter={(value: number) => value.toFixed(3)}
+          />
+          <ChartTooltip />
+          {showConfidence ? (
+            <>
+              <Line
+                type="monotone"
+                dataKey="ci_low"
+                name="Нижняя граница CI"
+                connectNulls
+                stroke={chartTheme.reference}
+                strokeWidth={1.2}
+                strokeDasharray="3 4"
+                dot={false}
+              />
+              <Line
+                type="monotone"
+                dataKey="ci_high"
+                name="Верхняя граница CI"
+                connectNulls
+                stroke={chartTheme.reference}
+                strokeWidth={1.2}
+                strokeDasharray="3 4"
+                dot={false}
+              />
+            </>
+          ) : null}
+          {showReference ? (
+            <Line
+              type="monotone"
+              dataKey="reference_nrmse"
+              name="Референс"
+              connectNulls
+              stroke={chartTheme.reference}
+              strokeWidth={1.8}
+              strokeDasharray="6 4"
+              dot={{ r: 2.5, fill: chartTheme.reference }}
+            />
+          ) : null}
+          <Line
+            type="monotone"
+            dataKey={metric}
+            name={metricLabels[metric]}
+            connectNulls
+            stroke={chartTheme.model}
+            strokeWidth={2.4}
+            dot={{ r: 3.5, fill: chartTheme.model }}
+            activeDot={{ r: 5 }}
+          />
+        </LineChart>
+      </ResponsiveContainer>
+    </div>
   )
 }
