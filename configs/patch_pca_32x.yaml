@@ -1,0 +1,50 @@
+#   Конфигурация Patch-based PCA baseline с целевым payload compression
+#   ratio ~32x (раздел 6 PCA_BASELINE.md / п.6 TASKA_mat_cod.txt).
+#
+#   Для текущих данных (8 каналов, патч 8x8): patch_feature_count = 512,
+#   n_components = floor(512 / 32) = 16 -> payload ratio ровно 32x.
+#   Значение n_components НЕ прописано вручную здесь намеренно: задан
+#   только target_compression_ratio, а n_components вычисляется кодом из
+#   реального числа каналов и размера патча (п.6: "Не зашивать эти значения
+#   в код" — то же самое касается и конфига, значение должно уметь
+#   пересчитаться, если поменяется набор каналов).
+
+seed: 42
+
+input: outputs/real_era5/week_2024_01_02_2024_01_08
+output_dir: outputs/models/patch_pca_32x
+
+patch_height: 8
+patch_width: 8
+
+target_compression_ratio: 32
+n_components: null  # приоритетнее target_compression_ratio, если задано
+
+incremental_batch_size: 4096
+max_train_timestamps: null       # null = использовать все доступные train-timestamps
+max_patches_per_timestamp: null  # null = использовать все патчи timestamp'а
+
+train_fraction: 0.7
+validation_fraction: 0.15
+test_fraction: 0.15
+
+expected_channel_names:
+  - u10
+  - v10
+  - t2m
+  - msl
+  - sst
+  - tcc
+  - tcwv
+  - tp1h
+
+normalization:
+  method: streaming_welford
+  ignore_nan: true
+  use_sst_mask: true
+
+dtype: float32
+
+reconstruction_samples:
+  max_timestamps: 3
+  channels: [t2m, msl, sst, tp1h]
