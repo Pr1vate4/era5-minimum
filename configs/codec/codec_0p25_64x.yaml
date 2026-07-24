@@ -18,6 +18,17 @@ codec:
   quantization_step: 0.25
   target_compression_ratio: 64
 
+entropy:
+  model_type: factorized_logistic
+  min_probability: 1.0e-9
+
+loss:
+  type: mse
+  latitude_weighting: true
+  surface_weight: 0.5
+  pressure_weight: 0.5
+  rate_lambda: 0.001
+
 training:
   batch_size: 4
   epochs: 2

@@ -273,3 +273,14 @@
 **Decision:** tiled codec reconstruction splits the entropy-decoded latent, applies latitude clamping and periodic longitude indexing in latent coordinates, decodes tiles with a configurable halo, and stitches them in output-grid coordinates. Tile dimensions and halo are expressed in output-grid pixels and must align with the decoder scale factor.
 
 **Consequences:** `decode_codec.py` can reconstruct either full-frame or tiled using only checkpoint, bitstream, and metadata. Smoke artifacts record the selected reconstruction mode and compare tiled output against full-frame decoding of the same quantized latent. The report separates internal tile seams from 0°/360° boundary-condition drift and excludes invalid values from both. The current ConvAE may have non-zero global-boundary drift, so the report measures it rather than claiming numerical equivalence.
+
+## DEC-029 — Factorized logistic entropy model is a training-only rate proxy
+
+**Status:** accepted
+**Date:** 2026-07-25
+
+**Context:** rate-distortion training needs an estimated-rate objective before the learned entropy model is integrated into the canonical codec path.
+
+**Decision:** the factorized logistic entropy model is a training-only estimated-rate proxy. The canonical Huffman serialized bitstream remains the source of actual compression ratio. Estimated rate and actual serialized rate must be reported separately. The smoke configuration remains synthetic until a real manifest is available.
+
+**Consequences:** rate-distortion experiments can optimize an explicit proxy without conflating it with serialized codec measurements; reports must preserve both metrics and identify smoke results as synthetic.
