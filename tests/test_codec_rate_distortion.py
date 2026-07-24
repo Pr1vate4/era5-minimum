@@ -91,13 +91,47 @@ def test_grouped_distortion_excludes_invalid_values_from_both_sides() -> None:
     assert loss.total.item() == pytest.approx(1.0)
 
 
+def test_grouped_distortion_averages_channel_losses_equally() -> None:
+    target = torch.zeros(1, 28, 1, 2)
+    prediction = target.clone()
+    prediction[:, 0] = 1.0
+    prediction[:, 5, 0, 0] = 3.0
+    mask = torch.ones_like(target)
+    mask[:, 5, 0, 1] = 0.0
+
+    loss = _distortion(
+        prediction,
+        target,
+        mask,
+        latitudes=torch.tensor([0.0]),
+        surface_weight=1.0,
+        pressure_weight=0.0,
+    )
+
+    old_element_weighted_loss = 11.0 / 15.0
+    assert old_element_weighted_loss == pytest.approx(0.7333333333)
+    assert loss.surface.item() == pytest.approx(1.25)
+
+
+def test_grouped_distortion_rejects_channel_without_positive_weight() -> None:
+    values = torch.zeros(1, 28, 2, 1)
+    mask = torch.ones_like(values)
+    mask[:, 5, 1] = 0.0
+
+    with pytest.raises(ValueError, match="channel 5"):
+        _distortion(
+            values,
+            values,
+            mask,
+            latitudes=torch.tensor([90.0, 0.0]),
+        )
+
+
 def test_grouped_distortion_does_not_clip_small_valid_weight_denominator() -> None:
     target = torch.zeros(1, 28, 1, 1)
     prediction = target.clone()
-    prediction[:, 0] = 2.0
-    mask = torch.zeros_like(target)
-    mask[:, 0] = 1.0
-    mask[:, 8] = 1.0
+    prediction[:, :8] = 2.0
+    mask = torch.ones_like(target)
 
     loss = _distortion(
         prediction,

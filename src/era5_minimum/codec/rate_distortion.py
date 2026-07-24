@@ -39,18 +39,22 @@ def _masked_latitude_mean(
     elementwise_loss: torch.Tensor,
     validity_mask: torch.Tensor,
     latitude_weights: torch.Tensor,
+    *,
+    group_name: str,
+    channel_offset: int,
 ) -> torch.Tensor:
     elementwise_loss = elementwise_loss.float()
     valid = validity_mask.to(dtype=torch.bool)
     weighted_validity = valid.to(dtype=torch.float32) * latitude_weights.float()
-    numerator = (elementwise_loss * weighted_validity).sum()
-    denominator = weighted_validity.sum()
-    safe_denominator = torch.where(
-        denominator > 0,
-        denominator,
-        torch.ones_like(denominator),
-    )
-    return numerator / safe_denominator
+    numerator = (elementwise_loss * weighted_validity).sum(dim=(0, 2, 3))
+    denominator = weighted_validity.sum(dim=(0, 2, 3))
+    invalid_channels = torch.nonzero(denominator <= 0, as_tuple=False)
+    if invalid_channels.numel() > 0:
+        channel = channel_offset + int(invalid_channels[0].item())
+        raise ValueError(
+            f"{group_name} channel {channel} has no positive weighted denominator"
+        )
+    return (numerator / denominator).mean()
 
 
 def grouped_latitude_distortion(
@@ -76,10 +80,6 @@ def grouped_latitude_distortion(
         raise ValueError("surface_weight and pressure_weight sum must be positive")
 
     valid = validity_mask.to(dtype=torch.bool)
-    if not valid[:, :8].any():
-        raise ValueError("surface group has no valid values")
-    if not valid[:, 8:].any():
-        raise ValueError("pressure group has no valid values")
 
     prediction_float = prediction.float()
     target_float = target.float()
@@ -112,11 +112,15 @@ def grouped_latitude_distortion(
         elementwise_loss[:, :8],
         valid[:, :8],
         latitude_weights,
+        group_name="surface",
+        channel_offset=0,
     )
     pressure = _masked_latitude_mean(
         elementwise_loss[:, 8:],
         valid[:, 8:],
         latitude_weights,
+        group_name="pressure",
+        channel_offset=8,
     )
     total = surface_weight * surface + pressure_weight * pressure
     return DistortionComponents(total=total, surface=surface, pressure=pressure)

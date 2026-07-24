@@ -8,7 +8,47 @@ import numpy as np
 import pytest
 import torch
 
-from era5_minimum.codec.workflow import run_codec_smoke
+from era5_minimum.codec import workflow
+from era5_minimum.codec.workflow import (
+    SMOKE_CHANNELS,
+    build_smoke_tensor,
+    run_codec_smoke,
+)
+from era5_minimum.models import ConvAutoencoder
+
+
+def _smoke_config(output_dir: Path, *, latent_channels: int = 4) -> dict[str, object]:
+    return {
+        "seed": 31,
+        "output_dir": str(output_dir),
+        "data": {
+            "samples": 12,
+            "height": 8,
+            "width": 8,
+            "validation_samples": 2,
+            "test_samples": 2,
+        },
+        "model": {
+            "latent_channels": latent_channels,
+            "parameter_limit": 2_000_000,
+        },
+        "codec": {
+            "version": "ml-001",
+            "grid": "smoke-8x8",
+            "quantization_step": 0.25,
+            "target_compression_ratio": 32,
+        },
+        "training": {
+            "batch_size": 4,
+            "epochs": 1,
+            "learning_rate": 1e-3,
+            "max_steps": 1,
+        },
+        "resources": {
+            "max_vram_gb": 24,
+            "max_gpu_hours": 48,
+        },
+    }
 
 
 def test_codec_smoke_records_rate_distortion_training(tmp_path: Path) -> None:
@@ -179,6 +219,139 @@ def test_codec_smoke_writes_full_artifact_bundle(tmp_path: Path) -> None:
     resource_usage = json.loads((output_dir / "resource_usage.json").read_text(encoding="utf-8"))
     assert resource_usage["operation"] == "train_codec"
     assert resource_usage["visible_gpu_count"] >= 0
+
+
+def test_codec_smoke_fits_sst_normalization_on_train_ocean_only(
+    tmp_path: Path,
+) -> None:
+    output_dir = tmp_path / "codec_smoke_ocean_normalization"
+    config = _smoke_config(output_dir)
+
+    run_codec_smoke(config)
+
+    data_config = config["data"]
+    assert isinstance(data_config, dict)
+    raw, _, ocean_mask = build_smoke_tensor(
+        samples=int(data_config["samples"]),
+        height=int(data_config["height"]),
+        width=int(data_config["width"]),
+        seed=int(config["seed"]),
+    )
+    train_end = (
+        int(data_config["samples"])
+        - int(data_config["validation_samples"])
+        - int(data_config["test_samples"])
+    )
+    train_raw = raw[:train_end]
+    sst_index = SMOKE_CHANNELS.index("sst")
+    ocean_values = train_raw[:, sst_index][:, ocean_mask > 0]
+    expected_mean = np.mean(ocean_values, dtype=np.float64)
+    expected_std = np.std(ocean_values, dtype=np.float64)
+    all_grid_mean = np.mean(train_raw[:, sst_index], dtype=np.float64)
+    all_grid_std = np.std(train_raw[:, sst_index], dtype=np.float64)
+
+    checkpoint = torch.load(
+        output_dir / "checkpoints" / "model.ckpt",
+        weights_only=False,
+    )
+    normalization = checkpoint["normalization"]
+    saved_mean = normalization["mean"][sst_index]
+    saved_std = normalization["std"][sst_index]
+    assert saved_mean == pytest.approx(expected_mean, rel=1e-6)
+    assert saved_std == pytest.approx(expected_std, rel=1e-6)
+    assert saved_mean != pytest.approx(all_grid_mean, rel=1e-6)
+    assert saved_std != pytest.approx(all_grid_std, rel=1e-6)
+    non_sst = np.arange(len(SMOKE_CHANNELS)) != sst_index
+    expected_other_mean = np.nanmean(train_raw, axis=(0, 2, 3))
+    expected_other_std = np.nanstd(train_raw, axis=(0, 2, 3))
+    assert np.allclose(
+        np.asarray(normalization["mean"])[non_sst],
+        expected_other_mean[non_sst],
+    )
+    assert np.allclose(
+        np.asarray(normalization["std"])[non_sst],
+        expected_other_std[non_sst],
+    )
+
+    mean = np.asarray(normalization["mean"], dtype=np.float32).reshape(1, -1, 1, 1)
+    std = np.asarray(normalization["std"], dtype=np.float32).reshape(1, -1, 1, 1)
+    normalized, validity_mask, _, _ = workflow._normalize_with_validity_mask(
+        train_raw,
+        mean=mean,
+        std=std,
+        ocean_mask=ocean_mask,
+        sst_index=sst_index,
+    )
+    assert np.all(normalized[:, sst_index, ocean_mask == 0] == 0.0)
+    expected_sst_mask = np.broadcast_to(
+        ocean_mask > 0,
+        validity_mask[:, sst_index].shape,
+    )
+    assert np.array_equal(validity_mask[:, sst_index] > 0, expected_sst_mask)
+    assert np.all(validity_mask[:, :sst_index] == 1.0)
+    assert np.all(validity_mask[:, sst_index + 1 :] == 1.0)
+
+
+def test_codec_smoke_records_current_git_commit_in_all_artifacts(
+    tmp_path: Path,
+) -> None:
+    resolver = getattr(workflow, "_resolve_git_commit", None)
+    assert callable(resolver)
+    git_commit = resolver()
+    if git_commit is None:
+        pytest.skip("git provenance is unavailable outside a git checkout")
+    assert len(git_commit) == 40
+
+    output_dir = tmp_path / "codec_smoke_git_provenance"
+    result = run_codec_smoke(_smoke_config(output_dir))
+
+    checkpoint = torch.load(
+        output_dir / "checkpoints" / "model.ckpt",
+        weights_only=False,
+    )
+    checkpoint_metadata = json.loads(
+        (output_dir / "checkpoint_metadata.json").read_text(encoding="utf-8")
+    )
+    run_summary = json.loads(
+        (output_dir / "run_summary.json").read_text(encoding="utf-8")
+    )
+    bitstream_metadata = json.loads(
+        (output_dir / "bitstreams" / "validation.json").read_text(encoding="utf-8")
+    )
+
+    assert checkpoint["git_commit"] == git_commit
+    assert checkpoint_metadata["git_commit"] == git_commit
+    assert run_summary["git_commit"] == git_commit
+    assert result["git_commit"] == git_commit
+    assert bitstream_metadata["config"]["git_commit"] == git_commit
+
+
+def test_git_commit_resolver_returns_none_outside_git(tmp_path: Path) -> None:
+    resolver = getattr(workflow, "_resolve_git_commit", None)
+    assert callable(resolver)
+    assert resolver(tmp_path) is None
+
+
+def test_codec_parameter_limit_includes_entropy_model(tmp_path: Path) -> None:
+    output_dir = tmp_path / "codec_smoke_parameter_limit"
+    latent_channels = 4
+    config = _smoke_config(output_dir, latent_channels=latent_channels)
+    model = ConvAutoencoder(
+        in_channels=len(SMOKE_CHANNELS),
+        latent_channels=latent_channels,
+    )
+    model_parameter_count = sum(
+        parameter.numel() for parameter in model.parameters() if parameter.requires_grad
+    )
+    model_config = config["model"]
+    assert isinstance(model_config, dict)
+    model_config["parameter_limit"] = model_parameter_count
+
+    with pytest.raises(ValueError, match="parameter_limit exceeded"):
+        run_codec_smoke(config)
+
+    history_path = output_dir / "training_history.jsonl"
+    assert not history_path.exists() or history_path.read_text(encoding="utf-8") == ""
 
 
 def test_codec_smoke_preserves_non_multiple_of_eight_grid_shape(tmp_path: Path) -> None:

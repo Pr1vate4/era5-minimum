@@ -4,6 +4,7 @@ import hashlib
 import json
 import math
 import random
+import subprocess
 import time
 from dataclasses import dataclass
 from pathlib import Path
@@ -124,6 +125,7 @@ def build_smoke_tensor(
 def run_codec_smoke(config: dict[str, Any]) -> dict[str, Any]:
     seed = int(config["seed"])
     _seed_everything(seed)
+    git_commit = _resolve_git_commit()
     output_dir = Path(config["output_dir"])
     output_dir.mkdir(parents=True, exist_ok=True)
     entropy_model_config = _resolve_entropy_model_config(config.get("entropy"))
@@ -171,9 +173,12 @@ def run_codec_smoke(config: dict[str, Any]) -> dict[str, Any]:
     validation_raw = raw[train_end:validation_end]
     test_raw = raw[validation_end:]
 
-    train_mean = np.nanmean(train_raw, axis=(0, 2, 3), keepdims=True).astype(np.float32)
-    train_std = np.nanstd(train_raw, axis=(0, 2, 3), keepdims=True).astype(np.float32)
-    train_std = np.maximum(np.where(np.isfinite(train_std), train_std, 0.0), 1e-6).astype(np.float32)
+    sst_index = SMOKE_CHANNELS.index("sst")
+    train_mean, train_std = _fit_train_normalization(
+        train_raw,
+        ocean_mask=ocean_mask,
+        sst_index=sst_index,
+    )
     normalization = NormalizationSpec(
         channel_order=SMOKE_CHANNELS,
         mean=train_mean.reshape(-1),
@@ -182,7 +187,6 @@ def run_codec_smoke(config: dict[str, Any]) -> dict[str, Any]:
         train_only=True,
     )
 
-    sst_index = SMOKE_CHANNELS.index("sst")
     train_norm, train_valid_mask, train_invalid_count, train_nan_count = _normalize_with_validity_mask(
         train_raw,
         mean=train_mean,
@@ -262,6 +266,7 @@ def run_codec_smoke(config: dict[str, Any]) -> dict[str, Any]:
             "entropy_model_config": entropy_model_config,
             "loss_config": loss_config,
             "codec_config": codec_cfg,
+            "git_commit": git_commit,
             "normalization": normalization.to_dict(),
             "channel_order": list(SMOKE_CHANNELS),
             "inference_config": config.get("inference"),
@@ -288,7 +293,7 @@ def run_codec_smoke(config: dict[str, Any]) -> dict[str, Any]:
             grid=str(codec_cfg["grid"]),
             quantization_step=float(codec_cfg["quantization_step"]),
             seed=seed,
-            git_commit=None,
+            git_commit=git_commit,
         ),
         normalization=normalization,
     )
@@ -448,6 +453,7 @@ def run_codec_smoke(config: dict[str, Any]) -> dict[str, Any]:
 
     summary = {
         "experiment_id": f"codec-smoke-{seed}",
+        "git_commit": git_commit,
         "model_name": "conv_autoencoder",
         "grid_resolution": str(codec_cfg["grid"]),
         "dataset_size": int(samples),
@@ -496,6 +502,7 @@ def run_codec_smoke(config: dict[str, Any]) -> dict[str, Any]:
         "entropy_model_config": entropy_model_config,
         "loss_config": loss_config,
         "codec_config": codec_cfg,
+        "git_commit": git_commit,
         "normalization": normalization.to_dict(),
         "inference_config": config.get("inference"),
         "ocean_mask_shape": list(ocean_mask.shape),
@@ -542,6 +549,7 @@ def run_codec_smoke(config: dict[str, Any]) -> dict[str, Any]:
     write_resource_usage(output_dir / "resource_usage.json", resource_record)
     return {
         "actual_compression_ratio": actual_ratio,
+        "git_commit": git_commit,
         "latent_reduction_ratio": latent_ratio,
         "exact_roundtrip": exact_roundtrip,
         "output_dir": str(output_dir),
@@ -690,6 +698,36 @@ def _train_masked_autoencoder(
 
 def _normalize(values: np.ndarray, mean: np.ndarray, std: np.ndarray) -> np.ndarray:
     return ((values - mean) / std).astype(np.float32)
+
+
+def _fit_train_normalization(
+    train_values: np.ndarray,
+    *,
+    ocean_mask: np.ndarray,
+    sst_index: int,
+) -> tuple[np.ndarray, np.ndarray]:
+    train_mean = np.nanmean(
+        train_values,
+        axis=(0, 2, 3),
+        keepdims=True,
+    ).astype(np.float32)
+    train_std = np.nanstd(
+        train_values,
+        axis=(0, 2, 3),
+        keepdims=True,
+    ).astype(np.float32)
+    ocean_values = train_values[:, sst_index, :, :][
+        :, np.asarray(ocean_mask) > 0
+    ]
+    if not np.isfinite(ocean_values).any():
+        raise ValueError("SST training data has no finite ocean values")
+    train_mean[:, sst_index] = np.nanmean(ocean_values, dtype=np.float64)
+    train_std[:, sst_index] = np.nanstd(ocean_values, dtype=np.float64)
+    train_std = np.maximum(
+        np.where(np.isfinite(train_std), train_std, 0.0),
+        1e-6,
+    ).astype(np.float32)
+    return train_mean, train_std
 
 
 def _inference_mode(inference_cfg: dict[str, Any] | None) -> str:
@@ -1011,6 +1049,30 @@ def _write_json(path: Path, payload: Any) -> None:
 
 def _sha256_bytes(payload: bytes) -> str:
     return hashlib.sha256(payload).hexdigest()
+
+
+def _resolve_git_commit(repository: Path | None = None) -> str | None:
+    working_directory = (
+        Path(__file__).resolve().parents[3] if repository is None else Path(repository)
+    )
+    try:
+        result = subprocess.run(
+            ["git", "rev-parse", "HEAD"],
+            cwd=working_directory,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+    except OSError:
+        return None
+    commit = result.stdout.strip()
+    if result.returncode != 0 or len(commit) != 40:
+        return None
+    try:
+        int(commit, 16)
+    except ValueError:
+        return None
+    return commit
 
 
 def _utc_now() -> str:
