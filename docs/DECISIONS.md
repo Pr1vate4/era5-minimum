@@ -240,3 +240,14 @@
 **Decision:** первый ML-001 codec harness использует детерминированное per-channel scalar quantization и canonical Huffman coding с self-describing header.
 
 **Consequences:** проект сразу получает честный serialized payload, проверку exact roundtrip по квантованным символам и отдельный serialized ratio. Первый end-to-end integration path прогоняет через codec квантованный PCA latent и считает reconstruction metrics уже после quantize/dequantize. Tensor ratio и serialized ratio остаются разными метриками и не подменяют друг друга. Этот contour нужен для локальной проверки bitstream contract и rate accounting, а не как финальная конкурсная архитектура.
+
+## DEC-026 — Latent probe starts from frozen PCA latent
+
+**Status:** accepted
+**Date:** 2026-07-24
+
+**Context:** ML-001 требует отдельный +6h latent probe with persistence baseline, but the full learned codec is not ready yet.
+
+**Decision:** first latent probe uses frozen PCA latents, trains a compact predictor on consecutive latent pairs, and records improvement against persistence.
+
+**Consequences:** probe workflow becomes runnable now, stays reproducible, and keeps encoder/decoder frozen during probe training.
