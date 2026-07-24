@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
-from time import perf_counter
+import os
+from time import perf_counter, time
 from typing import Literal
 
 from prometheus_client import Counter, Gauge, Histogram
 from starlette.routing import Match, Router
+
+from era5_minimum import __version__
 
 ArtifactType = Literal[
     "summary", "experiments", "sample_efficiency", "reconstruction"
@@ -24,51 +27,90 @@ HTTP_REQUEST_DURATION_SECONDS = Histogram(
     "era5_api_http_request_duration_seconds",
     "HTTP request duration for the ERA5 Artifact API.",
     labelnames=("method", "route"),
-    buckets=(0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10),
+    buckets=(
+        0.005,
+        0.01,
+        0.025,
+        0.05,
+        0.1,
+        0.25,
+        0.5,
+        1,
+        2.5,
+        5,
+        10,
+        30,
+    ),
 )
 HTTP_REQUESTS_IN_PROGRESS = Gauge(
     "era5_api_http_requests_in_progress",
     "HTTP requests currently being handled by the ERA5 Artifact API.",
-    labelnames=("method", "route"),
+    labelnames=("method",),
 )
-ARTIFACT_LOAD_ERRORS_TOTAL = Counter(
-    "era5_api_artifact_load_errors_total",
-    "Artifact read errors by bounded artifact type.",
+ARTIFACT_LOAD_TOTAL = Counter(
+    "era5_api_artifact_load_total",
+    "Artifact read and validation outcomes by bounded artifact type.",
+    labelnames=("artifact_type", "status"),
+)
+ARTIFACT_VALIDATION_TOTAL = Counter(
+    "era5_api_artifact_validation_total",
+    "Artifact validation outcomes by bounded artifact type.",
+    labelnames=("artifact_type", "status"),
+)
+ARTIFACT_LOADED = Gauge(
+    "era5_api_artifact_loaded",
+    "Whether the last repository operation successfully loaded each artifact type.",
     labelnames=("artifact_type",),
 )
-ARTIFACT_VALIDATION_ERRORS_TOTAL = Counter(
-    "era5_api_artifact_validation_errors_total",
-    "Artifact validation errors by bounded artifact type.",
+ARTIFACT_LAST_SUCCESS_TIMESTAMP_SECONDS = Gauge(
+    "era5_api_artifact_last_success_timestamp_seconds",
+    "Unix time of the last successful artifact load.",
     labelnames=("artifact_type",),
 )
-ARTIFACTS_LOADED_TOTAL = Counter(
-    "era5_api_artifacts_loaded_total",
-    "Successfully loaded and validated artifacts by bounded artifact type.",
-    labelnames=("artifact_type",),
+BUILD_INFO = Gauge(
+    "era5_api_build_info",
+    "Static build information for the ERA5 Artifact API.",
+    labelnames=("version", "commit", "environment"),
 )
 
 
-def initialize_health_metrics() -> None:
-    """Create zero-valued health metric series for an immediately useful scrape."""
+def initialize_monitoring_metrics() -> None:
+    """Create stable startup series without registering duplicate collectors."""
     labels = {"method": "GET", "route": "/health"}
     HTTP_REQUESTS_TOTAL.labels(**labels, status_code="200")
     HTTP_REQUEST_DURATION_SECONDS.labels(**labels)
-    HTTP_REQUESTS_IN_PROGRESS.labels(**labels)
+    HTTP_REQUESTS_IN_PROGRESS.labels(method="GET")
+    BUILD_INFO.labels(
+        version=os.getenv("ERA5_BUILD_VERSION", __version__),
+        commit=os.getenv("ERA5_BUILD_COMMIT", "unknown"),
+        environment=os.getenv("ERA5_ENVIRONMENT", "local"),
+    ).set(1)
 
 
 def record_artifact_load_error(artifact_type: ArtifactType) -> None:
     """Record one unsuccessful JSON artifact read."""
-    ARTIFACT_LOAD_ERRORS_TOTAL.labels(artifact_type=artifact_type).inc()
+    ARTIFACT_LOAD_TOTAL.labels(artifact_type=artifact_type, status="error").inc()
+    ARTIFACT_LOADED.labels(artifact_type=artifact_type).set(0)
 
 
 def record_artifact_validation_error(artifact_type: ArtifactType) -> None:
     """Record one artifact that failed repository validation."""
-    ARTIFACT_VALIDATION_ERRORS_TOTAL.labels(artifact_type=artifact_type).inc()
+    ARTIFACT_VALIDATION_TOTAL.labels(
+        artifact_type=artifact_type, status="invalid"
+    ).inc()
+    ARTIFACT_LOADED.labels(artifact_type=artifact_type).set(0)
 
 
 def record_artifact_loaded(artifact_type: ArtifactType) -> None:
     """Record one successful JSON read and Pydantic validation."""
-    ARTIFACTS_LOADED_TOTAL.labels(artifact_type=artifact_type).inc()
+    ARTIFACT_LOAD_TOTAL.labels(artifact_type=artifact_type, status="success").inc()
+    ARTIFACT_VALIDATION_TOTAL.labels(
+        artifact_type=artifact_type, status="valid"
+    ).inc()
+    ARTIFACT_LOADED.labels(artifact_type=artifact_type).set(1)
+    ARTIFACT_LAST_SUCCESS_TIMESTAMP_SECONDS.labels(
+        artifact_type=artifact_type
+    ).set(time())
 
 
 def normalized_route(scope: dict[str, object], router: Router) -> str:
@@ -109,7 +151,7 @@ class PrometheusMetricsMiddleware:
         status_code = 500
         started_at = perf_counter()
         labels = {"method": method, "route": route}
-        HTTP_REQUESTS_IN_PROGRESS.labels(**labels).inc()
+        HTTP_REQUESTS_IN_PROGRESS.labels(method=method).inc()
 
         async def send_with_status(message: dict[str, object]) -> None:
             nonlocal status_code
@@ -136,4 +178,4 @@ class PrometheusMetricsMiddleware:
                 perf_counter() - started_at
             )
         finally:
-            HTTP_REQUESTS_IN_PROGRESS.labels(**labels).dec()
+            HTTP_REQUESTS_IN_PROGRESS.labels(method=method).dec()

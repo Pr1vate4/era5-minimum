@@ -1,6 +1,7 @@
 DOCKER_COMPOSE ?= docker compose
 COMPOSE_FILE ?= compose.yaml
 GPU_COMPOSE_FILE ?= compose.gpu.yaml
+MONITORING_COMPOSE_FILE ?= compose.monitoring.yaml
 API_SERVICE ?= api
 TOOLS_SERVICE ?= tools
 DATA_SERVICE ?= data-tools
@@ -14,7 +15,10 @@ export API_PORT
 	app-logs app-ps app-health app-shell tools-shell tools-run data-shell data-run \
 	gpu-shell gpu-run gpu-check test-container compile-container verify-container \
 	pca-help pca-fit-32x pca-fit-64x artifacts-validate submission-tree \
-	submission-validate clean-containers
+	submission-validate clean-containers monitoring-config monitoring-up monitoring-down \
+	monitoring-restart monitoring-logs monitoring-ps monitoring-prometheus-logs \
+	monitoring-grafana-logs monitoring-smoke monitoring-check-prometheus-config \
+	monitoring-check-rules monitoring-clean
 
 help: ## Show available project and container commands.
 
@@ -132,3 +136,38 @@ submission-validate: ## Report that a final submission validator does not exist 
 
 clean-containers: ## Remove stopped project containers without touching bind-mounted data.
 	$(DOCKER_COMPOSE) -f $(COMPOSE_FILE) rm -f
+
+monitoring-config: ## Render and validate the API plus monitoring Compose configuration.
+	$(DOCKER_COMPOSE) -f $(COMPOSE_FILE) -f $(MONITORING_COMPOSE_FILE) config
+
+monitoring-up: runtime-dirs ## Start API, Prometheus, and Grafana in the background.
+	$(DOCKER_COMPOSE) -f $(COMPOSE_FILE) -f $(MONITORING_COMPOSE_FILE) up -d --build
+
+monitoring-down: ## Stop the monitoring stack without deleting named volumes.
+	$(DOCKER_COMPOSE) -f $(COMPOSE_FILE) -f $(MONITORING_COMPOSE_FILE) down
+
+monitoring-restart: ## Restart the API, Prometheus, and Grafana services.
+	$(DOCKER_COMPOSE) -f $(COMPOSE_FILE) -f $(MONITORING_COMPOSE_FILE) restart api prometheus grafana
+
+monitoring-logs: ## Follow the latest 200 log lines for the monitoring stack.
+	$(DOCKER_COMPOSE) -f $(COMPOSE_FILE) -f $(MONITORING_COMPOSE_FILE) logs -f --tail=200 api prometheus grafana
+
+monitoring-ps: ## Show API and monitoring service status.
+	$(DOCKER_COMPOSE) -f $(COMPOSE_FILE) -f $(MONITORING_COMPOSE_FILE) ps
+
+monitoring-prometheus-logs: ## Follow the latest 200 Prometheus log lines.
+	$(DOCKER_COMPOSE) -f $(COMPOSE_FILE) -f $(MONITORING_COMPOSE_FILE) logs -f --tail=200 prometheus
+
+monitoring-grafana-logs: ## Follow the latest 200 Grafana log lines.
+	$(DOCKER_COMPOSE) -f $(COMPOSE_FILE) -f $(MONITORING_COMPOSE_FILE) logs -f --tail=200 grafana
+
+monitoring-smoke: ## Verify API metrics, Prometheus scraping, and Grafana health.
+	python scripts/smoke_monitoring.py
+
+monitoring-check-prometheus-config: ## Validate the Prometheus configuration with promtool.
+	$(DOCKER_COMPOSE) -f $(COMPOSE_FILE) -f $(MONITORING_COMPOSE_FILE) run --rm --no-deps --entrypoint promtool prometheus check config /etc/prometheus/prometheus.yml
+
+monitoring-check-rules: ## Validate the ERA5 API Prometheus alert rules with promtool.
+	$(DOCKER_COMPOSE) -f $(COMPOSE_FILE) -f $(MONITORING_COMPOSE_FILE) run --rm --no-deps --entrypoint promtool prometheus check rules /etc/prometheus/rules/era5_api_rules.yml
+
+monitoring-clean: monitoring-down ## Stop monitoring services; persisted monitoring volumes remain intact.

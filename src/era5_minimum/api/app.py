@@ -21,7 +21,7 @@ from era5_minimum.api.errors import (
 from era5_minimum.api.monitoring import (
     METRICS_PATH,
     PrometheusMetricsMiddleware,
-    initialize_health_metrics,
+    initialize_monitoring_metrics,
 )
 from era5_minimum.api.repository import ArtifactRepository
 from era5_minimum.api.schemas import (
@@ -238,7 +238,7 @@ def create_app() -> FastAPI:
     api.add_exception_handler(InvalidArtifactError, handle_invalid_artifact)
     api.add_middleware(PrometheusMetricsMiddleware, router=api.router)
     api.add_api_route(METRICS_PATH, metrics, methods=["GET"], include_in_schema=False)
-    initialize_health_metrics()
+    initialize_monitoring_metrics()
     return api
 
 
