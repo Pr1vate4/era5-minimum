@@ -145,14 +145,18 @@ def run_codec_smoke(config: dict[str, Any]) -> dict[str, Any]:
         width=int(data_cfg["width"]),
         seed=seed,
     )
+    inject_nan_fraction = float(data_cfg.get("inject_nan_fraction", 0.0))
+    if inject_nan_fraction > 0.0:
+        raw = _inject_nan_values(raw, nan_fraction=inject_nan_fraction, seed=seed, exclude_channel_indices=(SMOKE_CHANNELS.index("sst"),))
     train_end = samples - validation_samples - test_samples
     validation_end = train_end + validation_samples
     train_raw = raw[:train_end]
     validation_raw = raw[train_end:validation_end]
     test_raw = raw[validation_end:]
 
-    train_mean = train_raw.mean(axis=(0, 2, 3), keepdims=True).astype(np.float32)
-    train_std = np.maximum(train_raw.std(axis=(0, 2, 3), keepdims=True), 1e-6).astype(np.float32)
+    train_mean = np.nanmean(train_raw, axis=(0, 2, 3), keepdims=True).astype(np.float32)
+    train_std = np.nanstd(train_raw, axis=(0, 2, 3), keepdims=True).astype(np.float32)
+    train_std = np.maximum(np.where(np.isfinite(train_std), train_std, 0.0), 1e-6).astype(np.float32)
     normalization = NormalizationSpec(
         channel_order=SMOKE_CHANNELS,
         mean=train_mean.reshape(-1),
@@ -161,12 +165,30 @@ def run_codec_smoke(config: dict[str, Any]) -> dict[str, Any]:
         train_only=True,
     )
 
-    train_norm = _normalize(train_raw, train_mean, train_std)
-    validation_norm = _normalize(validation_raw, train_mean, train_std)
-    test_norm = _normalize(test_raw, train_mean, train_std)
     sst_index = SMOKE_CHANNELS.index("sst")
-    for tensor in (train_norm, validation_norm, test_norm):
-        tensor[:, sst_index] = np.where(ocean_mask[None, :, :] > 0, tensor[:, sst_index], 0.0)
+    train_norm, train_valid_mask, train_invalid_count, train_nan_count = _normalize_with_validity_mask(
+        train_raw,
+        mean=train_mean,
+        std=train_std,
+        ocean_mask=ocean_mask,
+        sst_index=sst_index,
+    )
+    validation_norm, validation_valid_mask, validation_invalid_count, validation_nan_count = _normalize_with_validity_mask(
+        validation_raw,
+        mean=train_mean,
+        std=train_std,
+        ocean_mask=ocean_mask,
+        sst_index=sst_index,
+    )
+    test_norm, test_valid_mask, test_invalid_count, test_nan_count = _normalize_with_validity_mask(
+        test_raw,
+        mean=train_mean,
+        std=train_std,
+        ocean_mask=ocean_mask,
+        sst_index=sst_index,
+    )
+    total_invalid_count = int(train_invalid_count + validation_invalid_count + test_invalid_count)
+    total_nan_count = int(train_nan_count + validation_nan_count + test_nan_count)
 
     model = ConvAutoencoder(in_channels=len(SMOKE_CHANNELS), latent_channels=int(model_cfg["latent_channels"]))
     trainable_params = _parameter_count(model)
@@ -185,8 +207,6 @@ def run_codec_smoke(config: dict[str, Any]) -> dict[str, Any]:
         torch.cuda.reset_peak_memory_stats()
     model.to(device)
 
-    loss_mask = np.ones_like(train_norm, dtype=np.float32)
-    loss_mask[:, sst_index] = np.where(ocean_mask[None, :, :] > 0, 1.0, 0.0)
     history_path = output_dir / "training_history.jsonl"
     checkpoint_dir = output_dir / "checkpoints"
     checkpoint_dir.mkdir(parents=True, exist_ok=True)
@@ -197,7 +217,7 @@ def run_codec_smoke(config: dict[str, Any]) -> dict[str, Any]:
     train_result = _train_masked_autoencoder(
         model=model,
         inputs=torch.from_numpy(train_norm),
-        masks=torch.from_numpy(loss_mask),
+        masks=torch.from_numpy(train_valid_mask),
         device=device,
         batch_size=batch_size,
         epochs=epochs,
@@ -265,10 +285,28 @@ def run_codec_smoke(config: dict[str, Any]) -> dict[str, Any]:
     validation_physical = _denormalize(validation_norm, train_mean, train_std)
     test_prediction = _denormalize(test_prediction_norm, train_mean, train_std)
     test_physical = _denormalize(test_norm, train_mean, train_std)
+    prediction_physical = np.where(validation_valid_mask > 0, prediction_physical, 0.0).astype(np.float32)
+    validation_physical = np.where(validation_valid_mask > 0, validation_physical, 0.0).astype(np.float32)
+    test_prediction = np.where(test_valid_mask > 0, test_prediction, 0.0).astype(np.float32)
+    test_physical = np.where(test_valid_mask > 0, test_physical, 0.0).astype(np.float32)
 
-    metrics_validation = _validation_metrics(validation_norm, prediction_norm, latitudes, SMOKE_CHANNELS)
-    per_channel = _per_channel_metrics(validation_physical, prediction_physical, train_std.reshape(-1), SMOKE_CHANNELS)
-    per_time = _per_time_metrics(validation_norm, prediction_norm)
+    metrics_validation = _validation_metrics(
+        validation_norm,
+        prediction_norm,
+        latitudes,
+        SMOKE_CHANNELS,
+        validity_mask=validation_valid_mask,
+        invalid_value_count=total_invalid_count,
+        nan_value_count=total_nan_count,
+    )
+    per_channel = _per_channel_metrics(
+        validation_physical,
+        prediction_physical,
+        train_std.reshape(-1),
+        SMOKE_CHANNELS,
+        validity_mask=validation_valid_mask,
+    )
+    per_time = _per_time_metrics(validation_norm, prediction_norm, validity_mask=validation_valid_mask)
 
     metrics_validation_path = output_dir / "metrics_validation.json"
     metrics_per_channel_path = output_dir / "metrics_per_channel.json"
@@ -353,6 +391,8 @@ def run_codec_smoke(config: dict[str, Any]) -> dict[str, Any]:
         "run_id": f"codec-smoke-{seed}",
         "resource_compliance": train_result["resource_compliance"],
         "test_bitstream_path": str(test_bitstream),
+        "invalid_value_count": total_invalid_count,
+        "nan_value_count": total_nan_count,
     }
     _write_json(output_dir / "checkpoint_metadata.json", {
         "checkpoint_path": str(checkpoint_path),
@@ -363,6 +403,8 @@ def run_codec_smoke(config: dict[str, Any]) -> dict[str, Any]:
         "total_parameter_count": total_params,
         "run_id": summary["run_id"],
         "manifest_sha256": normalization.source_manifest_sha256,
+        "invalid_value_count": total_invalid_count,
+        "nan_value_count": total_nan_count,
     })
     _write_json(output_dir / "run_summary.json", summary)
     resource_record = measure_runtime_resources(
@@ -394,6 +436,8 @@ def run_codec_smoke(config: dict[str, Any]) -> dict[str, Any]:
         "exact_roundtrip": exact_roundtrip,
         "output_dir": str(output_dir),
         "run_summary_path": str(output_dir / "run_summary.json"),
+        "invalid_value_count": total_invalid_count,
+        "nan_value_count": total_nan_count,
     }
 
 
@@ -452,6 +496,26 @@ def _normalize(values: np.ndarray, mean: np.ndarray, std: np.ndarray) -> np.ndar
     return ((values - mean) / std).astype(np.float32)
 
 
+def _normalize_with_validity_mask(
+    values: np.ndarray,
+    *,
+    mean: np.ndarray,
+    std: np.ndarray,
+    ocean_mask: np.ndarray,
+    sst_index: int,
+) -> tuple[np.ndarray, np.ndarray, int, int]:
+    finite_mask = np.isfinite(values)
+    safe_values = np.where(finite_mask, values, mean).astype(np.float32)
+    normalized = _normalize(safe_values, mean, std)
+    validity_mask = finite_mask.astype(np.float32)
+    ocean_valid = (ocean_mask[None, :, :] > 0).astype(np.float32)
+    validity_mask[:, sst_index] = validity_mask[:, sst_index] * ocean_valid
+    normalized = np.where(validity_mask > 0, normalized, 0.0).astype(np.float32)
+    invalid_count = int(validity_mask.size - int(validity_mask.sum()))
+    nan_count = int(np.size(values) - int(finite_mask.sum()))
+    return normalized, validity_mask, invalid_count, nan_count
+
+
 def _denormalize(values: np.ndarray, mean: np.ndarray, std: np.ndarray) -> np.ndarray:
     return (values * std + mean).astype(np.float32)
 
@@ -461,21 +525,27 @@ def _validation_metrics(
     prediction_norm: np.ndarray,
     latitudes: np.ndarray,
     channels: tuple[str, ...],
+    validity_mask: np.ndarray,
+    invalid_value_count: int,
+    nan_value_count: int,
 ) -> dict[str, Any]:
     target = torch.from_numpy(target_norm)
     prediction = torch.from_numpy(prediction_norm)
-    channel_values = per_channel_rmse(prediction, target, list(channels))
+    mask = torch.from_numpy(validity_mask)
+    channel_values = per_channel_rmse(prediction, target, list(channels), mask=mask)
     channel_scores = [channel_values[channel] for channel in channels]
     surface = float(np.mean(channel_scores[:8]))
     pressure = float(np.mean(channel_scores[8:]))
     overall = 0.5 * surface + 0.5 * pressure
     return {
-        "rmse_normalized": rmse(prediction, target),
-        "mae_normalized": mae(prediction, target),
-        "latitude_weighted_rmse_normalized": latitude_weighted_rmse(prediction, target, latitudes),
+        "rmse_normalized": rmse(prediction, target, mask=mask),
+        "mae_normalized": mae(prediction, target, mask=mask),
+        "latitude_weighted_rmse_normalized": latitude_weighted_rmse(prediction, target, latitudes, mask=mask),
         "surface_score": surface,
         "pressure_score": pressure,
         "overall_score": overall,
+        "invalid_value_count": int(invalid_value_count),
+        "nan_value_count": int(nan_value_count),
     }
 
 
@@ -484,30 +554,67 @@ def _per_channel_metrics(
     reconstruction_physical: np.ndarray,
     train_std: np.ndarray,
     channels: tuple[str, ...],
+    validity_mask: np.ndarray,
 ) -> list[dict[str, Any]]:
     rows: list[dict[str, Any]] = []
     for index, channel in enumerate(channels):
         original = original_physical[:, index]
         reconstruction = reconstruction_physical[:, index]
-        rmse_value = float(np.sqrt(np.mean((reconstruction - original) ** 2)))
+        channel_mask = validity_mask[:, index] > 0
+        rmse_value = float(np.sqrt(np.mean((reconstruction[channel_mask] - original[channel_mask]) ** 2)))
         nrmse = float(rmse_value / max(float(train_std[index]), 1e-6))
         rows.append(
             {
                 "channel": channel,
                 "rmse_physical": rmse_value,
                 "nrmse": nrmse,
+                "invalid_value_count": int(channel_mask.size - int(channel_mask.sum())),
             }
         )
     return rows
 
 
-def _per_time_metrics(target_norm: np.ndarray, prediction_norm: np.ndarray) -> list[dict[str, Any]]:
+def _per_time_metrics(target_norm: np.ndarray, prediction_norm: np.ndarray, *, validity_mask: np.ndarray) -> list[dict[str, Any]]:
     rows: list[dict[str, Any]] = []
     for index in range(target_norm.shape[0]):
         target = torch.from_numpy(target_norm[index : index + 1])
         prediction = torch.from_numpy(prediction_norm[index : index + 1])
-        rows.append({"index": index, "rmse_normalized": rmse(prediction, target), "mae_normalized": mae(prediction, target)})
+        mask = torch.from_numpy(validity_mask[index : index + 1])
+        rows.append(
+            {
+                "index": index,
+                "rmse_normalized": rmse(prediction, target, mask=mask),
+                "mae_normalized": mae(prediction, target, mask=mask),
+                "invalid_value_count": int(mask.numel() - int(mask.sum().item())),
+            }
+        )
     return rows
+
+
+def _inject_nan_values(
+    values: np.ndarray,
+    *,
+    nan_fraction: float,
+    seed: int,
+    exclude_channel_indices: tuple[int, ...] = (),
+) -> np.ndarray:
+    if nan_fraction <= 0.0:
+        return values
+    mutated = values.copy()
+    eligible_channels = [index for index in range(mutated.shape[1]) if index not in exclude_channel_indices]
+    if not eligible_channels:
+        return mutated
+    eligible = np.zeros_like(mutated, dtype=bool)
+    eligible[:, eligible_channels, :, :] = True
+    eligible_indices = np.flatnonzero(eligible.reshape(-1))
+    if eligible_indices.size == 0:
+        return mutated
+    sample_count = max(1, int(round(eligible_indices.size * nan_fraction)))
+    rng = np.random.default_rng(seed + 97)
+    selected = rng.choice(eligible_indices, size=min(sample_count, eligible_indices.size), replace=False)
+    flat = mutated.reshape(-1)
+    flat[selected] = np.nan
+    return mutated
 
 
 def _parameter_count(model: nn.Module) -> int:

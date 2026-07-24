@@ -114,3 +114,49 @@ def test_codec_smoke_preserves_non_multiple_of_eight_grid_shape(tmp_path: Path) 
     assert reconstruction["validation_reconstruction"].shape[-2:] == (9, 16)
     assert reconstruction["test_reconstruction"].shape[-2:] == (9, 16)
     assert summary["exact_roundtrip"] is True
+
+
+def test_codec_smoke_masks_nan_values_after_normalization(tmp_path: Path) -> None:
+    output_dir = tmp_path / "codec_smoke_nan"
+    config = {
+        "seed": 17,
+        "output_dir": str(output_dir),
+        "data": {
+            "samples": 20,
+            "height": 8,
+            "width": 8,
+            "validation_samples": 4,
+            "test_samples": 4,
+            "inject_nan_fraction": 0.05,
+        },
+        "model": {
+            "latent_channels": 8,
+            "parameter_limit": 2_000_000,
+        },
+        "codec": {
+            "version": "ml-001",
+            "grid": "smoke-8x8",
+            "quantization_step": 0.25,
+            "target_compression_ratio": 32,
+        },
+        "training": {
+            "batch_size": 4,
+            "epochs": 2,
+            "learning_rate": 1e-3,
+            "max_steps": 4,
+        },
+        "resources": {
+            "max_vram_gb": 24,
+            "max_gpu_hours": 48,
+        },
+    }
+
+    summary = run_codec_smoke(config)
+
+    metrics_validation = json.loads((output_dir / "metrics_validation.json").read_text(encoding="utf-8"))
+    reconstruction = np.load(output_dir / "reconstruction_samples.npz")
+
+    assert summary["invalid_value_count"] > 0
+    assert metrics_validation["invalid_value_count"] == summary["invalid_value_count"]
+    assert not np.isnan(reconstruction["validation_reconstruction"]).any()
+    assert not np.isnan(reconstruction["test_reconstruction"]).any()
