@@ -3,6 +3,7 @@ import json
 import numpy as np
 import xarray as xr
 from pathlib import Path
+from era5_minimum.data.manifest import compute_manifest_sha256
 from era5_minimum.data.validation import validate_zarr
 
 
@@ -29,20 +30,20 @@ def mock_valid_zarr_and_manifest(tmp_path: Path):
     manifest_path = tmp_path / "manifest.json"
     manifest_data = {
         "schema_version": "1.0.0",
-        "integrity": {"manifest_sha256": "dummy_hash_for_test"}
+        "integrity": {},
     }
+    manifest_data["integrity"]["manifest_sha256"] = compute_manifest_sha256(
+        manifest_data
+    )
     with open(manifest_path, "w") as f:
         json.dump(manifest_data, f)
 
     return str(zarr_path), str(manifest_path)
 
 
-def test_validate_zarr_success(mock_valid_zarr_and_manifest, monkeypatch):
+def test_validate_zarr_success(mock_valid_zarr_and_manifest):
     """Валидация должна проходить для корректных данных."""
     zarr_path, manifest_path = mock_valid_zarr_and_manifest
-
-    # Патчим вычисление хеша, чтобы тест не падал из-за "dummy_hash"
-    monkeypatch.setattr("era5_minimum.data.manifest.compute_sha256", lambda x: "dummy_hash_for_test")
 
     # Должно выполниться без исключений и вернуть True
     assert validate_zarr(zarr_path, manifest_path) is True

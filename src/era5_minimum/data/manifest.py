@@ -13,6 +13,15 @@ def compute_sha256(file_path: str) -> str:
     return h.hexdigest()
 
 
+def compute_manifest_sha256(manifest: dict) -> str:
+    """Hash the canonical manifest content without its self-referential hash."""
+    manifest_copy = json.loads(json.dumps(manifest))
+    integrity = manifest_copy.setdefault("integrity", {})
+    integrity.pop("manifest_sha256", None)
+    canonical_json = json.dumps(manifest_copy, indent=2, sort_keys=True)
+    return hashlib.sha256(canonical_json.encode("utf-8")).hexdigest()
+
+
 def generate_manifest(output_dir: str, stats: dict, subsets: dict, weights_path: str = None) -> str:
     manifest = {
         "schema_version": "1.0.0",
@@ -32,16 +41,10 @@ def generate_manifest(output_dir: str, stats: dict, subsets: dict, weights_path:
 
     path = Path(output_dir) / "manifest.json"
 
-    # 1. Формируем канонический JSON БЕЗ поля manifest_sha256
-    canonical_json = json.dumps(manifest, indent=2, sort_keys=True)
+    # Добавляем digest канонического JSON без self-referential hash.
+    manifest["integrity"]["manifest_sha256"] = compute_manifest_sha256(manifest)
 
-    # 2. Считаем хеш этого "чистого" JSON
-    manifest_hash = hashlib.sha256(canonical_json.encode("utf-8")).hexdigest()
-
-    # 3. Добавляем хеш в словарь
-    manifest["integrity"]["manifest_sha256"] = manifest_hash
-
-    # 4. Записываем финальный файл (уже с хешем внутри)
+    # Записываем финальный файл (уже с хешем внутри).
     with open(path, "w", encoding="utf-8") as f:
         json.dump(manifest, f, indent=2, sort_keys=True)
 

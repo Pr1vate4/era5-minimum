@@ -1,7 +1,8 @@
 import json
-import hashlib
 import xarray as xr
 import numpy as np
+
+from .manifest import compute_manifest_sha256
 
 
 def validate_zarr(zarr_path: str, manifest_path: str) -> bool:
@@ -21,11 +22,7 @@ def validate_zarr(zarr_path: str, manifest_path: str) -> bool:
     # 3. Корректная проверка хеша манифеста
     stored_hash = manifest["integrity"]["manifest_sha256"]
 
-    # Восстанавливаем "чистый" словарь без хеша
-    manifest_copy = json.loads(json.dumps(manifest))  # Глубокая копия
-    del manifest_copy["integrity"]["manifest_sha256"]
-    canonical_json = json.dumps(manifest_copy, indent=2, sort_keys=True)
-    computed_hash = hashlib.sha256(canonical_json.encode("utf-8")).hexdigest()
+    computed_hash = compute_manifest_sha256(manifest)
 
     assert stored_hash == computed_hash, "manifest_sha256 не совпадает с хешем содержимого"
 

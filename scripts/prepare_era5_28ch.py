@@ -33,6 +33,7 @@ def cli():
 def smoke():
     """Генерирует синтетический WeatherBench2-подобный dataset и прогоняет весь пайплайн локально."""
     print("🚀 Запуск Smoke-теста...")
+    rng = np.random.default_rng(42)
 
     out_dir = Path(os.environ.get("SMOKE_OUTPUT_DIR", "smoke_test_output"))
 
@@ -79,7 +80,7 @@ def smoke():
     ]
 
     for wb2_name, units in surface_vars:
-        data = np.random.rand(len(times), 10, 20).astype(np.float32) * 100
+        data = rng.random((len(times), 10, 20), dtype=np.float32) * 100
 
         # Для SST: над сушей ставим NaN
         if wb2_name == "sea_surface_temperature":
@@ -98,7 +99,9 @@ def smoke():
     ]
 
     for wb2_name, units in atmospheric_vars:
-        data = np.random.rand(len(times), 4, 10, 20).astype(np.float32) * 100
+        data = rng.random(
+            (len(times), 4, 10, 20), dtype=np.float32
+        ) * 100
         data_vars[wb2_name] = (["time", "level", "latitude", "longitude"], data)
 
     ds_wb2 = xr.Dataset(
@@ -117,7 +120,10 @@ def smoke():
     # 2. Создаём target grid (меньше source)
     print("🔄 Создание target grid...")
     lat_out = np.linspace(-89, 89, 5)
-    lon_out = np.linspace(0.5, 359.5, 10)
+    # Keep every target longitude inside the source-domain bounds. A value of
+    # 359.5 would be outside the final source coordinate (359.0) and would
+    # introduce interpolation NaNs into non-SST channels.
+    lon_out = np.linspace(0.5, 358.5, 10)
     ds_target_grid = xr.Dataset({
         "latitude": (["latitude"], lat_out),
         "longitude": (["longitude"], lon_out),
