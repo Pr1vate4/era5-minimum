@@ -45,7 +45,11 @@ def main() -> None:
     latent_shape = tuple(metadata["latent"]["shape"])
     quantizer = ScalarQuantizer(step=float(metadata["quantization"]["scale"]))
     latent = quantizer.dequantize(decoded_symbols).reshape(latent_shape)
-    reconstruction = model.decode(torch.from_numpy(latent.astype(np.float32))).detach().cpu().numpy()
+    output_size = tuple(int(value) for value in metadata["input"]["shape"][-2:])
+    reconstruction = model.decode(
+        torch.from_numpy(latent.astype(np.float32)),
+        output_size=output_size,
+    ).detach().cpu().numpy()
     np.savez_compressed(Path(args.output), reconstruction=reconstruction)
 
 

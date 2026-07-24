@@ -31,11 +31,22 @@ class ConvAutoencoder(nn.Module):
     def encode(self, x: torch.Tensor) -> torch.Tensor:
         return self.encoder(x)
 
-    def decode(self, latent: torch.Tensor) -> torch.Tensor:
-        return self.decoder(latent)
+    def decode(self, latent: torch.Tensor, output_size: tuple[int, int] | None = None) -> torch.Tensor:
+        decoded = self.decoder(latent)
+        if output_size is None:
+            return decoded
+        target_height = int(output_size[0])
+        target_width = int(output_size[1])
+        if target_height < 1 or target_width < 1:
+            raise ValueError("output_size must be positive")
+        if decoded.shape[-2] < target_height or decoded.shape[-1] < target_width:
+            raise ValueError(
+                f"decoded tensor {tuple(decoded.shape[-2:])} is smaller than requested output_size {(target_height, target_width)}"
+            )
+        return decoded[..., :target_height, :target_width]
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        return self.decode(self.encode(x))
+        return self.decode(self.encode(x), output_size=(int(x.shape[-2]), int(x.shape[-1])))
 
     @torch.no_grad()
     def tensor_compression_ratio(self, sample: torch.Tensor) -> float:

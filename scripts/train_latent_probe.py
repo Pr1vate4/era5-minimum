@@ -240,10 +240,20 @@ def run_from_codec_checkpoint(
     forecast_latents_reshaped = forecast_latents.reshape((-1, *latent_shape))
     target_latents_reshaped = validation_pairs.targets.reshape((-1, *latent_shape))
     persistence_latents_reshaped = validation_pairs.inputs.reshape((-1, *latent_shape))
+    output_size = (int(validation_tensor.shape[-2]), int(validation_tensor.shape[-1]))
     with torch.no_grad():
-        forecast_reconstruction = model.decode(torch.from_numpy(forecast_latents_reshaped)).cpu().numpy()
-        target_reconstruction = model.decode(torch.from_numpy(target_latents_reshaped)).cpu().numpy()
-        persistence_reconstruction = model.decode(torch.from_numpy(persistence_latents_reshaped)).cpu().numpy()
+        forecast_reconstruction = model.decode(
+            torch.from_numpy(forecast_latents_reshaped),
+            output_size=output_size,
+        ).cpu().numpy()
+        target_reconstruction = model.decode(
+            torch.from_numpy(target_latents_reshaped),
+            output_size=output_size,
+        ).cpu().numpy()
+        persistence_reconstruction = model.decode(
+            torch.from_numpy(persistence_latents_reshaped),
+            output_size=output_size,
+        ).cpu().numpy()
 
     forecast_payload = {
         "normalized": {

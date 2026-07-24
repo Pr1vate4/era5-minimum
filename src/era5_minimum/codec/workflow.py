@@ -251,8 +251,14 @@ def run_codec_smoke(config: dict[str, Any]) -> dict[str, Any]:
         raise RuntimeError("codec decode did not return latent")
     started_decode = time.perf_counter()
     with torch.no_grad():
-        prediction_norm = model.decode(torch.from_numpy(validation_codec_result.decoded_latent).to(device)).cpu().numpy()
-        test_prediction_norm = model.decode(torch.from_numpy(test_codec_result.decoded_latent).to(device)).cpu().numpy()
+        prediction_norm = model.decode(
+            torch.from_numpy(validation_codec_result.decoded_latent).to(device),
+            output_size=(int(validation_norm.shape[-2]), int(validation_norm.shape[-1])),
+        ).cpu().numpy()
+        test_prediction_norm = model.decode(
+            torch.from_numpy(test_codec_result.decoded_latent).to(device),
+            output_size=(int(test_norm.shape[-2]), int(test_norm.shape[-1])),
+        ).cpu().numpy()
     decode_seconds = time.perf_counter() - started_decode
 
     prediction_physical = _denormalize(prediction_norm, train_mean, train_std)
