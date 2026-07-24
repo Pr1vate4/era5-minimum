@@ -47,6 +47,11 @@ def test_codec_encode_decode_and_verify_cli_roundtrip(tmp_path: Path) -> None:
 
     run_codec_smoke(config)
     checkpoint = output_dir / "checkpoints" / "model.ckpt"
+    git_commit = "a" * 40
+    checkpoint_payload = torch.load(checkpoint, weights_only=False)
+    checkpoint_payload["git_commit"] = git_commit
+    checkpoint_payload["codec_config"].pop("git_commit", None)
+    torch.save(checkpoint_payload, checkpoint)
     reconstruction = np.load(output_dir / "reconstruction_samples.npz")
     validation_original = reconstruction["validation_original"]
     input_path = tmp_path / "validation.npy"
@@ -77,13 +82,8 @@ def test_codec_encode_decode_and_verify_cli_roundtrip(tmp_path: Path) -> None:
     assert encode.returncode == 0, encode.stderr
     assert bitstream_path.exists()
     assert metadata_path.exists()
-    checkpoint_payload = torch.load(checkpoint, weights_only=False)
     encoded_metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
-    assert checkpoint_payload["git_commit"] is not None
-    assert (
-        encoded_metadata["config"]["git_commit"]
-        == checkpoint_payload["git_commit"]
-    )
+    assert encoded_metadata["config"]["git_commit"] == git_commit
 
     decode = subprocess.run(
         [
