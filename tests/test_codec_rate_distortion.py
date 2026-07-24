@@ -234,6 +234,22 @@ def test_factorized_logistic_rate_handles_float16_values_near_ten() -> None:
     assert torch.isfinite(model.log_scale.grad).all()
 
 
+def test_factorized_logistic_rate_handles_float16_with_extreme_negative_scale() -> None:
+    model = FactorizedLogisticEntropyModel(channels=1)
+    with torch.no_grad():
+        model.log_scale.fill_(-100.0)
+    values = torch.tensor([[[-0.125, 0.125]]], dtype=torch.float16, requires_grad=True)
+
+    bits = model.estimated_bits(values, quantization_step=0.25)
+    bits.sum().backward()
+
+    assert torch.isfinite(bits).all()
+    assert values.grad is not None
+    assert torch.isfinite(values.grad).all()
+    assert model.log_scale.grad is not None
+    assert torch.isfinite(model.log_scale.grad).all()
+
+
 @pytest.mark.parametrize("log_scale", [-100.0, 100.0])
 def test_factorized_logistic_rate_handles_extreme_log_scales(
     log_scale: float,

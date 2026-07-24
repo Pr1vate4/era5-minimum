@@ -138,6 +138,9 @@ def quantize_with_uniform_noise(
 class FactorizedLogisticEntropyModel(nn.Module):
     """Estimate independent logistic symbol rates per latent channel."""
 
+    # Keeps value gradients below float16 overflow for mixed-precision training.
+    MIN_SCALE = 1e-3
+
     def __init__(self, channels: int, min_probability: float = 1e-9) -> None:
         super().__init__()
         if channels <= 0:
@@ -165,7 +168,7 @@ class FactorizedLogisticEntropyModel(nn.Module):
         scale_shape = (1, self.channels, *((1,) * (values.ndim - 2)))
         scale = (
             F.softplus(self.log_scale.float())
-            .add(1e-6)
+            .clamp_min(self.MIN_SCALE)
             .clamp_max(1e6)
             .view(scale_shape)
         )
