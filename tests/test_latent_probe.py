@@ -9,6 +9,7 @@ import pytest
 from era5_minimum.latent_probe import (
     ProbeConfig,
     build_latent_forecast_pairs,
+    select_pair_subset,
     train_latent_probe,
 )
 
@@ -89,3 +90,38 @@ def test_train_latent_probe_writes_metrics_and_beats_persistence(tmp_path: Path)
     assert payload["relative_improvement_vs_persistence_pct"] == pytest.approx(
         result.relative_improvement_vs_persistence_pct
     )
+
+
+def test_select_pair_subset_enforces_exact_pair_count() -> None:
+    pairs = build_latent_forecast_pairs(
+        np.array(
+            [
+                [0.0, 1.0],
+                [2.0, 3.0],
+                [4.0, 5.0],
+                [6.0, 7.0],
+            ],
+            dtype=np.float32,
+        )
+    )
+
+    subset = select_pair_subset(pairs, pair_count=2)
+
+    assert subset.inputs.shape == (2, 2)
+    np.testing.assert_array_equal(subset.pair_indices, np.array([[0, 1], [1, 2]], dtype=np.int32))
+
+
+def test_select_pair_subset_rejects_missing_exact_pair_count() -> None:
+    pairs = build_latent_forecast_pairs(
+        np.array(
+            [
+                [0.0, 1.0],
+                [2.0, 3.0],
+                [4.0, 5.0],
+            ],
+            dtype=np.float32,
+        )
+    )
+
+    with pytest.raises(ValueError, match="pair_count"):
+        select_pair_subset(pairs, pair_count=3)

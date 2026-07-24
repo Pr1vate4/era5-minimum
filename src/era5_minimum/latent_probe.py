@@ -21,6 +21,7 @@ class ProbeConfig:
     max_steps: int
     parameter_limit: int = 2_000_000
     seed: int = 0
+    forecast_horizon_hours: int = 6
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -31,6 +32,7 @@ class ProbeConfig:
             "max_steps": self.max_steps,
             "parameter_limit": self.parameter_limit,
             "seed": self.seed,
+            "forecast_horizon_hours": self.forecast_horizon_hours,
         }
 
 
@@ -99,6 +101,20 @@ def build_latent_forecast_pairs(latents: np.ndarray) -> LatentForecastPairs:
     return LatentForecastPairs(inputs=values[:-1], targets=values[1:], pair_indices=indices)
 
 
+def select_pair_subset(pairs: LatentForecastPairs, pair_count: int) -> LatentForecastPairs:
+    if pair_count < 1:
+        raise ValueError(f"pair_count must be positive, got {pair_count}")
+    if pairs.inputs.shape[0] < pair_count:
+        raise ValueError(
+            f"pair_count={pair_count} requires at least {pair_count} consecutive pairs, got {pairs.inputs.shape[0]}"
+        )
+    return LatentForecastPairs(
+        inputs=pairs.inputs[:pair_count].copy(),
+        targets=pairs.targets[:pair_count].copy(),
+        pair_indices=pairs.pair_indices[:pair_count].copy(),
+    )
+
+
 def count_trainable_parameters(module: nn.Module) -> int:
     return int(sum(parameter.numel() for parameter in module.parameters() if parameter.requires_grad))
 
@@ -116,6 +132,7 @@ def train_latent_probe(
     output_dir: Path | None = None,
     train_pair_indices: np.ndarray | None = None,
     validation_pair_indices: np.ndarray | None = None,
+    extra_metadata: dict[str, Any] | None = None,
 ) -> ProbeResult:
     train_x = np.asarray(train_inputs, dtype=np.float32)
     train_y = np.asarray(train_targets, dtype=np.float32)
@@ -126,6 +143,8 @@ def train_latent_probe(
     _validate_pair_shapes(val_x, val_y, config.latent_dim)
 
     _seed_everything(config.seed)
+    if config.max_steps > 5_000:
+        raise ValueError(f"max_steps exceeded: {config.max_steps} > 5000")
     model = LatentProbeMLP(config.latent_dim, config.hidden_dim)
     parameter_count = count_trainable_parameters(model)
     if parameter_count > config.parameter_limit:
@@ -177,9 +196,12 @@ def train_latent_probe(
         "validation_latent_mse": validation_latent_mse,
         "persistence_latent_mse": persistence_latent_mse,
         "relative_improvement_vs_persistence_pct": relative_improvement,
+        "forecast_horizon_hours": config.forecast_horizon_hours,
         "train_pair_indices": _indices_to_list(train_pair_indices, train_x.shape[0]),
         "validation_pair_indices": _indices_to_list(validation_pair_indices, val_x.shape[0]),
     }
+    if extra_metadata:
+        metrics.update(extra_metadata)
 
     checkpoint_path = Path("probe.pt")
     metrics_path = Path("probe_metrics.json")
