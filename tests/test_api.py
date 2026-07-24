@@ -15,7 +15,13 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
-from era5_minimum.api.app import app, get_repository
+from era5_minimum.api.app import app, create_app, get_repository
+from era5_minimum.api.monitoring import (
+    ARTIFACT_LOAD_ERRORS_TOTAL,
+    ARTIFACT_VALIDATION_ERRORS_TOTAL,
+    HTTP_REQUEST_DURATION_SECONDS,
+    HTTP_REQUESTS_TOTAL,
+)
 from era5_minimum.api.repository import ArtifactRepository
 
 # ---------------------------------------------------------------------------
@@ -61,6 +67,26 @@ VALID_RECONSTRUCTION = {
     "absolute_error": [[0.1, 0.1, 0.1], [0.1, 0.1, 0.1]],
     "is_demo": True,
 }
+
+
+def _metric_value(collector, name: str, **labels: str) -> float:
+    """Return one labelled Prometheus sample, creating its zero value if needed."""
+    collector.labels(**labels)
+    for metric in collector.collect():
+        for sample in metric.samples:
+            if sample.name == name and sample.labels == labels:
+                return float(sample.value)
+    raise AssertionError(f"Prometheus sample not found: {name} {labels}")
+
+
+def _http_request_total() -> float:
+    """Return all user HTTP counter values without creating new labelsets."""
+    return sum(
+        float(sample.value)
+        for metric in HTTP_REQUESTS_TOTAL.collect()
+        for sample in metric.samples
+        if sample.name == "era5_api_http_requests_total"
+    )
 
 
 def _write_bundle(root: Path, **overrides) -> None:
@@ -133,6 +159,139 @@ def test_health(client: TestClient) -> None:
     response = client.get("/health")
     assert response.status_code == 200
     assert response.json() == {"status": "ok"}
+
+
+# ---------------------------------------------------------------------------
+# Prometheus instrumentation
+# ---------------------------------------------------------------------------
+def test_metrics_endpoint_uses_prometheus_exposition_format(
+    client: TestClient,
+) -> None:
+    response = client.get("/metrics", follow_redirects=False)
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("text/plain")
+    assert "era5_api_http_requests_total" in response.text
+    assert "era5_api_http_request_duration_seconds_bucket" in response.text
+    assert "era5_api_http_requests_in_progress" in response.text
+    assert "process_cpu_seconds_total" in response.text
+    assert "process_resident_memory_bytes" in response.text
+    assert "process_open_fds" in response.text
+    assert "process_start_time_seconds" in response.text
+
+
+def test_health_records_request_counter_and_duration(client: TestClient) -> None:
+    labels = {"method": "GET", "route": "/health"}
+    before_requests = _metric_value(
+        HTTP_REQUESTS_TOTAL,
+        "era5_api_http_requests_total",
+        **labels,
+        status_code="200",
+    )
+    before_duration_count = _metric_value(
+        HTTP_REQUEST_DURATION_SECONDS,
+        "era5_api_http_request_duration_seconds_count",
+        **labels,
+    )
+
+    assert client.get("/health").status_code == 200
+
+    assert _metric_value(
+        HTTP_REQUESTS_TOTAL,
+        "era5_api_http_requests_total",
+        **labels,
+        status_code="200",
+    ) == before_requests + 1
+    assert _metric_value(
+        HTTP_REQUEST_DURATION_SECONDS,
+        "era5_api_http_request_duration_seconds_count",
+        **labels,
+    ) == before_duration_count + 1
+
+
+def test_unknown_path_is_recorded_as_unmatched(client: TestClient) -> None:
+    labels = {"method": "GET", "route": "unmatched", "status_code": "404"}
+    before = _metric_value(
+        HTTP_REQUESTS_TOTAL, "era5_api_http_requests_total", **labels
+    )
+
+    assert client.get("/not-a-route").status_code == 404
+
+    assert _metric_value(
+        HTTP_REQUESTS_TOTAL, "era5_api_http_requests_total", **labels
+    ) == before + 1
+
+
+def test_dynamic_route_uses_template_not_experiment_id(client: TestClient) -> None:
+    labels = {
+        "method": "GET",
+        "route": "/api/v1/experiments/{experiment_id}",
+        "status_code": "200",
+    }
+    before = _metric_value(
+        HTTP_REQUESTS_TOTAL, "era5_api_http_requests_total", **labels
+    )
+
+    assert client.get("/api/v1/experiments/demo-pca-001").status_code == 200
+
+    assert _metric_value(
+        HTTP_REQUESTS_TOTAL, "era5_api_http_requests_total", **labels
+    ) == before + 1
+
+
+def test_metrics_scrape_is_excluded_from_user_request_counter(
+    client: TestClient,
+) -> None:
+    before = _http_request_total()
+    assert client.get("/metrics").status_code == 200
+    assert _http_request_total() == before
+
+
+def test_missing_artifact_increments_load_error_counter(client_factory) -> None:
+    labels = {"artifact_type": "summary"}
+    before = _metric_value(
+        ARTIFACT_LOAD_ERRORS_TOTAL,
+        "era5_api_artifact_load_errors_total",
+        **labels,
+    )
+    client = client_factory()
+    bundle_root = client.app.dependency_overrides[get_repository]().root
+    (bundle_root / "summary.json").unlink()
+
+    assert client.get("/api/v1/summary").status_code == 500
+
+    assert _metric_value(
+        ARTIFACT_LOAD_ERRORS_TOTAL,
+        "era5_api_artifact_load_errors_total",
+        **labels,
+    ) == before + 1
+
+
+def test_invalid_artifact_increments_validation_error_counter(
+    client_factory,
+) -> None:
+    labels = {"artifact_type": "experiments"}
+    before = _metric_value(
+        ARTIFACT_VALIDATION_ERRORS_TOTAL,
+        "era5_api_artifact_validation_errors_total",
+        **labels,
+    )
+    client = client_factory(experiments={"id": "demo-pca-001"})
+
+    assert client.get("/api/v1/experiments").status_code == 500
+
+    assert _metric_value(
+        ARTIFACT_VALIDATION_ERRORS_TOTAL,
+        "era5_api_artifact_validation_errors_total",
+        **labels,
+    ) == before + 1
+
+
+def test_repeated_app_creation_reuses_metrics_collectors() -> None:
+    first_app = create_app()
+    second_app = create_app()
+
+    assert TestClient(first_app).get("/health").status_code == 200
+    assert TestClient(second_app).get("/health").status_code == 200
 
 
 # ---------------------------------------------------------------------------

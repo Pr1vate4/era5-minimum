@@ -1,0 +1,76 @@
+services:
+  api:
+    build:
+      context: .
+      target: runtime-cpu
+      args:
+        APP_UID: ${APP_UID:-1000}
+        APP_GID: ${APP_GID:-1000}
+    image: era5-minimum:cpu
+    command:
+      - python
+      - -m
+      - uvicorn
+      - era5_minimum.api.app:app
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8000"
+      - --workers
+      - "1"
+      - --log-level
+      - ${LOG_LEVEL:-info}
+    environment:
+      ERA5_ARTIFACTS_ROOT: ${ERA5_ARTIFACTS_ROOT:-demo/mock}
+    ports:
+      - "${API_PORT:-8000}:8000"
+    volumes:
+      - ${ARTIFACTS_DIR:-./artifacts}:/workspace/artifacts:ro
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=2)"
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+
+  tools:
+    profiles: [tools]
+    build:
+      context: .
+      target: runtime-cpu
+      args:
+        APP_UID: ${APP_UID:-1000}
+        APP_GID: ${APP_GID:-1000}
+    image: era5-minimum:cpu
+    entrypoint: []
+    command: [python, --version]
+    volumes:
+      - ${DATA_DIR:-./data}:/workspace/data:ro
+      - ${OUTPUTS_DIR:-./outputs}:/workspace/outputs
+      - ${CHECKPOINTS_DIR:-./checkpoints}:/workspace/checkpoints
+      - ${BITSTREAMS_DIR:-./bitstreams}:/workspace/bitstreams
+      - ${ARTIFACTS_DIR:-./artifacts}:/workspace/artifacts
+      - ${SUBMISSION_DIR:-./submission}:/workspace/submission
+
+  data-tools:
+    profiles: [data]
+    build:
+      context: .
+      target: runtime-cpu
+      args:
+        APP_UID: ${APP_UID:-1000}
+        APP_GID: ${APP_GID:-1000}
+    image: era5-minimum:cpu
+    entrypoint: []
+    command: [python, --version]
+    volumes:
+      - ${DATA_DIR:-./data}:/workspace/data
+      - ${OUTPUTS_DIR:-./outputs}:/workspace/outputs
+      - ${CHECKPOINTS_DIR:-./checkpoints}:/workspace/checkpoints
+      - ${BITSTREAMS_DIR:-./bitstreams}:/workspace/bitstreams
+      - ${ARTIFACTS_DIR:-./artifacts}:/workspace/artifacts
+      - ${SUBMISSION_DIR:-./submission}:/workspace/submission

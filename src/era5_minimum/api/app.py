@@ -1,29 +1,4 @@
-"""
-FastAPI-приложение ERA5-Minimum Artifact API.
-
-Реализует все endpoint'ы, требуемые задачей API-001:
-
-    GET /health
-    GET /api/v1/summary
-    GET /api/v1/experiments
-    GET /api/v1/experiments/{experiment_id}
-    GET /api/v1/sample-efficiency
-    GET /api/v1/reconstructions/{experiment_id}?channel=&timestamp=
-
-Здесь же — единственное место, где доменные исключения из errors.py
-превращаются в HTTP-ответы:
-
-    404  ExperimentNotFoundError
-    422  UnsupportedChannelError
-    422  TimestampNotFoundError
-    500  ArtifactNotFoundError   (отсутствующий обязательный артефакт)
-    500  MalformedJSONError      (битый JSON)
-    500  InvalidArtifactError    (не прошёл Pydantic-валидацию)
-
-Тела ответов об ошибках — только "detail"/"error_type", без traceback,
-абсолютных путей, переменных окружения или токенов (контракт, раздел 12,
-и требования задачи).
-"""
+"""FastAPI application for the ERA5-Minimum Artifact API."""
 
 from __future__ import annotations
 
@@ -31,8 +6,9 @@ import os
 from pathlib import Path
 from typing import Optional
 
-from fastapi import Depends, FastAPI, Query, Request
-from fastapi.responses import JSONResponse
+from fastapi import APIRouter, Depends, FastAPI, Query, Request
+from fastapi.responses import JSONResponse, Response
+from prometheus_client import make_asgi_app
 
 from era5_minimum.api.errors import (
     ArtifactNotFoundError,
@@ -41,6 +17,11 @@ from era5_minimum.api.errors import (
     MalformedJSONError,
     TimestampNotFoundError,
     UnsupportedChannelError,
+)
+from era5_minimum.api.monitoring import (
+    METRICS_PATH,
+    PrometheusMetricsMiddleware,
+    initialize_health_metrics,
 )
 from era5_minimum.api.repository import ArtifactRepository
 from era5_minimum.api.schemas import (
@@ -51,43 +32,27 @@ from era5_minimum.api.schemas import (
     SummaryArtifact,
 )
 
-# Каталог с mock-артефактами по умолчанию — demo/mock из контракта.
-# Переопределяется переменной окружения (например, в тестах через
-# app.dependency_overrides, а не через env — см. tests/test_api.py).
 DEFAULT_ARTIFACTS_ROOT = Path(
     os.getenv("ERA5_ARTIFACTS_ROOT", "demo/mock")
 ).resolve()
 
 
 def get_repository() -> ArtifactRepository:
-    """
-    FastAPI-зависимость, возвращающая репозиторий артефактов.
-
-    В тестах переопределяется через
-    app.dependency_overrides[get_repository] с указанием tmp_path.
-    """
+    """Return the default artifact repository dependency."""
     return ArtifactRepository(artifacts_root=DEFAULT_ARTIFACTS_ROOT)
 
 
-app = FastAPI(
-    title="ERA5-Minimum Artifact API",
-    version="0.1.0",
-    description=(
-        "Backend, отдающий ML-артефакты проекта ERA5-Minimum согласно "
-        "docs/ARTIFACT_API_CONTRACT.md."
-    ),
-)
+router = APIRouter()
+metrics_asgi_app = make_asgi_app()
 
 
-# ---------------------------------------------------------------------------
-# Endpoints
-# ---------------------------------------------------------------------------
-@app.get("/health", tags=["health"])
-def health() -> dict:
+@router.get("/health", tags=["health"])
+def health() -> dict[str, str]:
+    """Return the API liveness response."""
     return {"status": "ok"}
 
 
-@app.get(
+@router.get(
     "/api/v1/summary",
     response_model=SummaryArtifact,
     responses={500: {"model": ErrorResponse}},
@@ -99,7 +64,7 @@ def read_summary(
     return repository.get_summary()
 
 
-@app.get(
+@router.get(
     "/api/v1/experiments",
     response_model=list[ExperimentArtifact],
     responses={500: {"model": ErrorResponse}},
@@ -111,13 +76,10 @@ def list_experiments(
     return repository.list_experiments()
 
 
-@app.get(
+@router.get(
     "/api/v1/experiments/{experiment_id}",
     response_model=ExperimentArtifact,
-    responses={
-        404: {"model": ErrorResponse},
-        500: {"model": ErrorResponse},
-    },
+    responses={404: {"model": ErrorResponse}, 500: {"model": ErrorResponse}},
     tags=["experiments"],
 )
 def read_experiment(
@@ -127,7 +89,7 @@ def read_experiment(
     return repository.get_experiment(experiment_id)
 
 
-@app.get(
+@router.get(
     "/api/v1/sample-efficiency",
     response_model=SampleEfficiencyArtifact,
     responses={500: {"model": ErrorResponse}},
@@ -139,7 +101,7 @@ def read_sample_efficiency(
     return repository.get_sample_efficiency()
 
 
-@app.get(
+@router.get(
     "/api/v1/reconstructions/{experiment_id}",
     response_model=ReconstructionArtifact,
     responses={
@@ -164,10 +126,6 @@ def read_reconstruction(
     )
 
 
-# ---------------------------------------------------------------------------
-# Exception handlers — единственное место перевода ошибок в HTTP-коды.
-# ---------------------------------------------------------------------------
-@app.exception_handler(ExperimentNotFoundError)
 async def handle_experiment_not_found(
     request: Request, exc: ExperimentNotFoundError
 ) -> JSONResponse:
@@ -177,7 +135,6 @@ async def handle_experiment_not_found(
     )
 
 
-@app.exception_handler(UnsupportedChannelError)
 async def handle_unsupported_channel(
     request: Request, exc: UnsupportedChannelError
 ) -> JSONResponse:
@@ -187,7 +144,6 @@ async def handle_unsupported_channel(
     )
 
 
-@app.exception_handler(TimestampNotFoundError)
 async def handle_timestamp_not_found(
     request: Request, exc: TimestampNotFoundError
 ) -> JSONResponse:
@@ -197,11 +153,9 @@ async def handle_timestamp_not_found(
     )
 
 
-@app.exception_handler(ArtifactNotFoundError)
 async def handle_artifact_not_found(
     request: Request, exc: ArtifactNotFoundError
 ) -> JSONResponse:
-    # Раздел 12 контракта: не раскрываем локальные пути на диске.
     return JSONResponse(
         status_code=500,
         content={
@@ -211,7 +165,6 @@ async def handle_artifact_not_found(
     )
 
 
-@app.exception_handler(MalformedJSONError)
 async def handle_malformed_json(
     request: Request, exc: MalformedJSONError
 ) -> JSONResponse:
@@ -224,7 +177,6 @@ async def handle_malformed_json(
     )
 
 
-@app.exception_handler(InvalidArtifactError)
 async def handle_invalid_artifact(
     request: Request, exc: InvalidArtifactError
 ) -> JSONResponse:
@@ -235,3 +187,60 @@ async def handle_invalid_artifact(
             "error_type": "invalid_artifact",
         },
     )
+
+
+async def metrics(request: Request) -> Response:
+    """Expose the official Prometheus ASGI adapter without a slash redirect."""
+    response_start: dict[str, object] | None = None
+    response_body = bytearray()
+
+    async def receive() -> dict[str, object]:
+        return {"type": "http.request", "body": b"", "more_body": False}
+
+    async def send(message: dict[str, object]) -> None:
+        nonlocal response_start
+        if message["type"] == "http.response.start":
+            response_start = message
+        elif message["type"] == "http.response.body":
+            response_body.extend(bytes(message.get("body", b"")))
+
+    await metrics_asgi_app(dict(request.scope), receive, send)
+    if response_start is None:  # pragma: no cover - adapter always starts a response.
+        raise RuntimeError("Prometheus ASGI adapter returned no response")
+
+    headers = {
+        bytes(name).decode("latin-1"): bytes(value).decode("latin-1")
+        for name, value in response_start["headers"]
+    }
+    return Response(
+        content=bytes(response_body),
+        status_code=int(response_start["status"]),
+        headers=headers,
+    )
+
+
+def create_app() -> FastAPI:
+    """Create an API instance while sharing process-wide Prometheus collectors."""
+    api = FastAPI(
+        title="ERA5-Minimum Artifact API",
+        version="0.1.0",
+        description=(
+            "Backend, отдающий ML-артефакты проекта ERA5-Minimum согласно "
+            "docs/ARTIFACT_API_CONTRACT.md."
+        ),
+    )
+    api.include_router(router)
+    api.add_exception_handler(ExperimentNotFoundError, handle_experiment_not_found)
+    api.add_exception_handler(UnsupportedChannelError, handle_unsupported_channel)
+    api.add_exception_handler(TimestampNotFoundError, handle_timestamp_not_found)
+    api.add_exception_handler(ArtifactNotFoundError, handle_artifact_not_found)
+    api.add_exception_handler(MalformedJSONError, handle_malformed_json)
+    api.add_exception_handler(InvalidArtifactError, handle_invalid_artifact)
+    api.add_middleware(PrometheusMetricsMiddleware, router=api.router)
+    api.add_api_route(METRICS_PATH, metrics, methods=["GET"], include_in_schema=False)
+    initialize_health_metrics()
+    return api
+
+
+# Keep the existing ASGI import contract: uvicorn era5_minimum.api.app:app.
+app = create_app()

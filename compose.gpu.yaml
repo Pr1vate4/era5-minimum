@@ -1,0 +1,28 @@
+services:
+  gpu-tools:
+    profiles: [gpu]
+    build:
+      context: .
+      target: runtime-cpu
+      args:
+        APP_UID: ${APP_UID:-1000}
+        APP_GID: ${APP_GID:-1000}
+    image: era5-minimum:cpu
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    environment:
+      CUDA_VISIBLE_DEVICES: ${CUDA_VISIBLE_DEVICES:-0}
+    entrypoint: []
+    command: [python, --version]
+    volumes:
+      - ${DATA_DIR:-./data}:/workspace/data:ro
+      - ${OUTPUTS_DIR:-./outputs}:/workspace/outputs
+      - ${CHECKPOINTS_DIR:-./checkpoints}:/workspace/checkpoints
+      - ${BITSTREAMS_DIR:-./bitstreams}:/workspace/bitstreams
+      - ${ARTIFACTS_DIR:-./artifacts}:/workspace/artifacts
+      - ${SUBMISSION_DIR:-./submission}:/workspace/submission

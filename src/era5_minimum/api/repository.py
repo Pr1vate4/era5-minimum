@@ -29,6 +29,12 @@ from era5_minimum.api.errors import (
     TimestampNotFoundError,
     UnsupportedChannelError,
 )
+from era5_minimum.api.monitoring import (
+    ArtifactType,
+    record_artifact_loaded,
+    record_artifact_load_error,
+    record_artifact_validation_error,
+)
 from era5_minimum.api.schemas import (
     ExperimentArtifact,
     ReconstructionArtifact,
@@ -37,17 +43,24 @@ from era5_minimum.api.schemas import (
 )
 
 
-def _read_json(path: Path, artifact_name: str) -> dict | list:
+def _read_json(
+    path: Path, artifact_name: str, artifact_type: ArtifactType
+) -> dict | list:
     if not path.exists():
+        record_artifact_load_error(artifact_type)
         raise ArtifactNotFoundError(artifact_name)
     try:
         with path.open("r", encoding="utf-8") as fh:
             return json.load(fh)
     except json.JSONDecodeError as exc:
+        record_artifact_load_error(artifact_type)
         raise MalformedJSONError(artifact_name) from exc
 
 
-def _raise_invalid(exc: ValidationError, artifact_name: str) -> None:
+def _raise_invalid(
+    exc: ValidationError, artifact_name: str, artifact_type: ArtifactType
+) -> None:
+    record_artifact_validation_error(artifact_type)
     raise InvalidArtifactError(artifact_name, str(exc)) from exc
 
 
@@ -69,11 +82,13 @@ class ArtifactRepository:
 
     # -- summary.json --------------------------------------------------
     def get_summary(self) -> SummaryArtifact:
-        raw = _read_json(self.summary_file, "summary.json")
+        raw = _read_json(self.summary_file, "summary.json", "summary")
         try:
-            return SummaryArtifact.model_validate(raw)
+            artifact = SummaryArtifact.model_validate(raw)
         except ValidationError as exc:
-            _raise_invalid(exc, "summary.json")
+            _raise_invalid(exc, "summary.json", "summary")
+        record_artifact_loaded("summary")
+        return artifact
 
     # -- experiments.json ------------------------------------------------
     def list_experiments(self) -> List[ExperimentArtifact]:
@@ -84,12 +99,16 @@ class ArtifactRepository:
         в контракте), так и в виде списка объектов — оба варианта
         нормализуются в список экспериментов.
         """
-        raw = _read_json(self.experiments_file, "experiments.json")
+        raw = _read_json(
+            self.experiments_file, "experiments.json", "experiments"
+        )
         items = raw if isinstance(raw, list) else [raw]
         try:
-            return [ExperimentArtifact.model_validate(item) for item in items]
+            artifacts = [ExperimentArtifact.model_validate(item) for item in items]
         except ValidationError as exc:
-            _raise_invalid(exc, "experiments.json")
+            _raise_invalid(exc, "experiments.json", "experiments")
+        record_artifact_loaded("experiments")
+        return artifacts
 
     def get_experiment(self, experiment_id: str) -> ExperimentArtifact:
         for experiment in self.list_experiments():
@@ -100,12 +119,16 @@ class ArtifactRepository:
     # -- sample_efficiency.json --------------------------------------------
     def get_sample_efficiency(self) -> SampleEfficiencyArtifact:
         raw = _read_json(
-            self.sample_efficiency_file, "sample_efficiency.json"
+            self.sample_efficiency_file,
+            "sample_efficiency.json",
+            "sample_efficiency",
         )
         try:
-            return SampleEfficiencyArtifact.model_validate(raw)
+            artifact = SampleEfficiencyArtifact.model_validate(raw)
         except ValidationError as exc:
-            _raise_invalid(exc, "sample_efficiency.json")
+            _raise_invalid(exc, "sample_efficiency.json", "sample_efficiency")
+        record_artifact_loaded("sample_efficiency")
+        return artifact
 
     # -- reconstructions/<experiment_id>.json --------------------------------
     def get_reconstruction(
@@ -132,14 +155,15 @@ class ArtifactRepository:
 
         artifact_name = f"reconstructions/{experiment_id}.json"
         path = self.reconstructions_dir / f"{experiment_id}.json"
-        raw = _read_json(path, artifact_name)
+        raw = _read_json(path, artifact_name, "reconstruction")
 
         try:
             reconstruction = ReconstructionArtifact.model_validate(raw)
         except ValidationError as exc:
-            _raise_invalid(exc, artifact_name)
+            _raise_invalid(exc, artifact_name, "reconstruction")
 
         if reconstruction.experiment_id != experiment_id:
+            record_artifact_validation_error("reconstruction")
             raise InvalidArtifactError(
                 artifact_name,
                 "experiment_id inside the file does not match the "
@@ -156,4 +180,5 @@ class ArtifactRepository:
             if timestamp not in (actual_iso, str(reconstruction.timestamp)):
                 raise TimestampNotFoundError(timestamp)
 
+        record_artifact_loaded("reconstruction")
         return reconstruction
