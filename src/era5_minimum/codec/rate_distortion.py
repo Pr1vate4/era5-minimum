@@ -40,8 +40,9 @@ def _masked_latitude_mean(
     validity_mask: torch.Tensor,
     latitude_weights: torch.Tensor,
 ) -> torch.Tensor:
+    elementwise_loss = elementwise_loss.float()
     valid = validity_mask.to(dtype=torch.bool)
-    weighted_validity = valid.to(dtype=elementwise_loss.dtype) * latitude_weights
+    weighted_validity = valid.to(dtype=torch.float32) * latitude_weights.float()
     numerator = (elementwise_loss * weighted_validity).sum()
     denominator = weighted_validity.sum()
     safe_denominator = torch.where(
@@ -75,8 +76,23 @@ def grouped_latitude_distortion(
         raise ValueError("surface_weight and pressure_weight sum must be positive")
 
     valid = validity_mask.to(dtype=torch.bool)
-    safe_prediction = torch.where(valid, prediction, torch.zeros_like(prediction))
-    safe_target = torch.where(valid, target, torch.zeros_like(target))
+    if not valid[:, :8].any():
+        raise ValueError("surface group has no valid values")
+    if not valid[:, 8:].any():
+        raise ValueError("pressure group has no valid values")
+
+    prediction_float = prediction.float()
+    target_float = target.float()
+    safe_prediction = torch.where(
+        valid,
+        prediction_float,
+        torch.zeros_like(prediction_float),
+    )
+    safe_target = torch.where(
+        valid,
+        target_float,
+        torch.zeros_like(target_float),
+    )
     if loss_type == "mse":
         elementwise_loss = (safe_prediction - safe_target).square()
     elif loss_type == "l1":
@@ -89,7 +105,7 @@ def grouped_latitude_distortion(
         )
 
     latitude_weights = torch.cos(
-        torch.deg2rad(latitudes.to(device=prediction.device, dtype=prediction.dtype))
+        torch.deg2rad(latitudes.to(device=prediction.device, dtype=torch.float32))
     ).clamp_min(0.0)
     latitude_weights = latitude_weights.view(1, 1, prediction.shape[2], 1)
     surface = _masked_latitude_mean(
@@ -147,12 +163,24 @@ class FactorizedLogisticEntropyModel(nn.Module):
             )
 
         scale_shape = (1, self.channels, *((1,) * (values.ndim - 2)))
-        scale = self.log_scale.exp().view(scale_shape)
-        half_step = quantization_step / 2.0
-        upper_cdf = torch.sigmoid((values + half_step) / scale)
-        lower_cdf = torch.sigmoid((values - half_step) / scale)
-        probability = (upper_cdf - lower_cdf).clamp(
-            min=self.min_probability,
-            max=1.0,
+        scale = (
+            F.softplus(self.log_scale.float())
+            .add(1e-6)
+            .clamp_max(1e6)
+            .view(scale_shape)
         )
-        return -torch.log2(probability)
+        values_float = values.float()
+        half_step = quantization_step / 2.0
+        upper = (values_float + half_step) / scale
+        lower = (values_float - half_step) / scale
+        delta = (quantization_step / scale).clamp_min(torch.finfo(torch.float32).tiny)
+        log_probability = (
+            F.logsigmoid(upper)
+            + F.logsigmoid(-lower)
+            + torch.log(-torch.expm1(-delta))
+        )
+        log_probability = log_probability.clamp(
+            min=math.log(self.min_probability),
+            max=0.0,
+        )
+        return -log_probability / math.log(2.0)

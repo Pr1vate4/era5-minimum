@@ -97,6 +97,7 @@ def test_grouped_distortion_does_not_clip_small_valid_weight_denominator() -> No
     prediction[:, 0] = 2.0
     mask = torch.zeros_like(target)
     mask[:, 0] = 1.0
+    mask[:, 8] = 1.0
 
     loss = _distortion(
         prediction,
@@ -203,6 +204,91 @@ def test_factorized_logistic_rate_returns_finite_bits_and_gradients() -> None:
     assert torch.isfinite(latent.grad).all()
     assert model.log_scale.grad is not None
     assert torch.isfinite(model.log_scale.grad).all()
+
+
+def test_factorized_logistic_rate_is_symmetric_for_large_values() -> None:
+    model = FactorizedLogisticEntropyModel(channels=1)
+    values = torch.tensor([[[-16.0, 16.0]]], requires_grad=True)
+
+    bits = model.estimated_bits(values, quantization_step=0.25)
+    bits.sum().backward()
+
+    assert bits[0, 0, 0].item() == pytest.approx(bits[0, 0, 1].item())
+    assert torch.isfinite(bits).all()
+    assert values.grad is not None
+    assert torch.isfinite(values.grad).all()
+    assert model.log_scale.grad is not None
+    assert torch.isfinite(model.log_scale.grad).all()
+
+
+def test_factorized_logistic_rate_handles_float16_values_near_ten() -> None:
+    model = FactorizedLogisticEntropyModel(channels=1)
+    values = torch.tensor([[[-10.0, 10.0]]], dtype=torch.float16, requires_grad=True)
+
+    bits = model.estimated_bits(values, quantization_step=0.25)
+    bits.sum().backward()
+
+    assert torch.isfinite(bits).all()
+    assert torch.isfinite(values.grad).all()
+    assert model.log_scale.grad is not None
+    assert torch.isfinite(model.log_scale.grad).all()
+
+
+@pytest.mark.parametrize("log_scale", [-100.0, 100.0])
+def test_factorized_logistic_rate_handles_extreme_log_scales(
+    log_scale: float,
+) -> None:
+    model = FactorizedLogisticEntropyModel(channels=2)
+    with torch.no_grad():
+        model.log_scale.fill_(log_scale)
+    values = torch.tensor([[[-16.0, 0.0], [16.0, 1.0]]], requires_grad=True)
+
+    bits = model.estimated_bits(values, quantization_step=0.25)
+    bits.sum().backward()
+
+    assert torch.isfinite(bits).all()
+    assert (bits >= 0).all()
+    assert torch.isfinite(values.grad).all()
+    assert model.log_scale.grad is not None
+    assert torch.isfinite(model.log_scale.grad).all()
+
+
+def test_grouped_distortion_accumulates_float16_grid_in_float32() -> None:
+    target = torch.zeros(1, 28, 2, 2, dtype=torch.float16)
+    prediction = torch.full_like(target, 300.0)
+
+    loss = _distortion(
+        prediction,
+        target,
+        torch.ones_like(target),
+        latitudes=torch.tensor([0.0, 0.0]),
+        surface_weight=1.0,
+        pressure_weight=0.0,
+    )
+
+    assert torch.isfinite(loss.surface)
+    assert loss.surface.item() == pytest.approx(90000.0)
+
+
+@pytest.mark.parametrize(
+    ("invalid_slice", "group_name"),
+    [(slice(None, 8), "surface"), (slice(8, None), "pressure")],
+)
+def test_grouped_distortion_rejects_fully_invalid_group(
+    invalid_slice: slice,
+    group_name: str,
+) -> None:
+    values = torch.zeros(1, 28, 1, 1)
+    mask = torch.ones_like(values)
+    mask[:, invalid_slice] = 0.0
+
+    with pytest.raises(ValueError, match=group_name):
+        _distortion(
+            values,
+            values,
+            mask,
+            latitudes=torch.tensor([0.0]),
+        )
 
 
 @pytest.mark.parametrize(
