@@ -23,11 +23,11 @@ export function ReconstructionViewer({ reconstructions }: { reconstructions: Rec
   }
 
   return (
-    <section id="reconstruction" className="rounded-2xl border border-slate-800 bg-slate-900/70 p-5 shadow-soft">
-      <div className="mb-4 flex items-center justify-between gap-4">
+    <section id="reconstruction" className="rounded-2xl border border-slate-200 bg-white p-4">
+      <div className="mb-3 flex items-center justify-between gap-4">
         <div>
-          <p className="text-xs uppercase tracking-[0.24em] text-slate-400">Visual check</p>
-          <h2 className="text-2xl font-semibold text-white">Reconstruction viewer</h2>
+          <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">Реконструкции</div>
+          <h2 className="mt-1 text-[17px] font-semibold text-slate-900">Просмотр реконструкции</h2>
         </div>
         <div className="flex gap-2">
           <select
@@ -38,7 +38,7 @@ export function ReconstructionViewer({ reconstructions }: { reconstructions: Rec
               const matchingTimestamp = reconstructions.find((item) => item.channel === next)?.timestamp ?? ''
               setTimestamp(matchingTimestamp)
             }}
-            className="rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white"
+            className="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-[12px] text-slate-700"
           >
             {uniqueChannels.map((option) => (
               <option key={option} value={option}>{option}</option>
@@ -47,7 +47,7 @@ export function ReconstructionViewer({ reconstructions }: { reconstructions: Rec
           <select
             value={timestamp}
             onChange={(e) => setTimestamp(e.target.value)}
-            className="rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white"
+            className="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-[12px] text-slate-700"
           >
             {visibleItems.map((item) => (
               <option key={`${item.channel}-${item.timestamp}`} value={item.timestamp}>{item.timestamp}</option>
@@ -56,23 +56,23 @@ export function ReconstructionViewer({ reconstructions }: { reconstructions: Rec
         </div>
       </div>
 
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-3 gap-2">
         {[
-          ['Original', entry.original_image],
-          ['Reconstructed', entry.reconstructed_image],
-          ['Difference', entry.diff_image],
+          ['Оригинал', entry.original_image],
+          ['Восстановление', entry.reconstructed_image],
+          ['Разница', entry.diff_image],
         ].map(([label, src]) => (
-          <div key={label} className="overflow-hidden rounded-xl border border-slate-800 bg-slate-950">
-            <img src={src} alt={`${label} ${entry.channel}`} className="h-64 w-full object-cover" />
-            <div className="px-3 py-2 text-sm text-slate-300">{label}</div>
+          <div key={label} className="overflow-hidden rounded-xl border border-slate-200 bg-slate-50">
+            <img src={src} alt={`${label} ${entry.channel}`} className="h-[180px] w-full object-cover" />
+            <div className="px-3 py-2 text-[12px] text-slate-600">{label}</div>
           </div>
         ))}
       </div>
 
-      <div className="mt-4">
-        <div className="mb-2 flex items-center justify-between text-sm text-slate-300">
-          <span>Before</span>
-          <span>After</span>
+      <div className="mt-3">
+        <div className="mb-1 flex items-center justify-between text-[12px] text-slate-600">
+          <span>До</span>
+          <span>После</span>
         </div>
         <input
           type="range"
@@ -80,9 +80,9 @@ export function ReconstructionViewer({ reconstructions }: { reconstructions: Rec
           max="100"
           value={slide}
           onChange={(e) => setSlide(Number(e.target.value))}
-          className="w-full accent-sky-400"
+          className="w-full accent-blue-500"
         />
-        <div className="mt-2 text-xs text-slate-400">Blend: {slide}% reconstructed / {(100 - slide)}% original</div>
+        <div className="mt-1 text-[11px] text-slate-500">Переместите ползунок для сравнения: {slide}% восстановлено / {(100 - slide)}% исходное</div>
       </div>
     </section>
   )

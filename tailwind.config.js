@@ -4,17 +4,20 @@ export default {
   theme: {
     extend: {
       colors: {
-        canvas: '#0b1220',
-        panel: '#111827',
-        accent: '#60a5fa',
-        success: '#22c55e',
-        danger: '#ef4444',
+        canvas: '#F7F8FA',
+        panel: '#FFFFFF',
+        accent: '#101828',
+        success: '#027A48',
+        danger: '#D92D20',
       },
       boxShadow: {
-        soft: '0 10px 30px rgba(15, 23, 42, 0.35)',
+        soft: '0 1px 0 rgba(16, 24, 40, 0.05)',
       },
       fontFamily: {
-        sans: ['Inter', 'SF Pro Display', 'Segoe UI', 'sans-serif'],
+        sans: ['Inter', 'Segoe UI', 'Helvetica Neue', 'Arial', 'sans-serif'],
+      },
+      borderRadius: {
+        card: '14px',
       },
     },
   },

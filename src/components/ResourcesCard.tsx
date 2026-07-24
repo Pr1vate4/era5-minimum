@@ -9,33 +9,31 @@ const limits = {
 
 export function ResourcesCard({ resources }: { resources: Resources }) {
   const rows = [
-    { key: 'gpu_hours', label: 'GPU hours', value: resources.gpu_hours, limit: limits.gpu_hours },
-    { key: 'peak_vram_gb', label: 'Peak VRAM', value: resources.peak_vram_gb, limit: limits.peak_vram_gb },
-    { key: 'params_millions', label: 'Parameters', value: resources.params_millions, limit: limits.params_millions },
-    { key: 'optimizer_steps', label: 'Optimizer steps', value: resources.optimizer_steps, limit: limits.optimizer_steps },
+    { key: 'gpu_hours', label: 'GPU-часы', value: resources.gpu_hours, limit: limits.gpu_hours },
+    { key: 'peak_vram_gb', label: 'Пиковый VRAM', value: resources.peak_vram_gb, limit: limits.peak_vram_gb },
+    { key: 'params_millions', label: 'Параметры', value: resources.params_millions, limit: limits.params_millions },
+    { key: 'optimizer_steps', label: 'Шаги оптимизатора', value: resources.optimizer_steps, limit: limits.optimizer_steps },
   ]
 
   return (
-    <section id="resources" className="rounded-2xl border border-slate-800 bg-slate-900/70 p-5 shadow-soft">
-      <div className="mb-4">
-        <p className="text-xs uppercase tracking-[0.24em] text-slate-400">Compute footprint</p>
-        <h2 className="text-2xl font-semibold text-white">Resources</h2>
+    <section id="resources" className="rounded-2xl border border-slate-200 bg-white p-4">
+      <div className="mb-3">
+        <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">Ресурсы</div>
+        <h2 className="mt-1 text-[17px] font-semibold text-slate-900">Ограничения и потребление</h2>
       </div>
 
-      <div className="grid grid-cols-1 gap-3 xl:grid-cols-2">
+      <div className="space-y-2">
         {rows.map((row) => {
-          const pass = row.value <= row.limit
+          const percent = Math.min((row.value / row.limit) * 100, 100)
+          const tone = percent >= 100 ? 'bg-red-600' : percent >= 85 ? 'bg-amber-500' : 'bg-blue-500'
           return (
-            <div key={row.key} className="rounded-xl border border-slate-800 bg-slate-950/80 p-4">
-              <div className="flex items-center justify-between">
-                <p className="text-sm text-slate-300">{row.label}</p>
-                <span className={`rounded-full border px-2 py-1 text-xs ${pass ? 'border-emerald-500/40 text-emerald-300' : 'border-rose-500/40 text-rose-300'}`}>
-                  {pass ? 'under limit' : 'over limit'}
-                </span>
+            <div key={row.key} className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+              <div className="flex items-center justify-between text-[12px]">
+                <span className="text-slate-700">{row.label}</span>
+                <span className="text-slate-500">{row.value} / {row.limit}</span>
               </div>
-              <div className="mt-3 flex items-end justify-between">
-                <p className="text-3xl font-semibold text-white">{row.value}</p>
-                <p className="text-sm text-slate-400">limit {row.limit}</p>
+              <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-200">
+                <div className={`h-full rounded-full ${tone}`} style={{ width: `${percent}%` }} />
               </div>
             </div>
           )

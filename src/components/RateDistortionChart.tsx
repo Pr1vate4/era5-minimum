@@ -1,36 +1,27 @@
-import {
-  CartesianGrid,
-  Line,
-  LineChart,
-  ReferenceLine,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from 'recharts'
+import { CartesianGrid, Line, LineChart, ReferenceLine, ResponsiveContainer, XAxis, YAxis } from 'recharts'
 import type { RateDistortionPoint } from '../types'
+import { ChartTooltip } from './ChartTooltip'
+
+const BLUE = '#3B82F6'
 
 export function RateDistortionChart({ data }: { data: RateDistortionPoint[] }) {
   const threshold = 0.05
 
   return (
-    <section id="rate-distortion" className="rounded-2xl border border-slate-800 bg-slate-900/70 p-5 shadow-soft">
-      <div className="mb-4">
-        <p className="text-xs uppercase tracking-[0.24em] text-slate-400">Compression quality</p>
-        <h2 className="text-2xl font-semibold text-white">Rate–distortion</h2>
+    <section id="rate-distortion" className="rounded-2xl border border-slate-200 bg-white p-4">
+      <div className="mb-3">
+        <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">Сжатие и качество</div>
+        <h2 className="mt-1 text-[17px] font-semibold text-slate-900">Кривая сжатие — качество</h2>
       </div>
-      <div className="h-80">
+      <div className="h-[260px]">
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={data}>
-            <CartesianGrid vertical={false} stroke="#334155" strokeDasharray="3 3" />
-            <XAxis dataKey="compression_ratio" stroke="#94a3b8" />
-            <YAxis stroke="#94a3b8" domain={[0, 0.09]} />
-            <Tooltip
-              contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: 12 }}
-              formatter={(value: number) => [value.toFixed(3), 'overall_nrmse']}
-            />
-            <ReferenceLine y={threshold} stroke="#ef4444" strokeDasharray="5 5" label={{ value: 'admission threshold', position: 'insideTopRight' }} />
-            <Line type="monotone" dataKey="overall_nrmse" stroke="#60a5fa" strokeWidth={2.5} dot={{ r: 4 }} />
+            <CartesianGrid vertical={false} stroke="#E5E7EB" strokeDasharray="3 3" />
+            <XAxis dataKey="compression_ratio" stroke="#64748B" tick={{ fill: '#64748B', fontSize: 11 }} />
+            <YAxis stroke="#64748B" domain={[0, 0.09]} tick={{ fill: '#64748B', fontSize: 11 }} />
+            <ChartTooltip />
+            <ReferenceLine y={threshold} stroke="#DC2626" strokeDasharray="5 5" />
+            <Line type="monotone" dataKey="overall_nrmse" stroke={BLUE} strokeWidth={2.2} dot={{ r: 4, fill: BLUE }} />
           </LineChart>
         </ResponsiveContainer>
       </div>
