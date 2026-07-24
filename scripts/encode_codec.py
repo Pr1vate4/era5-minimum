@@ -71,7 +71,7 @@ def main() -> None:
             grid=str(codec_cfg["grid"]),
             quantization_step=float(codec_cfg["quantization_step"]),
             seed=int(codec_cfg.get("seed", 0)),
-            git_commit=codec_cfg.get("git_commit"),
+            git_commit=codec_cfg.get("git_commit") or checkpoint.get("git_commit"),
         ),
         normalization=normalization,
     ).encode_latent(input_tensor=tensor, latent=encoded, output_dir=Path(args.output).parent)

@@ -6,6 +6,7 @@ import sys
 from pathlib import Path
 
 import numpy as np
+import torch
 
 from era5_minimum.codec.workflow import run_codec_smoke
 
@@ -76,6 +77,13 @@ def test_codec_encode_decode_and_verify_cli_roundtrip(tmp_path: Path) -> None:
     assert encode.returncode == 0, encode.stderr
     assert bitstream_path.exists()
     assert metadata_path.exists()
+    checkpoint_payload = torch.load(checkpoint, weights_only=False)
+    encoded_metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
+    assert checkpoint_payload["git_commit"] is not None
+    assert (
+        encoded_metadata["config"]["git_commit"]
+        == checkpoint_payload["git_commit"]
+    )
 
     decode = subprocess.run(
         [
