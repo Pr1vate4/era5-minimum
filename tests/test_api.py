@@ -18,6 +18,7 @@ from fastapi.testclient import TestClient
 from era5_minimum.api.app import app, create_app, get_repository
 from era5_minimum.api.monitoring import (
     ARTIFACT_LOADED,
+    ARTIFACTS_LOADED,
     ARTIFACT_LOAD_TOTAL,
     ARTIFACT_VALIDATION_TOTAL,
     HTTP_REQUEST_DURATION_SECONDS,
@@ -88,6 +89,15 @@ def _http_request_total() -> float:
         for sample in metric.samples
         if sample.name == "era5_api_http_requests_total"
     )
+
+
+def _unlabelled_metric_value(collector, name: str) -> float:
+    """Return a Prometheus sample from a collector without labels."""
+    for metric in collector.collect():
+        for sample in metric.samples:
+            if sample.name == name and not sample.labels:
+                return float(sample.value)
+    raise AssertionError(f"Prometheus sample not found: {name}")
 
 
 def _write_bundle(root: Path, **overrides) -> None:
@@ -300,6 +310,25 @@ def test_successful_artifact_load_records_success_valid_and_loaded(client) -> No
         "era5_api_artifact_loaded",
         artifact_type="summary",
     ) == 1
+
+
+def test_loaded_artifact_count_changes_only_with_validated_state(client_factory) -> None:
+    client = client_factory()
+    bundle_root = client.app.dependency_overrides[get_repository]().root
+    (bundle_root / "summary.json").unlink()
+    assert client.get("/api/v1/summary").status_code == 500
+    count_after_error = _unlabelled_metric_value(
+        ARTIFACTS_LOADED, "era5_api_artifacts_loaded"
+    )
+
+    (bundle_root / "summary.json").write_text(
+        json.dumps(VALID_SUMMARY), encoding="utf-8"
+    )
+    assert client.get("/api/v1/summary").status_code == 200
+
+    assert _unlabelled_metric_value(
+        ARTIFACTS_LOADED, "era5_api_artifacts_loaded"
+    ) == count_after_error + 1
 
 
 def test_invalid_artifact_increments_validation_error_counter(

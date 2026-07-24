@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+from threading import Lock
 from time import perf_counter, time
 from typing import Literal
 
@@ -14,6 +15,12 @@ from era5_minimum import __version__
 ArtifactType = Literal[
     "summary", "experiments", "sample_efficiency", "reconstruction"
 ]
+ARTIFACT_TYPES: tuple[ArtifactType, ...] = (
+    "summary",
+    "experiments",
+    "sample_efficiency",
+    "reconstruction",
+)
 
 METRICS_PATH = "/metrics"
 UNMATCHED_ROUTE = "unmatched"
@@ -62,6 +69,10 @@ ARTIFACT_LOADED = Gauge(
     "Whether the last repository operation successfully loaded each artifact type.",
     labelnames=("artifact_type",),
 )
+ARTIFACTS_LOADED = Gauge(
+    "era5_api_artifacts_loaded",
+    "Current count of artifact types successfully loaded and validated.",
+)
 ARTIFACT_LAST_SUCCESS_TIMESTAMP_SECONDS = Gauge(
     "era5_api_artifact_last_success_timestamp_seconds",
     "Unix time of the last successful artifact load.",
@@ -73,6 +84,11 @@ BUILD_INFO = Gauge(
     labelnames=("version", "commit", "environment"),
 )
 
+_artifact_load_states: dict[ArtifactType, int] = {
+    artifact_type: 0 for artifact_type in ARTIFACT_TYPES
+}
+_artifact_load_states_lock = Lock()
+
 
 def initialize_monitoring_metrics() -> None:
     """Create stable startup series without registering duplicate collectors."""
@@ -80,6 +96,7 @@ def initialize_monitoring_metrics() -> None:
     HTTP_REQUESTS_TOTAL.labels(**labels, status_code="200")
     HTTP_REQUEST_DURATION_SECONDS.labels(**labels)
     HTTP_REQUESTS_IN_PROGRESS.labels(method="GET")
+    ARTIFACTS_LOADED.set(sum(_artifact_load_states.values()))
     BUILD_INFO.labels(
         version=os.getenv("ERA5_BUILD_VERSION", __version__),
         commit=os.getenv("ERA5_BUILD_COMMIT", "unknown"),
@@ -90,7 +107,7 @@ def initialize_monitoring_metrics() -> None:
 def record_artifact_load_error(artifact_type: ArtifactType) -> None:
     """Record one unsuccessful JSON artifact read."""
     ARTIFACT_LOAD_TOTAL.labels(artifact_type=artifact_type, status="error").inc()
-    ARTIFACT_LOADED.labels(artifact_type=artifact_type).set(0)
+    _set_artifact_loaded_state(artifact_type, is_loaded=False)
 
 
 def record_artifact_validation_error(artifact_type: ArtifactType) -> None:
@@ -98,7 +115,7 @@ def record_artifact_validation_error(artifact_type: ArtifactType) -> None:
     ARTIFACT_VALIDATION_TOTAL.labels(
         artifact_type=artifact_type, status="invalid"
     ).inc()
-    ARTIFACT_LOADED.labels(artifact_type=artifact_type).set(0)
+    _set_artifact_loaded_state(artifact_type, is_loaded=False)
 
 
 def record_artifact_loaded(artifact_type: ArtifactType) -> None:
@@ -107,10 +124,20 @@ def record_artifact_loaded(artifact_type: ArtifactType) -> None:
     ARTIFACT_VALIDATION_TOTAL.labels(
         artifact_type=artifact_type, status="valid"
     ).inc()
-    ARTIFACT_LOADED.labels(artifact_type=artifact_type).set(1)
+    _set_artifact_loaded_state(artifact_type, is_loaded=True)
     ARTIFACT_LAST_SUCCESS_TIMESTAMP_SECONDS.labels(
         artifact_type=artifact_type
     ).set(time())
+
+
+def _set_artifact_loaded_state(
+    artifact_type: ArtifactType, *, is_loaded: bool
+) -> None:
+    """Set per-type state and the bounded aggregate loaded-artifact count."""
+    with _artifact_load_states_lock:
+        _artifact_load_states[artifact_type] = int(is_loaded)
+        ARTIFACT_LOADED.labels(artifact_type=artifact_type).set(int(is_loaded))
+        ARTIFACTS_LOADED.set(sum(_artifact_load_states.values()))
 
 
 def normalized_route(scope: dict[str, object], router: Router) -> str:

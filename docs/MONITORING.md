@@ -45,6 +45,7 @@ Grafana state may be discarded; do not use broad Docker prune commands.
 | `era5_api_artifact_load_total` | `artifact_type`, `status` | Successful or failed artifact read/load. |
 | `era5_api_artifact_validation_total` | `artifact_type`, `status` | Valid or invalid artifact validation. |
 | `era5_api_artifact_loaded` | `artifact_type` | Last artifact-load state (0 or 1). |
+| `era5_api_artifacts_loaded` | — | Current count of successfully loaded artifact types. |
 | `era5_api_artifact_last_success_timestamp_seconds` | `artifact_type` | Last successful artifact load time. |
 | `era5_api_build_info` | `version`, `commit`, `environment` | Static low-cardinality build metadata. |
 

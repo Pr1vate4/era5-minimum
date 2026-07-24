@@ -4,7 +4,7 @@
   "tags": ["era5", "api", "prometheus"],
   "timezone": "browser",
   "schemaVersion": 41,
-  "version": 1,
+  "version": 4,
   "refresh": "10s",
   "time": {"from": "now-6h", "to": "now"},
   "templating": {
@@ -36,11 +36,11 @@
     },
     {
       "id": 2,
-      "title": "Total request rate",
+      "title": "User request rate",
       "type": "stat",
       "gridPos": {"x": 6, "y": 0, "w": 6, "h": 5},
       "datasource": {"type": "prometheus", "uid": "prometheus"},
-      "targets": [{"expr": "sum(rate(era5_api_http_requests_total[1m]))", "refId": "A"}],
+      "targets": [{"expr": "sum(rate(era5_api_http_requests_total{route!=\"/health\"}[$__rate_interval]))", "refId": "A"}],
       "fieldConfig": {"defaults": {"unit": "reqps"}, "overrides": []},
       "options": {"reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}}
     },
@@ -50,17 +50,17 @@
       "type": "stat",
       "gridPos": {"x": 12, "y": 0, "w": 6, "h": 5},
       "datasource": {"type": "prometheus", "uid": "prometheus"},
-      "targets": [{"expr": "100 * sum(rate(era5_api_http_requests_total{status_code=~\"5..\"}[5m])) / clamp_min(sum(rate(era5_api_http_requests_total[5m])), 1e-9)", "refId": "A"}],
-      "fieldConfig": {"defaults": {"unit": "percent", "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "yellow", "value": 1}, {"color": "red", "value": 5}]}}, "overrides": []},
+      "targets": [{"expr": "(100 * sum(rate(era5_api_http_requests_total{status_code=~\"5..\"}[$__rate_interval])) / clamp_min(sum(rate(era5_api_http_requests_total[$__rate_interval])), 0.000001)) or vector(0)", "refId": "A"}],
+      "fieldConfig": {"defaults": {"unit": "percent", "decimals": 2, "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "yellow", "value": 1}, {"color": "red", "value": 5}]}}, "overrides": []},
       "options": {"reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}}
     },
     {
       "id": 4,
-      "title": "P95 response latency",
+      "title": "User P95 response latency",
       "type": "stat",
       "gridPos": {"x": 18, "y": 0, "w": 6, "h": 5},
       "datasource": {"type": "prometheus", "uid": "prometheus"},
-      "targets": [{"expr": "histogram_quantile(0.95, sum by (le) (rate(era5_api_http_request_duration_seconds_bucket[5m])))", "refId": "A"}],
+      "targets": [{"expr": "histogram_quantile(0.95, sum by (le) (rate(era5_api_http_request_duration_seconds_bucket{route!=\"/health\"}[$__rate_interval])))", "refId": "A"}],
       "fieldConfig": {"defaults": {"unit": "s", "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "yellow", "value": 1}, {"color": "red", "value": 2}]}}, "overrides": []},
       "options": {"reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}}
     },
@@ -103,29 +103,31 @@
     {
       "id": 9,
       "title": "Artifact load errors",
-      "type": "timeseries",
+      "type": "stat",
       "gridPos": {"x": 12, "y": 13, "w": 6, "h": 8},
       "datasource": {"type": "prometheus", "uid": "prometheus"},
-      "targets": [{"expr": "sum by (artifact_type) (rate(era5_api_artifact_load_total{status=\"error\"}[5m]))", "legendFormat": "{{artifact_type}}", "refId": "A"}],
-      "fieldConfig": {"defaults": {"unit": "ops"}, "overrides": []}
+      "targets": [{"expr": "sum by (artifact_type) (rate(era5_api_artifact_load_total{status=\"error\"}[$__rate_interval])) or vector(0)", "legendFormat": "{{artifact_type}}", "refId": "A"}],
+      "fieldConfig": {"defaults": {"unit": "short", "min": 0, "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "red", "value": 0.000001}]}}, "overrides": []},
+      "options": {"reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "orientation": "auto", "colorMode": "value"}
     },
     {
       "id": 10,
       "title": "Artifact validation failures",
-      "type": "timeseries",
+      "type": "stat",
       "gridPos": {"x": 18, "y": 13, "w": 6, "h": 8},
       "datasource": {"type": "prometheus", "uid": "prometheus"},
-      "targets": [{"expr": "sum by (artifact_type) (rate(era5_api_artifact_validation_total{status=~\"invalid|error\"}[5m]))", "legendFormat": "{{artifact_type}}", "refId": "A"}],
-      "fieldConfig": {"defaults": {"unit": "ops"}, "overrides": []}
+      "targets": [{"expr": "sum by (artifact_type) (rate(era5_api_artifact_validation_total{status=~\"invalid|error\"}[$__rate_interval])) or vector(0)", "legendFormat": "{{artifact_type}}", "refId": "A"}],
+      "fieldConfig": {"defaults": {"unit": "short", "min": 0, "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "red", "value": 0.000001}]}}, "overrides": []},
+      "options": {"reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "orientation": "auto", "colorMode": "value"}
     },
     {
       "id": 11,
-      "title": "Loaded artifacts",
+      "title": "Loaded artifact types",
       "type": "stat",
       "gridPos": {"x": 0, "y": 21, "w": 6, "h": 6},
       "datasource": {"type": "prometheus", "uid": "prometheus"},
-      "targets": [{"expr": "era5_api_artifact_loaded", "legendFormat": "{{artifact_type}}", "refId": "A"}],
-      "fieldConfig": {"defaults": {"thresholds": {"mode": "absolute", "steps": [{"color": "red", "value": null}, {"color": "green", "value": 1}]}}, "overrides": []},
+      "targets": [{"expr": "sum(era5_api_artifacts_loaded) or vector(0)", "refId": "A"}],
+      "fieldConfig": {"defaults": {"unit": "short", "min": 0}, "overrides": []},
       "options": {"reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "orientation": "auto"}
     },
     {

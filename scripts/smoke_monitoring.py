@@ -9,15 +9,18 @@ import sys
 import time
 from collections.abc import Callable
 from typing import Any
-from urllib.error import URLError
+from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
 from urllib.request import urlopen
 
 
 def get(url: str, *, timeout: float = 3.0) -> tuple[int, str]:
     """Return a small HTTP response without adding a third-party dependency."""
-    with urlopen(url, timeout=timeout) as response:  # noqa: S310 - local URLs only.
-        return response.status, response.read().decode("utf-8")
+    try:
+        with urlopen(url, timeout=timeout) as response:  # noqa: S310 - local URLs only.
+            return response.status, response.read().decode("utf-8")
+    except HTTPError as exc:
+        return exc.code, exc.read().decode("utf-8")
 
 
 def wait_for(description: str, check: Callable[[], Any], timeout: float) -> Any:
