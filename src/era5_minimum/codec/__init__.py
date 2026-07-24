@@ -2,12 +2,12 @@
 
 from .bitstream import BitstreamError, CanonicalHuffmanCoder
 from .harness import CodecHarness
-from .normalization import NormalizationSpec
+from .normalization import NormalizationSpec, denormalize_reconstruction, normalize_physical_tensor
 from .resources import build_resource_usage_record, measure_runtime_resources, write_resource_usage
-from .tiling import compute_tile_seam_error, run_tiled_inference
 from .quantization import ScalarQuantizer
-from .workflow import SMOKE_CHANNELS, build_smoke_tensor, run_codec_smoke
+from .tiling import compute_tile_seam_error, decode_latent_tiled, run_tiled_inference
 from .types import CodecConfig, CodecResult
+from .workflow import SMOKE_CHANNELS, build_smoke_tensor, run_codec_smoke
 
 __all__ = [
     "BitstreamError",
@@ -19,8 +19,11 @@ __all__ = [
     "build_resource_usage_record",
     "build_smoke_tensor",
     "compute_tile_seam_error",
+    "denormalize_reconstruction",
+    "decode_latent_tiled",
     "NormalizationSpec",
     "measure_runtime_resources",
+    "normalize_physical_tensor",
     "run_tiled_inference",
     "run_codec_smoke",
     "ScalarQuantizer",

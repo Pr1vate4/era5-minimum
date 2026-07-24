@@ -120,6 +120,16 @@ def test_codec_encode_decode_and_verify_cli_roundtrip(tmp_path: Path) -> None:
 
     payload = json.loads(metadata_path.read_text(encoding="utf-8"))
     assert payload["roundtrip"]["exact_symbol_match"] is True
+    assert payload["preprocessing"]["normalization_train_only"] is True
+    assert payload["preprocessing"]["invalid_value_count"] > 0
+
+    decoded_payload = np.load(decode_output)
+    assert decoded_payload["value_space"].item() == "physical"
+    assert np.allclose(
+        decoded_payload["reconstruction"],
+        reconstruction["validation_reconstruction"],
+        atol=1e-5,
+    )
 
 
 def test_codec_decode_cli_preserves_non_multiple_of_eight_shape(tmp_path: Path) -> None:
@@ -199,6 +209,14 @@ def test_codec_decode_cli_preserves_non_multiple_of_eight_shape(tmp_path: Path) 
             str(metadata_path),
             "--output",
             str(decode_output),
+            "--inference-mode",
+            "tiled",
+            "--tile-height",
+            "8",
+            "--tile-width",
+            "8",
+            "--halo",
+            "8",
         ],
         cwd=Path(__file__).resolve().parents[1],
         capture_output=True,
@@ -209,3 +227,65 @@ def test_codec_decode_cli_preserves_non_multiple_of_eight_shape(tmp_path: Path) 
 
     decoded = np.load(decode_output)
     assert decoded["reconstruction"].shape == validation_original.shape
+    assert decoded["inference_mode"].item() == "tiled"
+    assert decoded["tile_height"].item() == 8
+    assert decoded["tile_width"].item() == 8
+    assert decoded["halo"].item() == 8
+
+
+def test_codec_decode_cli_rejects_metadata_checksum_mismatch(tmp_path: Path) -> None:
+    output_dir = tmp_path / "codec_out_checksum"
+    config = {
+        "seed": 23,
+        "output_dir": str(output_dir),
+        "data": {
+            "samples": 12,
+            "height": 8,
+            "width": 8,
+            "validation_samples": 2,
+            "test_samples": 2,
+        },
+        "model": {"latent_channels": 4, "parameter_limit": 2_000_000},
+        "codec": {
+            "version": "ml-001",
+            "grid": "smoke-8x8",
+            "quantization_step": 0.25,
+            "target_compression_ratio": 32,
+        },
+        "training": {
+            "batch_size": 4,
+            "epochs": 1,
+            "learning_rate": 1e-3,
+            "max_steps": 1,
+        },
+        "resources": {"max_vram_gb": 24, "max_gpu_hours": 48},
+    }
+    run_codec_smoke(config)
+    metadata_path = output_dir / "bitstreams" / "validation.json"
+    corrupted_metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
+    corrupted_metadata["bitstream"]["sha256"] = "0" * 64
+    corrupted_metadata_path = tmp_path / "corrupted.json"
+    corrupted_metadata_path.write_text(json.dumps(corrupted_metadata), encoding="utf-8")
+
+    decode = subprocess.run(
+        [
+            sys.executable,
+            "scripts/decode_codec.py",
+            "--checkpoint",
+            str(output_dir / "checkpoints" / "model.ckpt"),
+            "--bitstream",
+            str(output_dir / "bitstreams" / "validation.bin"),
+            "--metadata",
+            str(corrupted_metadata_path),
+            "--output",
+            str(tmp_path / "must_not_exist.npz"),
+        ],
+        cwd=Path(__file__).resolve().parents[1],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert decode.returncode != 0
+    assert "checksum" in decode.stderr.lower()
+    assert not (tmp_path / "must_not_exist.npz").exists()

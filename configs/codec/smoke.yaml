@@ -24,6 +24,13 @@ training:
   learning_rate: 0.001
   max_steps: 4
 
+inference:
+  mode: tiled
+  tile_height: 8
+  tile_width: 8
+  halo: 8
+  boundary_width: 1
+
 resources:
   max_vram_gb: 24
   max_gpu_hours: 48

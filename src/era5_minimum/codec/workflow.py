@@ -16,7 +16,7 @@ from torch.utils.data import DataLoader, TensorDataset
 from era5_minimum.codec.harness import CodecHarness
 from era5_minimum.codec.normalization import NormalizationSpec
 from era5_minimum.codec.resources import measure_runtime_resources, write_resource_usage
-from era5_minimum.codec.tiling import compute_tile_seam_error, run_tiled_inference
+from era5_minimum.codec.tiling import compute_tile_seam_error, decode_latent_tiled
 from era5_minimum.codec.types import CodecConfig
 from era5_minimum.metrics import latitude_weighted_rmse, mae, per_channel_rmse, rmse
 from era5_minimum.models import ConvAutoencoder
@@ -233,6 +233,12 @@ def run_codec_smoke(config: dict[str, Any]) -> dict[str, Any]:
             "codec_config": codec_cfg,
             "normalization": normalization.to_dict(),
             "channel_order": list(SMOKE_CHANNELS),
+            "inference_config": config.get("inference"),
+            "preprocessing": {
+                "sst_index": sst_index,
+                "ocean_mask": ocean_mask,
+                "ocean_mask_sha256": _sha256_bytes(ocean_mask.tobytes()),
+            },
         },
         checkpoint_path,
     )
@@ -244,8 +250,6 @@ def run_codec_smoke(config: dict[str, Any]) -> dict[str, Any]:
     with torch.no_grad():
         validation_latent = model.encode(validation_tensor).cpu().numpy()
         test_latent = model.encode(test_tensor).cpu().numpy()
-        validation_forward_norm = model(validation_tensor).cpu().numpy()
-        test_forward_norm = model(test_tensor).cpu().numpy()
     codec = CodecHarness(
         config=CodecConfig(
             version=str(codec_cfg["version"]),
@@ -273,15 +277,45 @@ def run_codec_smoke(config: dict[str, Any]) -> dict[str, Any]:
     if test_codec_result.decoded_latent is None:
         raise RuntimeError("codec decode did not return latent")
     started_decode = time.perf_counter()
+    output_size = (int(validation_norm.shape[-2]), int(validation_norm.shape[-1]))
+    inference_cfg = config.get("inference")
     with torch.no_grad():
-        prediction_norm = model.decode(
-            torch.from_numpy(validation_codec_result.decoded_latent).to(device),
-            output_size=(int(validation_norm.shape[-2]), int(validation_norm.shape[-1])),
-        ).cpu().numpy()
-        test_prediction_norm = model.decode(
-            torch.from_numpy(test_codec_result.decoded_latent).to(device),
-            output_size=(int(test_norm.shape[-2]), int(test_norm.shape[-1])),
-        ).cpu().numpy()
+        validation_decoded_latent = torch.from_numpy(validation_codec_result.decoded_latent).to(device)
+        test_decoded_latent = torch.from_numpy(test_codec_result.decoded_latent).to(device)
+        validation_fullframe_norm = model.decode(
+            validation_decoded_latent,
+            output_size=output_size,
+        )
+        test_fullframe_norm = model.decode(
+            test_decoded_latent,
+            output_size=output_size,
+        )
+        reconstruction_mode = _inference_mode(inference_cfg)
+        if reconstruction_mode == "tiled":
+            tile_height, tile_width, halo = _tile_parameters(inference_cfg)
+            prediction_tensor = decode_latent_tiled(
+                validation_decoded_latent,
+                output_size=output_size,
+                tile_height=tile_height,
+                tile_width=tile_width,
+                halo=halo,
+                scale_factor=8,
+                decoder=model.decode,
+            )
+            test_prediction_tensor = decode_latent_tiled(
+                test_decoded_latent,
+                output_size=output_size,
+                tile_height=tile_height,
+                tile_width=tile_width,
+                halo=halo,
+                scale_factor=8,
+                decoder=model.decode,
+            )
+        else:
+            prediction_tensor = validation_fullframe_norm
+            test_prediction_tensor = test_fullframe_norm
+        prediction_norm = prediction_tensor.cpu().numpy()
+        test_prediction_norm = test_prediction_tensor.cpu().numpy()
     decode_seconds = time.perf_counter() - started_decode
 
     prediction_physical = _denormalize(prediction_norm, train_mean, train_std)
@@ -311,14 +345,13 @@ def run_codec_smoke(config: dict[str, Any]) -> dict[str, Any]:
     )
     per_time = _per_time_metrics(validation_norm, prediction_norm, validity_mask=validation_valid_mask)
     tile_report = _maybe_run_tiled_inference_report(
-        model=model,
-        validation_tensor=validation_tensor,
-        test_tensor=test_tensor,
-        validation_fullframe=validation_forward_norm,
-        test_fullframe=test_forward_norm,
+        validation_tiled=prediction_norm,
+        test_tiled=test_prediction_norm,
+        validation_fullframe=validation_fullframe_norm.cpu().numpy(),
+        test_fullframe=test_fullframe_norm.cpu().numpy(),
         validation_valid_mask=validation_valid_mask,
         test_valid_mask=test_valid_mask,
-        inference_cfg=config.get("inference"),
+        inference_cfg=inference_cfg,
     )
 
     metrics_validation_path = output_dir / "metrics_validation.json"
@@ -344,6 +377,7 @@ def run_codec_smoke(config: dict[str, Any]) -> dict[str, Any]:
         test_original=test_physical.astype(np.float32),
         test_reconstruction=test_prediction.astype(np.float32),
         ocean_mask=ocean_mask.astype(np.float32),
+        inference_mode=np.asarray(reconstruction_mode),
     )
 
     entropy_statistics = {
@@ -408,6 +442,7 @@ def run_codec_smoke(config: dict[str, Any]) -> dict[str, Any]:
         "test_bitstream_path": str(test_bitstream),
         "invalid_value_count": total_invalid_count,
         "nan_value_count": total_nan_count,
+        "reconstruction_inference_mode": reconstruction_mode,
         "tile_inference_enabled": tile_report is not None,
         "tile_inference_report_path": None if tile_report is None else str(output_dir / "tile_inference.json"),
         "tile_fullframe_rmse_normalized": None if tile_report is None else tile_report["validation_fullframe_rmse_normalized"],
@@ -419,6 +454,8 @@ def run_codec_smoke(config: dict[str, Any]) -> dict[str, Any]:
         "codec_config": codec_cfg,
         "normalization": normalization.to_dict(),
         "inference_config": config.get("inference"),
+        "ocean_mask_shape": list(ocean_mask.shape),
+        "ocean_mask_sha256": _sha256_bytes(ocean_mask.tobytes()),
         "parameter_count": trainable_params,
         "total_parameter_count": total_params,
         "run_id": summary["run_id"],
@@ -458,6 +495,7 @@ def run_codec_smoke(config: dict[str, Any]) -> dict[str, Any]:
         "run_summary_path": str(output_dir / "run_summary.json"),
         "invalid_value_count": total_invalid_count,
         "nan_value_count": total_nan_count,
+        "reconstruction_inference_mode": reconstruction_mode,
         "tile_inference_enabled": tile_report is not None,
         "tile_inference_report_path": None if tile_report is None else str(output_dir / "tile_inference.json"),
         "tile_fullframe_rmse_normalized": None if tile_report is None else tile_report["validation_fullframe_rmse_normalized"],
@@ -520,11 +558,30 @@ def _normalize(values: np.ndarray, mean: np.ndarray, std: np.ndarray) -> np.ndar
     return ((values - mean) / std).astype(np.float32)
 
 
+def _inference_mode(inference_cfg: dict[str, Any] | None) -> str:
+    mode = "full_frame" if inference_cfg is None else str(inference_cfg.get("mode", "full_frame"))
+    if mode not in {"full_frame", "tiled"}:
+        raise ValueError(f"unsupported inference mode: {mode}")
+    return mode
+
+
+def _tile_parameters(inference_cfg: dict[str, Any] | None) -> tuple[int, int, int]:
+    if inference_cfg is None:
+        raise ValueError("tiled inference requires an inference config")
+    try:
+        return (
+            int(inference_cfg["tile_height"]),
+            int(inference_cfg["tile_width"]),
+            int(inference_cfg["halo"]),
+        )
+    except KeyError as error:
+        raise ValueError(f"tiled inference requires {error.args[0]}") from error
+
+
 def _maybe_run_tiled_inference_report(
     *,
-    model: nn.Module,
-    validation_tensor: torch.Tensor,
-    test_tensor: torch.Tensor,
+    validation_tiled: np.ndarray,
+    test_tiled: np.ndarray,
     validation_fullframe: np.ndarray,
     test_fullframe: np.ndarray,
     validation_valid_mask: np.ndarray,
@@ -533,30 +590,10 @@ def _maybe_run_tiled_inference_report(
 ) -> dict[str, Any] | None:
     if inference_cfg is None:
         return None
-    mode = str(inference_cfg.get("mode", "full_frame"))
-    if mode != "tiled":
+    if _inference_mode(inference_cfg) != "tiled":
         return None
-    tile_height = int(inference_cfg["tile_height"])
-    tile_width = int(inference_cfg["tile_width"])
-    halo = int(inference_cfg["halo"])
+    tile_height, tile_width, halo = _tile_parameters(inference_cfg)
     boundary_width = int(inference_cfg.get("boundary_width", 1))
-
-    predictor = lambda tile: model(tile)
-    with torch.no_grad():
-        validation_tiled = run_tiled_inference(
-            validation_tensor,
-            tile_height=tile_height,
-            tile_width=tile_width,
-            halo=halo,
-            predictor=predictor,
-        ).cpu().numpy()
-        test_tiled = run_tiled_inference(
-            test_tensor,
-            tile_height=tile_height,
-            tile_width=tile_width,
-            halo=halo,
-            predictor=predictor,
-        ).cpu().numpy()
 
     validation_tiled = np.where(validation_valid_mask > 0, validation_tiled, 0.0).astype(np.float32)
     validation_fullframe = np.where(validation_valid_mask > 0, validation_fullframe, 0.0).astype(np.float32)
@@ -571,6 +608,7 @@ def _maybe_run_tiled_inference_report(
 
     return {
         "mode": "tiled",
+        "reference": "full_frame_quantized_latent_decode",
         "tile_height": tile_height,
         "tile_width": tile_width,
         "halo": halo,
@@ -586,6 +624,25 @@ def _maybe_run_tiled_inference_report(
             tile_height=tile_height,
             tile_width=tile_width,
             boundary_width=boundary_width,
+            validity_mask=validation_mask_tensor,
+        ),
+        "validation_internal_seam_rmse_normalized": compute_tile_seam_error(
+            reference=validation_full_tensor,
+            candidate=validation_tiled_tensor,
+            tile_height=tile_height,
+            tile_width=tile_width,
+            boundary_width=boundary_width,
+            validity_mask=validation_mask_tensor,
+            include_longitude_wrap=False,
+        ),
+        "validation_longitude_wrap_rmse_normalized": compute_tile_seam_error(
+            reference=validation_full_tensor,
+            candidate=validation_tiled_tensor,
+            tile_height=tile_height,
+            tile_width=tile_width,
+            boundary_width=boundary_width,
+            validity_mask=validation_mask_tensor,
+            include_internal_boundaries=False,
         ),
         "test_fullframe_rmse_normalized": rmse(
             test_tiled_tensor,
@@ -598,6 +655,25 @@ def _maybe_run_tiled_inference_report(
             tile_height=tile_height,
             tile_width=tile_width,
             boundary_width=boundary_width,
+            validity_mask=test_mask_tensor,
+        ),
+        "test_internal_seam_rmse_normalized": compute_tile_seam_error(
+            reference=test_full_tensor,
+            candidate=test_tiled_tensor,
+            tile_height=tile_height,
+            tile_width=tile_width,
+            boundary_width=boundary_width,
+            validity_mask=test_mask_tensor,
+            include_longitude_wrap=False,
+        ),
+        "test_longitude_wrap_rmse_normalized": compute_tile_seam_error(
+            reference=test_full_tensor,
+            candidate=test_tiled_tensor,
+            tile_height=tile_height,
+            tile_width=tile_width,
+            boundary_width=boundary_width,
+            validity_mask=test_mask_tensor,
+            include_internal_boundaries=False,
         ),
     }
 

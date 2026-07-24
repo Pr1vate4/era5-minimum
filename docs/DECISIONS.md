@@ -262,3 +262,14 @@
 **Decision:** smoke codec training uses a synthetic 28-channel tensor, a small ConvAE, masked SST on land, real canonical Huffman bitstreams, and separate validation/test bitstreams.
 
 **Consequences:** the repo now has a reproducible local codec contour with checkpoint, resource log, metrics, and exact symbol roundtrip, while remaining explicit that it is a smoke baseline rather than the final research model.
+
+## DEC-028 — Tiled codec reconstruction operates on decoded latents
+
+**Status:** accepted
+**Date:** 2026-07-25
+
+**Context:** decoder inference must work without the original weather tensor and must preserve the standalone bitstream plus checkpoint contract. Tiling the full autoencoder input is useful diagnostics, but it is not a valid implementation of standalone bitstream decoding.
+
+**Decision:** tiled codec reconstruction splits the entropy-decoded latent, applies latitude clamping and periodic longitude indexing in latent coordinates, decodes tiles with a configurable halo, and stitches them in output-grid coordinates. Tile dimensions and halo are expressed in output-grid pixels and must align with the decoder scale factor.
+
+**Consequences:** `decode_codec.py` can reconstruct either full-frame or tiled using only checkpoint, bitstream, and metadata. Smoke artifacts record the selected reconstruction mode and compare tiled output against full-frame decoding of the same quantized latent. The report separates internal tile seams from 0°/360° boundary-condition drift and excludes invalid values from both. The current ConvAE may have non-zero global-boundary drift, so the report measures it rather than claiming numerical equivalence.

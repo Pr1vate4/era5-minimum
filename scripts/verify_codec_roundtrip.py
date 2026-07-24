@@ -12,7 +12,13 @@ import sys
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-from era5_minimum.codec import CanonicalHuffmanCoder, CodecConfig, CodecHarness, NormalizationSpec
+from era5_minimum.codec import (
+    CanonicalHuffmanCoder,
+    CodecConfig,
+    CodecHarness,
+    NormalizationSpec,
+    normalize_physical_tensor,
+)
 from era5_minimum.models import ConvAutoencoder
 
 
@@ -52,8 +58,15 @@ def main() -> None:
     model.eval()
 
     tensor = _load_tensor(Path(args.input)).astype(np.float32)
+    preprocessing = checkpoint.get("preprocessing") or {}
+    model_input, _, _ = normalize_physical_tensor(
+        tensor,
+        spec=normalization,
+        ocean_mask=preprocessing.get("ocean_mask"),
+        sst_index=preprocessing.get("sst_index"),
+    )
     with torch.no_grad():
-        latent = model.encode(torch.from_numpy(tensor)).cpu().numpy()
+        latent = model.encode(torch.from_numpy(model_input)).cpu().numpy()
     codec = CodecHarness(
         config=CodecConfig(
             version=str(codec_cfg["version"]),

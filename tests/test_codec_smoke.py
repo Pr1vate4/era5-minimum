@@ -208,11 +208,18 @@ def test_codec_smoke_writes_tiled_inference_report(tmp_path: Path) -> None:
     tile_report = json.loads((output_dir / "tile_inference.json").read_text(encoding="utf-8"))
 
     assert summary["tile_inference_enabled"] is True
+    assert summary["reconstruction_inference_mode"] == "tiled"
     assert summary["tile_fullframe_rmse_normalized"] >= 0.0
     assert summary["tile_seam_rmse_normalized"] >= 0.0
     assert tile_report["mode"] == "tiled"
     assert tile_report["tile_height"] == 8
     assert tile_report["tile_width"] == 8
     assert tile_report["halo"] == 8
+    assert tile_report["reference"] == "full_frame_quantized_latent_decode"
     assert tile_report["validation_fullframe_rmse_normalized"] >= 0.0
     assert tile_report["validation_seam_rmse_normalized"] >= 0.0
+    assert tile_report["validation_internal_seam_rmse_normalized"] >= 0.0
+    assert tile_report["validation_longitude_wrap_rmse_normalized"] >= 0.0
+
+    reconstruction = np.load(output_dir / "reconstruction_samples.npz")
+    assert reconstruction["inference_mode"].item() == "tiled"

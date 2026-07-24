@@ -12,7 +12,7 @@ import sys
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-from era5_minimum.codec import CanonicalHuffmanCoder, CodecConfig, CodecHarness, NormalizationSpec
+from era5_minimum.codec import CodecConfig, CodecHarness, NormalizationSpec, normalize_physical_tensor
 from era5_minimum.models import ConvAutoencoder
 
 
@@ -53,8 +53,17 @@ def main() -> None:
     model.eval()
 
     tensor = _load_tensor(Path(args.input)).astype(np.float32)
+    preprocessing = checkpoint.get("preprocessing") or {}
+    ocean_mask = preprocessing.get("ocean_mask")
+    sst_index = preprocessing.get("sst_index")
+    model_input, _, invalid_value_count = normalize_physical_tensor(
+        tensor,
+        spec=normalization,
+        ocean_mask=ocean_mask,
+        sst_index=sst_index,
+    )
     with torch.no_grad():
-        encoded = model.encode(torch.from_numpy(tensor)).cpu().numpy()
+        encoded = model.encode(torch.from_numpy(model_input)).cpu().numpy()
     result = CodecHarness(
         config=CodecConfig(
             version=str(codec_cfg["version"]),
@@ -67,9 +76,19 @@ def main() -> None:
         normalization=normalization,
     ).encode_latent(input_tensor=tensor, latent=encoded, output_dir=Path(args.output).parent)
 
+    result.metadata["preprocessing"] = {
+        "input_value_space": "physical",
+        "model_input_value_space": "normalized",
+        "normalization_train_only": normalization.train_only,
+        "normalization_source_manifest_sha256": normalization.source_manifest_sha256,
+        "invalid_value_count": invalid_value_count,
+        "ocean_mask_sha256": preprocessing.get("ocean_mask_sha256"),
+    }
+    metadata_json = json.dumps(result.metadata, indent=2, sort_keys=True)
+    result.metadata_path.write_text(metadata_json, encoding="utf-8")
     Path(args.output).write_bytes(result.bitstream_path.read_bytes())
     if args.metadata is not None:
-        Path(args.metadata).write_text(json.dumps(result.metadata, indent=2, sort_keys=True), encoding="utf-8")
+        Path(args.metadata).write_text(metadata_json, encoding="utf-8")
 
 
 if __name__ == "__main__":
