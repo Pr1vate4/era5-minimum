@@ -23,7 +23,7 @@ function CheckCircleIcon({ className }: { className?: string }) {
 
 export function Sidebar({ team, runId, generatedAt }: SidebarProps) {
   return (
-    <aside className="fixed left-0 top-16 z-40 h-[calc(100vh-64px)] w-[84px] border-r border-[#E4E7EC] bg-[#FFFFFF] px-3 py-4">
+    <aside className="fixed left-0 top-16 z-40 h-[calc(100vh-64px)] w-[60px] border-r border-[#E4E7EC] bg-[#FFFFFF] px-2 py-3">
       <div className="flex h-full flex-col justify-between">
         <div>
           

@@ -38,12 +38,15 @@ function App() {
 
       <header className="fixed inset-x-0 top-0 z-50 flex h-16 items-center justify-between border-b border-[#E4E7EC] bg-[#FFFFFF] px-6">
         <div className="flex items-center gap-3">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#F2F4F7] text-[#101828]">
-            <Sparkles className="h-4 w-4" />
+          <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full border border-[#D0D5DD] bg-white shadow-sm">
+            <img
+              src="/data/images/logo.png"
+              alt="Логотип МетеоКод"
+              className="h-full w-full object-cover"
+            />
           </div>
           <div>
-            <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[#98A2B3]">ERA5 minimum</div>
-            <div className="text-[15px] font-semibold text-[#101828]">Сжатие погодных данных</div>
+            <div className="text-[15px] font-semibold text-[#000000]">МетеоКод</div>
           </div>
         </div>
 
