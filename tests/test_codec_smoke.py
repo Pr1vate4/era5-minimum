@@ -160,3 +160,59 @@ def test_codec_smoke_masks_nan_values_after_normalization(tmp_path: Path) -> Non
     assert metrics_validation["invalid_value_count"] == summary["invalid_value_count"]
     assert not np.isnan(reconstruction["validation_reconstruction"]).any()
     assert not np.isnan(reconstruction["test_reconstruction"]).any()
+
+
+def test_codec_smoke_writes_tiled_inference_report(tmp_path: Path) -> None:
+    output_dir = tmp_path / "codec_smoke_tiled"
+    config = {
+        "seed": 19,
+        "output_dir": str(output_dir),
+        "data": {
+            "samples": 20,
+            "height": 16,
+            "width": 16,
+            "validation_samples": 4,
+            "test_samples": 4,
+        },
+        "model": {
+            "latent_channels": 8,
+            "parameter_limit": 2_000_000,
+        },
+        "codec": {
+            "version": "ml-001",
+            "grid": "smoke-16x16",
+            "quantization_step": 0.25,
+            "target_compression_ratio": 32,
+        },
+        "training": {
+            "batch_size": 4,
+            "epochs": 2,
+            "learning_rate": 1e-3,
+            "max_steps": 4,
+        },
+        "resources": {
+            "max_vram_gb": 24,
+            "max_gpu_hours": 48,
+        },
+        "inference": {
+            "mode": "tiled",
+            "tile_height": 8,
+            "tile_width": 8,
+            "halo": 8,
+            "boundary_width": 1,
+        },
+    }
+
+    summary = run_codec_smoke(config)
+
+    tile_report = json.loads((output_dir / "tile_inference.json").read_text(encoding="utf-8"))
+
+    assert summary["tile_inference_enabled"] is True
+    assert summary["tile_fullframe_rmse_normalized"] >= 0.0
+    assert summary["tile_seam_rmse_normalized"] >= 0.0
+    assert tile_report["mode"] == "tiled"
+    assert tile_report["tile_height"] == 8
+    assert tile_report["tile_width"] == 8
+    assert tile_report["halo"] == 8
+    assert tile_report["validation_fullframe_rmse_normalized"] >= 0.0
+    assert tile_report["validation_seam_rmse_normalized"] >= 0.0

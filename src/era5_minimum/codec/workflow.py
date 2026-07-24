@@ -16,6 +16,7 @@ from torch.utils.data import DataLoader, TensorDataset
 from era5_minimum.codec.harness import CodecHarness
 from era5_minimum.codec.normalization import NormalizationSpec
 from era5_minimum.codec.resources import measure_runtime_resources, write_resource_usage
+from era5_minimum.codec.tiling import compute_tile_seam_error, run_tiled_inference
 from era5_minimum.codec.types import CodecConfig
 from era5_minimum.metrics import latitude_weighted_rmse, mae, per_channel_rmse, rmse
 from era5_minimum.models import ConvAutoencoder
@@ -243,6 +244,8 @@ def run_codec_smoke(config: dict[str, Any]) -> dict[str, Any]:
     with torch.no_grad():
         validation_latent = model.encode(validation_tensor).cpu().numpy()
         test_latent = model.encode(test_tensor).cpu().numpy()
+        validation_forward_norm = model(validation_tensor).cpu().numpy()
+        test_forward_norm = model(test_tensor).cpu().numpy()
     codec = CodecHarness(
         config=CodecConfig(
             version=str(codec_cfg["version"]),
@@ -307,6 +310,16 @@ def run_codec_smoke(config: dict[str, Any]) -> dict[str, Any]:
         validity_mask=validation_valid_mask,
     )
     per_time = _per_time_metrics(validation_norm, prediction_norm, validity_mask=validation_valid_mask)
+    tile_report = _maybe_run_tiled_inference_report(
+        model=model,
+        validation_tensor=validation_tensor,
+        test_tensor=test_tensor,
+        validation_fullframe=validation_forward_norm,
+        test_fullframe=test_forward_norm,
+        validation_valid_mask=validation_valid_mask,
+        test_valid_mask=test_valid_mask,
+        inference_cfg=config.get("inference"),
+    )
 
     metrics_validation_path = output_dir / "metrics_validation.json"
     metrics_per_channel_path = output_dir / "metrics_per_channel.json"
@@ -354,6 +367,8 @@ def run_codec_smoke(config: dict[str, Any]) -> dict[str, Any]:
     }
     _write_json(output_dir / "entropy_statistics.json", entropy_statistics)
     _write_json(output_dir / "bitstream_statistics.json", bitstream_statistics)
+    if tile_report is not None:
+        _write_json(output_dir / "tile_inference.json", tile_report)
 
     total_input_bytes = int(validation_raw.nbytes + test_raw.nbytes)
     total_bitstream_bytes = int(
@@ -393,12 +408,17 @@ def run_codec_smoke(config: dict[str, Any]) -> dict[str, Any]:
         "test_bitstream_path": str(test_bitstream),
         "invalid_value_count": total_invalid_count,
         "nan_value_count": total_nan_count,
+        "tile_inference_enabled": tile_report is not None,
+        "tile_inference_report_path": None if tile_report is None else str(output_dir / "tile_inference.json"),
+        "tile_fullframe_rmse_normalized": None if tile_report is None else tile_report["validation_fullframe_rmse_normalized"],
+        "tile_seam_rmse_normalized": None if tile_report is None else tile_report["validation_seam_rmse_normalized"],
     }
     _write_json(output_dir / "checkpoint_metadata.json", {
         "checkpoint_path": str(checkpoint_path),
         "model_config": {"in_channels": len(SMOKE_CHANNELS), "latent_channels": int(model_cfg["latent_channels"])},
         "codec_config": codec_cfg,
         "normalization": normalization.to_dict(),
+        "inference_config": config.get("inference"),
         "parameter_count": trainable_params,
         "total_parameter_count": total_params,
         "run_id": summary["run_id"],
@@ -438,6 +458,10 @@ def run_codec_smoke(config: dict[str, Any]) -> dict[str, Any]:
         "run_summary_path": str(output_dir / "run_summary.json"),
         "invalid_value_count": total_invalid_count,
         "nan_value_count": total_nan_count,
+        "tile_inference_enabled": tile_report is not None,
+        "tile_inference_report_path": None if tile_report is None else str(output_dir / "tile_inference.json"),
+        "tile_fullframe_rmse_normalized": None if tile_report is None else tile_report["validation_fullframe_rmse_normalized"],
+        "tile_seam_rmse_normalized": None if tile_report is None else tile_report["validation_seam_rmse_normalized"],
     }
 
 
@@ -494,6 +518,88 @@ def _train_masked_autoencoder(
 
 def _normalize(values: np.ndarray, mean: np.ndarray, std: np.ndarray) -> np.ndarray:
     return ((values - mean) / std).astype(np.float32)
+
+
+def _maybe_run_tiled_inference_report(
+    *,
+    model: nn.Module,
+    validation_tensor: torch.Tensor,
+    test_tensor: torch.Tensor,
+    validation_fullframe: np.ndarray,
+    test_fullframe: np.ndarray,
+    validation_valid_mask: np.ndarray,
+    test_valid_mask: np.ndarray,
+    inference_cfg: dict[str, Any] | None,
+) -> dict[str, Any] | None:
+    if inference_cfg is None:
+        return None
+    mode = str(inference_cfg.get("mode", "full_frame"))
+    if mode != "tiled":
+        return None
+    tile_height = int(inference_cfg["tile_height"])
+    tile_width = int(inference_cfg["tile_width"])
+    halo = int(inference_cfg["halo"])
+    boundary_width = int(inference_cfg.get("boundary_width", 1))
+
+    predictor = lambda tile: model(tile)
+    with torch.no_grad():
+        validation_tiled = run_tiled_inference(
+            validation_tensor,
+            tile_height=tile_height,
+            tile_width=tile_width,
+            halo=halo,
+            predictor=predictor,
+        ).cpu().numpy()
+        test_tiled = run_tiled_inference(
+            test_tensor,
+            tile_height=tile_height,
+            tile_width=tile_width,
+            halo=halo,
+            predictor=predictor,
+        ).cpu().numpy()
+
+    validation_tiled = np.where(validation_valid_mask > 0, validation_tiled, 0.0).astype(np.float32)
+    validation_fullframe = np.where(validation_valid_mask > 0, validation_fullframe, 0.0).astype(np.float32)
+    test_tiled = np.where(test_valid_mask > 0, test_tiled, 0.0).astype(np.float32)
+    test_fullframe = np.where(test_valid_mask > 0, test_fullframe, 0.0).astype(np.float32)
+    validation_mask_tensor = torch.from_numpy(validation_valid_mask)
+    test_mask_tensor = torch.from_numpy(test_valid_mask)
+    validation_tiled_tensor = torch.from_numpy(validation_tiled)
+    validation_full_tensor = torch.from_numpy(validation_fullframe)
+    test_tiled_tensor = torch.from_numpy(test_tiled)
+    test_full_tensor = torch.from_numpy(test_fullframe)
+
+    return {
+        "mode": "tiled",
+        "tile_height": tile_height,
+        "tile_width": tile_width,
+        "halo": halo,
+        "boundary_width": boundary_width,
+        "validation_fullframe_rmse_normalized": rmse(
+            validation_tiled_tensor,
+            validation_full_tensor,
+            mask=validation_mask_tensor,
+        ),
+        "validation_seam_rmse_normalized": compute_tile_seam_error(
+            reference=validation_full_tensor,
+            candidate=validation_tiled_tensor,
+            tile_height=tile_height,
+            tile_width=tile_width,
+            boundary_width=boundary_width,
+        ),
+        "test_fullframe_rmse_normalized": rmse(
+            test_tiled_tensor,
+            test_full_tensor,
+            mask=test_mask_tensor,
+        ),
+        "test_seam_rmse_normalized": compute_tile_seam_error(
+            reference=test_full_tensor,
+            candidate=test_tiled_tensor,
+            tile_height=tile_height,
+            tile_width=tile_width,
+            boundary_width=boundary_width,
+        ),
+    }
 
 
 def _normalize_with_validity_mask(
