@@ -18,7 +18,7 @@ export API_PORT
 	submission-validate clean-containers monitoring-config monitoring-up monitoring-down \
 	monitoring-restart monitoring-logs monitoring-ps monitoring-prometheus-logs \
 	monitoring-grafana-logs monitoring-smoke monitoring-check-prometheus-config \
-	monitoring-check-rules monitoring-clean
+	monitoring-check-rules monitoring-clean frontend-up frontend-build
 
 help: ## Show available project and container commands.
 
@@ -79,6 +79,12 @@ app-ps: ## Show Compose service status.
 
 app-health: ## Check the API health endpoint from the host.
 	curl -fsS http://localhost:$(API_PORT)/health
+
+frontend-up: ## Start the Vite frontend dev server on VITE_PORT (default: 5173).
+	npm run dev
+
+frontend-build: ## Build the frontend for static hosting.
+	npm run build
 
 app-shell: ## Open a shell in the running API container.
 	$(DOCKER_COMPOSE) -f $(COMPOSE_FILE) exec $(API_SERVICE) sh
