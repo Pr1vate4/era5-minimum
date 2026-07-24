@@ -1,0 +1,19 @@
+{
+    "id": "demo-pca-001",
+    "name": "Demo PCA baseline",
+    "model": "pca",
+    "status": "completed",
+    "is_demo": true,
+    "compression": {
+        "type": "tensor_ratio",
+        "ratio": 32
+    },
+    "training": {
+        "sample_count": 168,
+        "selection_strategy": "contiguous"
+    },
+    "metrics": {
+        "normalized_rmse": 0.12,
+        "mae": 0.08
+    }
+}
