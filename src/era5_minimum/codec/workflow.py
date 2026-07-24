@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
 import random
 import time
 from dataclasses import dataclass
@@ -15,6 +16,11 @@ from torch.utils.data import DataLoader, TensorDataset
 
 from era5_minimum.codec.harness import CodecHarness
 from era5_minimum.codec.normalization import NormalizationSpec
+from era5_minimum.codec.rate_distortion import (
+    FactorizedLogisticEntropyModel,
+    grouped_latitude_distortion,
+    quantize_with_uniform_noise,
+)
 from era5_minimum.codec.resources import measure_runtime_resources, write_resource_usage
 from era5_minimum.codec.tiling import compute_tile_seam_error, decode_latent_tiled
 from era5_minimum.codec.types import CodecConfig
@@ -120,13 +126,23 @@ def run_codec_smoke(config: dict[str, Any]) -> dict[str, Any]:
     _seed_everything(seed)
     output_dir = Path(config["output_dir"])
     output_dir.mkdir(parents=True, exist_ok=True)
+    entropy_model_config = _resolve_entropy_model_config(config.get("entropy"))
+    loss_config = _resolve_loss_config(config.get("loss"))
 
     started = time.perf_counter()
     started_at = _utc_now()
     resolved_config_path = output_dir / "resolved_config.yaml"
     import yaml
 
-    resolved_config_path.write_text(yaml.safe_dump(config, sort_keys=False, allow_unicode=True), encoding="utf-8")
+    resolved_config = {
+        **config,
+        "entropy": entropy_model_config,
+        "loss": loss_config,
+    }
+    resolved_config_path.write_text(
+        yaml.safe_dump(resolved_config, sort_keys=False, allow_unicode=True),
+        encoding="utf-8",
+    )
 
     data_cfg = config["data"]
     model_cfg = config["model"]
@@ -192,14 +208,21 @@ def run_codec_smoke(config: dict[str, Any]) -> dict[str, Any]:
     total_nan_count = int(train_nan_count + validation_nan_count + test_nan_count)
 
     model = ConvAutoencoder(in_channels=len(SMOKE_CHANNELS), latent_channels=int(model_cfg["latent_channels"]))
-    trainable_params = _parameter_count(model)
-    total_params = trainable_params
+    entropy_model = FactorizedLogisticEntropyModel(
+        channels=int(model_cfg["latent_channels"]),
+        min_probability=float(entropy_model_config["min_probability"]),
+    )
+    modules = (model, entropy_model)
+    trainable_params = sum(_trainable_parameter_count(module) for module in modules)
+    total_params = sum(_parameter_count(module) for module in modules)
     parameter_limit = int(model_cfg.get("parameter_limit", 20_000_000))
     if trainable_params > parameter_limit:
         raise ValueError(
             f"parameter_limit exceeded: {trainable_params} trainable parameters > {parameter_limit}"
         )
     max_steps = int(train_cfg["max_steps"])
+    if max_steps < 1:
+        raise ValueError("max_steps must be at least 1")
     if max_steps > 50_000:
         raise ValueError(f"max_steps exceeded: {max_steps} > 50000")
 
@@ -207,6 +230,7 @@ def run_codec_smoke(config: dict[str, Any]) -> dict[str, Any]:
     if device.type == "cuda":
         torch.cuda.reset_peak_memory_stats()
     model.to(device)
+    entropy_model.to(device)
 
     history_path = output_dir / "training_history.jsonl"
     checkpoint_dir = output_dir / "checkpoints"
@@ -217,8 +241,12 @@ def run_codec_smoke(config: dict[str, Any]) -> dict[str, Any]:
     learning_rate = float(train_cfg["learning_rate"])
     train_result = _train_masked_autoencoder(
         model=model,
+        entropy_model=entropy_model,
         inputs=torch.from_numpy(train_norm),
         masks=torch.from_numpy(train_valid_mask),
+        latitudes=torch.from_numpy(latitudes),
+        quantization_step=float(codec_cfg["quantization_step"]),
+        loss_config=loss_config,
         device=device,
         batch_size=batch_size,
         epochs=epochs,
@@ -229,7 +257,10 @@ def run_codec_smoke(config: dict[str, Any]) -> dict[str, Any]:
     torch.save(
         {
             "state_dict": model.state_dict(),
+            "entropy_model_state_dict": entropy_model.state_dict(),
             "model_config": {"in_channels": len(SMOKE_CHANNELS), "latent_channels": int(model_cfg["latent_channels"])},
+            "entropy_model_config": entropy_model_config,
+            "loss_config": loss_config,
             "codec_config": codec_cfg,
             "normalization": normalization.to_dict(),
             "channel_order": list(SMOKE_CHANNELS),
@@ -431,6 +462,17 @@ def run_codec_smoke(config: dict[str, Any]) -> dict[str, Any]:
         "pressure_score": metrics_validation["pressure_score"],
         "overall_score": metrics_validation["overall_score"],
         "parameter_count": trainable_params,
+        "training_loss": train_result["loss"],
+        "training_distortion": train_result["distortion"],
+        "training_surface_distortion": train_result["surface_distortion"],
+        "training_pressure_distortion": train_result["pressure_distortion"],
+        "training_estimated_rate_bits": train_result["estimated_rate_bits"],
+        "training_estimated_rate_bits_per_input_value": train_result[
+            "estimated_rate_bits_per_input_value"
+        ],
+        "rate_lambda": loss_config["rate_lambda"],
+        "loss_config": loss_config,
+        "entropy_model_config": entropy_model_config,
         "optimizer_steps": train_result["optimizer_steps"],
         "gpu_hours": train_result["gpu_hours"],
         "peak_vram_bytes": train_result["peak_vram_bytes"],
@@ -451,6 +493,8 @@ def run_codec_smoke(config: dict[str, Any]) -> dict[str, Any]:
     _write_json(output_dir / "checkpoint_metadata.json", {
         "checkpoint_path": str(checkpoint_path),
         "model_config": {"in_channels": len(SMOKE_CHANNELS), "latent_channels": int(model_cfg["latent_channels"])},
+        "entropy_model_config": entropy_model_config,
+        "loss_config": loss_config,
         "codec_config": codec_cfg,
         "normalization": normalization.to_dict(),
         "inference_config": config.get("inference"),
@@ -458,6 +502,15 @@ def run_codec_smoke(config: dict[str, Any]) -> dict[str, Any]:
         "ocean_mask_sha256": _sha256_bytes(ocean_mask.tobytes()),
         "parameter_count": trainable_params,
         "total_parameter_count": total_params,
+        "training_loss": train_result["loss"],
+        "training_distortion": train_result["distortion"],
+        "training_surface_distortion": train_result["surface_distortion"],
+        "training_pressure_distortion": train_result["pressure_distortion"],
+        "training_estimated_rate_bits": train_result["estimated_rate_bits"],
+        "training_estimated_rate_bits_per_input_value": train_result[
+            "estimated_rate_bits_per_input_value"
+        ],
+        "rate_lambda": loss_config["rate_lambda"],
         "run_id": summary["run_id"],
         "manifest_sha256": normalization.source_manifest_sha256,
         "invalid_value_count": total_invalid_count,
@@ -500,14 +553,29 @@ def run_codec_smoke(config: dict[str, Any]) -> dict[str, Any]:
         "tile_inference_report_path": None if tile_report is None else str(output_dir / "tile_inference.json"),
         "tile_fullframe_rmse_normalized": None if tile_report is None else tile_report["validation_fullframe_rmse_normalized"],
         "tile_seam_rmse_normalized": None if tile_report is None else tile_report["validation_seam_rmse_normalized"],
+        "training_loss": train_result["loss"],
+        "training_distortion": train_result["distortion"],
+        "training_surface_distortion": train_result["surface_distortion"],
+        "training_pressure_distortion": train_result["pressure_distortion"],
+        "training_estimated_rate_bits": train_result["estimated_rate_bits"],
+        "training_estimated_rate_bits_per_input_value": train_result[
+            "estimated_rate_bits_per_input_value"
+        ],
+        "rate_lambda": loss_config["rate_lambda"],
+        "loss_config": loss_config,
+        "entropy_model_config": entropy_model_config,
     }
 
 
 def _train_masked_autoencoder(
     *,
-    model: nn.Module,
+    model: ConvAutoencoder,
+    entropy_model: FactorizedLogisticEntropyModel,
     inputs: torch.Tensor,
     masks: torch.Tensor,
+    latitudes: torch.Tensor,
+    quantization_step: float,
+    loss_config: dict[str, Any],
     device: torch.device,
     batch_size: int,
     epochs: int,
@@ -521,11 +589,19 @@ def _train_masked_autoencoder(
         shuffle=True,
         drop_last=False,
     )
-    optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate)
+    optimizer = torch.optim.AdamW(
+        [*model.parameters(), *entropy_model.parameters()],
+        lr=learning_rate,
+    )
     model.train()
+    entropy_model.train()
     history_path.parent.mkdir(parents=True, exist_ok=True)
     step = 0
     examples_seen = 0
+    training_latitudes = latitudes.to(device)
+    if not bool(loss_config["latitude_weighting"]):
+        training_latitudes = torch.zeros_like(training_latitudes)
+    final_components: dict[str, float] | None = None
     with history_path.open("w", encoding="utf-8") as history_file:
         for _ in range(epochs):
             for batch_inputs, batch_mask in loader:
@@ -534,16 +610,74 @@ def _train_masked_autoencoder(
                 batch_inputs = batch_inputs.to(device)
                 batch_mask = batch_mask.to(device)
                 optimizer.zero_grad(set_to_none=True)
-                outputs = model(batch_inputs)
-                loss = torch.mean(((outputs - batch_inputs) ** 2) * batch_mask)
+                latent = model.encode(batch_inputs)
+                quantized_latent = quantize_with_uniform_noise(
+                    latent,
+                    quantization_step=quantization_step,
+                )
+                outputs = model.decode(
+                    quantized_latent,
+                    output_size=(int(batch_inputs.shape[-2]), int(batch_inputs.shape[-1])),
+                )
+                distortion = grouped_latitude_distortion(
+                    outputs,
+                    batch_inputs,
+                    batch_mask,
+                    latitudes=training_latitudes,
+                    loss_type=str(loss_config["type"]),
+                    surface_weight=float(loss_config["surface_weight"]),
+                    pressure_weight=float(loss_config["pressure_weight"]),
+                )
+                estimated_rate_bits = entropy_model.estimated_bits(
+                    quantized_latent,
+                    quantization_step=quantization_step,
+                ).sum()
+                estimated_rate_bits_per_input_value = (
+                    estimated_rate_bits / batch_inputs.numel()
+                )
+                loss = distortion.total + (
+                    float(loss_config["rate_lambda"])
+                    * estimated_rate_bits_per_input_value
+                )
                 loss.backward()
                 optimizer.step()
                 step += 1
                 examples_seen += int(batch_inputs.shape[0])
-                history_file.write(json.dumps({"step": step, "loss": float(loss.item())}) + "\n")
+                final_components = {
+                    "loss": _finite_scalar(loss, name="loss"),
+                    "distortion": _finite_scalar(distortion.total, name="distortion"),
+                    "surface_distortion": _finite_scalar(
+                        distortion.surface,
+                        name="surface_distortion",
+                    ),
+                    "pressure_distortion": _finite_scalar(
+                        distortion.pressure,
+                        name="pressure_distortion",
+                    ),
+                    "estimated_rate_bits": _finite_scalar(
+                        estimated_rate_bits,
+                        name="estimated_rate_bits",
+                    ),
+                    "estimated_rate_bits_per_input_value": _finite_scalar(
+                        estimated_rate_bits_per_input_value,
+                        name="estimated_rate_bits_per_input_value",
+                    ),
+                }
+                history_file.write(
+                    json.dumps(
+                        {"step": step, **final_components},
+                        allow_nan=False,
+                    )
+                    + "\n"
+                )
             if step >= max_steps:
                 break
+    if final_components is None:
+        raise RuntimeError(
+            "training completed without optimizer steps; epochs and training data must be non-empty"
+        )
     return {
+        **final_components,
         "optimizer_steps": step,
         "examples_seen": examples_seen,
         "unique_train_timestamps": int(inputs.shape[0]),
@@ -799,12 +933,80 @@ def _inject_nan_values(
     return mutated
 
 
+def _resolve_entropy_model_config(config: dict[str, Any] | None) -> dict[str, Any]:
+    values = {} if config is None else dict(config)
+    unsupported = set(values) - {"model_type", "min_probability"}
+    if unsupported:
+        raise ValueError(f"unsupported entropy config keys: {sorted(unsupported)}")
+    resolved = {
+        "model_type": str(values.get("model_type", "factorized_logistic")),
+        "min_probability": float(values.get("min_probability", 1e-9)),
+    }
+    if resolved["model_type"] != "factorized_logistic":
+        raise ValueError("entropy model_type must be factorized_logistic")
+    min_probability = float(resolved["min_probability"])
+    if not math.isfinite(min_probability) or not 0 < min_probability <= 1:
+        raise ValueError("entropy min_probability must be finite and in (0, 1]")
+    return resolved
+
+
+def _resolve_loss_config(config: dict[str, Any] | None) -> dict[str, Any]:
+    values = {} if config is None else dict(config)
+    unsupported = set(values) - {
+        "type",
+        "latitude_weighting",
+        "surface_weight",
+        "pressure_weight",
+        "rate_lambda",
+    }
+    if unsupported:
+        raise ValueError(f"unsupported loss config keys: {sorted(unsupported)}")
+    latitude_weighting = values.get("latitude_weighting", True)
+    if not isinstance(latitude_weighting, bool):
+        raise ValueError("loss latitude_weighting must be a boolean")
+    resolved = {
+        "type": str(values.get("type", "mse")),
+        "latitude_weighting": latitude_weighting,
+        "surface_weight": float(values.get("surface_weight", 0.5)),
+        "pressure_weight": float(values.get("pressure_weight", 0.5)),
+        "rate_lambda": float(values.get("rate_lambda", 0.0)),
+    }
+    if resolved["type"] not in {"mse", "l1", "smooth_l1"}:
+        raise ValueError("loss type must be one of: mse, l1, smooth_l1")
+    surface_weight = float(resolved["surface_weight"])
+    pressure_weight = float(resolved["pressure_weight"])
+    if not math.isfinite(surface_weight) or not math.isfinite(pressure_weight):
+        raise ValueError("loss surface_weight and pressure_weight must be finite")
+    if surface_weight < 0 or pressure_weight < 0:
+        raise ValueError("loss surface_weight and pressure_weight must be non-negative")
+    if surface_weight + pressure_weight <= 0:
+        raise ValueError("loss surface_weight and pressure_weight sum must be positive")
+    rate_lambda = float(resolved["rate_lambda"])
+    if not math.isfinite(rate_lambda) or rate_lambda < 0:
+        raise ValueError("loss rate_lambda must be finite and non-negative")
+    return resolved
+
+
+def _finite_scalar(value: torch.Tensor, *, name: str) -> float:
+    result = float(value.detach().item())
+    if not math.isfinite(result):
+        raise RuntimeError(f"training {name} must be finite")
+    return result
+
+
+def _trainable_parameter_count(model: nn.Module) -> int:
+    return int(sum(parameter.numel() for parameter in model.parameters() if parameter.requires_grad))
+
+
 def _parameter_count(model: nn.Module) -> int:
     return int(sum(parameter.numel() for parameter in model.parameters()))
 
 
 def _write_json(path: Path, payload: Any) -> None:
-    path.write_text(json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
+    path.write_text(
+        json.dumps(payload, indent=2, sort_keys=True, allow_nan=False),
+        encoding="utf-8",
+    )
 
 
 def _sha256_bytes(payload: bytes) -> str:

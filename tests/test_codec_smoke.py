@@ -1,11 +1,115 @@
 from __future__ import annotations
 
 import json
+import math
 from pathlib import Path
 
 import numpy as np
+import pytest
+import torch
 
 from era5_minimum.codec.workflow import run_codec_smoke
+
+
+def test_codec_smoke_records_rate_distortion_training(tmp_path: Path) -> None:
+    output_dir = tmp_path / "codec_smoke_rate_distortion"
+    entropy_config = {
+        "model_type": "factorized_logistic",
+        "min_probability": 1e-9,
+    }
+    loss_config = {
+        "type": "mse",
+        "latitude_weighting": True,
+        "surface_weight": 0.5,
+        "pressure_weight": 0.5,
+        "rate_lambda": 0.001,
+    }
+    config = {
+        "seed": 23,
+        "output_dir": str(output_dir),
+        "data": {
+            "samples": 20,
+            "height": 8,
+            "width": 8,
+            "validation_samples": 4,
+            "test_samples": 4,
+        },
+        "model": {
+            "latent_channels": 8,
+            "parameter_limit": 2_000_000,
+        },
+        "codec": {
+            "version": "ml-001",
+            "grid": "smoke-8x8",
+            "quantization_step": 0.25,
+            "target_compression_ratio": 32,
+        },
+        "entropy": entropy_config,
+        "loss": loss_config,
+        "training": {
+            "batch_size": 4,
+            "epochs": 2,
+            "learning_rate": 1e-3,
+            "max_steps": 4,
+        },
+        "resources": {
+            "max_vram_gb": 24,
+            "max_gpu_hours": 48,
+        },
+    }
+
+    result = run_codec_smoke(config)
+
+    history = [
+        json.loads(line)
+        for line in (output_dir / "training_history.jsonl").read_text(encoding="utf-8").splitlines()
+    ]
+    assert [row["step"] for row in history] == [1, 2, 3, 4]
+    component_names = (
+        "loss",
+        "distortion",
+        "surface_distortion",
+        "pressure_distortion",
+        "estimated_rate_bits",
+        "estimated_rate_bits_per_input_value",
+    )
+    for row in history:
+        assert all(math.isfinite(row[name]) for name in component_names)
+        assert row["loss"] == pytest.approx(
+            row["distortion"] + loss_config["rate_lambda"] * row["estimated_rate_bits_per_input_value"]
+        )
+
+    final = history[-1]
+    run_summary = json.loads((output_dir / "run_summary.json").read_text(encoding="utf-8"))
+    checkpoint_metadata = json.loads(
+        (output_dir / "checkpoint_metadata.json").read_text(encoding="utf-8")
+    )
+    checkpoint = torch.load(output_dir / "checkpoints" / "model.ckpt", weights_only=False)
+
+    for payload in (run_summary, checkpoint_metadata):
+        assert payload["loss_config"] == loss_config
+        assert payload["entropy_model_config"] == entropy_config
+        assert payload["training_loss"] == pytest.approx(final["loss"])
+        assert payload["training_distortion"] == pytest.approx(final["distortion"])
+        assert payload["training_surface_distortion"] == pytest.approx(final["surface_distortion"])
+        assert payload["training_pressure_distortion"] == pytest.approx(final["pressure_distortion"])
+        assert payload["training_estimated_rate_bits"] == pytest.approx(final["estimated_rate_bits"])
+        assert payload["training_estimated_rate_bits_per_input_value"] == pytest.approx(
+            final["estimated_rate_bits_per_input_value"]
+        )
+        assert payload["rate_lambda"] == loss_config["rate_lambda"]
+
+    assert result["training_loss"] == pytest.approx(final["loss"])
+    assert result["training_distortion"] == pytest.approx(final["distortion"])
+    assert result["training_surface_distortion"] == pytest.approx(final["surface_distortion"])
+    assert result["training_pressure_distortion"] == pytest.approx(final["pressure_distortion"])
+    assert result["training_estimated_rate_bits_per_input_value"] == pytest.approx(
+        final["estimated_rate_bits_per_input_value"]
+    )
+    assert result["rate_lambda"] == loss_config["rate_lambda"]
+    assert checkpoint["entropy_model_config"] == entropy_config
+    assert checkpoint["loss_config"] == loss_config
+    assert set(checkpoint["entropy_model_state_dict"]) == {"log_scale"}
 
 
 def test_codec_smoke_writes_full_artifact_bundle(tmp_path: Path) -> None:
