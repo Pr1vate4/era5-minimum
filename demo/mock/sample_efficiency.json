@@ -1,0 +1,18 @@
+{
+    "is_demo": true,
+    "metric": "normalized_rmse",
+    "points": [
+        {
+            "sample_count": 64,
+            "value": 0.21
+        },
+        {
+            "sample_count": 128,
+            "value": 0.17
+        },
+        {
+            "sample_count": 168,
+            "value": 0.12
+        }
+    ]
+}

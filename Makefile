@@ -8,6 +8,7 @@ install-dev:
 
 test:
 	python -m pytest -q
+	python scripts/validate_artifact_bundle.py demo/mock
 
 mvp:
 	python -m era5_minimum.experiments --config configs/mvp.yaml
