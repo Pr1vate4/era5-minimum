@@ -1,0 +1,5 @@
+inherits: "era5_28ch.yaml"
+subsets:
+  n: 128
+  seed: 42
+  balance: "round_robin_seasonal"
