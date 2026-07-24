@@ -1,0 +1,44 @@
+#   То же самое, что patch_pca_32x.yaml, но с целевым payload compression
+#   ratio ~64x. Для 8 каналов и патча 8x8: n_components = floor(512/64) = 8.
+#   Как и в 32x-конфиге, n_components вычисляется кодом из
+#   target_compression_ratio, а не прописан напрямую.
+
+seed: 42
+
+input: outputs/real_era5/week_2024_01_02_2024_01_08
+output_dir: outputs/models/patch_pca_64x
+
+patch_height: 8
+patch_width: 8
+
+target_compression_ratio: 64
+n_components: null
+
+incremental_batch_size: 4096
+max_train_timestamps: null
+max_patches_per_timestamp: null
+
+train_fraction: 0.7
+validation_fraction: 0.15
+test_fraction: 0.15
+
+expected_channel_names:
+  - u10
+  - v10
+  - t2m
+  - msl
+  - sst
+  - tcc
+  - tcwv
+  - tp1h
+
+normalization:
+  method: streaming_welford
+  ignore_nan: true
+  use_sst_mask: true
+
+dtype: float32
+
+reconstruction_samples:
+  max_timestamps: 3
+  channels: [t2m, msl, sst, tp1h]
