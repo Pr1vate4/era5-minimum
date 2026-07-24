@@ -969,7 +969,7 @@ def _resolve_loss_config(config: dict[str, Any] | None) -> dict[str, Any]:
         "latitude_weighting": latitude_weighting,
         "surface_weight": float(values.get("surface_weight", 0.5)),
         "pressure_weight": float(values.get("pressure_weight", 0.5)),
-        "rate_lambda": float(values.get("rate_lambda", 0.0)),
+        "rate_lambda": float(values.get("rate_lambda", 1e-3)),
     }
     if resolved["type"] not in {"mse", "l1", "smooth_l1"}:
         raise ValueError("loss type must be one of: mse, l1, smooth_l1")

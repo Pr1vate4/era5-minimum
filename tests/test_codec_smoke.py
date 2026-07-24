@@ -172,6 +172,9 @@ def test_codec_smoke_writes_full_artifact_bundle(tmp_path: Path) -> None:
     assert run_summary["codec_eligible"] in {True, False}
     assert run_summary["exact_roundtrip"] is True
     assert run_summary["bitstream_bytes"] > 0
+    assert run_summary["loss_config"]["rate_lambda"] > 0.0
+    assert run_summary["rate_lambda"] == run_summary["loss_config"]["rate_lambda"]
+    assert math.isfinite(run_summary["training_estimated_rate_bits_per_input_value"])
 
     resource_usage = json.loads((output_dir / "resource_usage.json").read_text(encoding="utf-8"))
     assert resource_usage["operation"] == "train_codec"
