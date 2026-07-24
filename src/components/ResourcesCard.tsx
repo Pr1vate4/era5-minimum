@@ -1,44 +1,72 @@
-import type { Resources } from '../types'
+import type { selectResourcesData } from '../data/resultsSelectors'
+import { resourceLimits, type ResourceKey } from '../data/resourceLimits'
+import { StatusBadge } from './common/StatusBadge'
 
-const limits = {
-  gpu_hours: 48,
-  peak_vram_gb: 24,
-  params_millions: 20,
-  optimizer_steps: 50000,
+type ResourcesData = ReturnType<typeof selectResourcesData>
+
+export function ResourcesCard({ resources }: { resources: ResourcesData }) {
+  return (
+    <div className="grid gap-3 lg:grid-cols-2">
+      {resourceLimits.map((limit) => {
+        const value = resources[limit.key as ResourceKey]
+        const percent = value === undefined ? undefined : (value / limit.limit) * 100
+        const tone =
+          percent === undefined
+            ? 'bg-slate-300'
+            : percent > 100
+              ? 'bg-rose-500'
+              : percent >= 85
+                ? 'bg-amber-500'
+                : 'bg-blue-500'
+
+        return (
+          <div key={limit.key} className="rounded-2xl border border-slate-200 bg-white p-4">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h2 className="text-[13px] font-semibold text-slate-800">{limit.label}</h2>
+                <p className="mt-1 text-[12px] text-slate-500">
+                  {value === undefined ? 'Нет фактического значения' : `${formatResource(value)} ${limit.unit}`}
+                  {' / '}
+                  лимит {formatResource(limit.limit)} {limit.unit}
+                </p>
+              </div>
+              <StatusBadge
+                label={
+                  percent === undefined
+                    ? 'Нет данных'
+                    : percent > 100
+                      ? 'Лимит превышен'
+                      : percent >= 85
+                        ? 'Близко к лимиту'
+                        : 'В пределах лимита'
+                }
+                tone={
+                  percent === undefined
+                    ? 'neutral'
+                    : percent > 100
+                      ? 'danger'
+                      : percent >= 85
+                        ? 'warning'
+                        : 'success'
+                }
+              />
+            </div>
+            <div className="mt-4 h-2 overflow-hidden rounded-full bg-slate-200">
+              <div
+                className={`h-full rounded-full ${tone}`}
+                style={{ width: `${Math.min(percent ?? 0, 100)}%` }}
+              />
+            </div>
+            <p className="mt-2 text-right text-[11px] font-medium text-slate-500">
+              {percent === undefined ? '—' : `${percent.toFixed(1)}%`}
+            </p>
+          </div>
+        )
+      })}
+    </div>
+  )
 }
 
-export function ResourcesCard({ resources }: { resources: Resources }) {
-  const rows = [
-    { key: 'gpu_hours', label: 'GPU-часы', value: resources.gpu_hours, limit: limits.gpu_hours },
-    { key: 'peak_vram_gb', label: 'Пиковый VRAM', value: resources.peak_vram_gb, limit: limits.peak_vram_gb },
-    { key: 'params_millions', label: 'Параметры', value: resources.params_millions, limit: limits.params_millions },
-    { key: 'optimizer_steps', label: 'Шаги оптимизатора', value: resources.optimizer_steps, limit: limits.optimizer_steps },
-  ]
-
-  return (
-    <section id="resources" className="rounded-2xl border border-slate-200 bg-white p-4">
-      <div className="mb-3">
-        <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">Ресурсы</div>
-        <h2 className="mt-1 text-[17px] font-semibold text-slate-900">Ограничения и потребление</h2>
-      </div>
-
-      <div className="space-y-2">
-        {rows.map((row) => {
-          const percent = Math.min((row.value / row.limit) * 100, 100)
-          const tone = percent >= 100 ? 'bg-red-600' : percent >= 85 ? 'bg-amber-500' : 'bg-blue-500'
-          return (
-            <div key={row.key} className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-              <div className="flex items-center justify-between text-[12px]">
-                <span className="text-slate-700">{row.label}</span>
-                <span className="text-slate-500">{row.value} / {row.limit}</span>
-              </div>
-              <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-200">
-                <div className={`h-full rounded-full ${tone}`} style={{ width: `${percent}%` }} />
-              </div>
-            </div>
-          )
-        })}
-      </div>
-    </section>
-  )
+function formatResource(value: number) {
+  return value.toLocaleString('ru-RU', { maximumFractionDigits: 2 })
 }

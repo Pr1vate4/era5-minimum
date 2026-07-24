@@ -9,12 +9,13 @@
 }
 
 html {
-  scroll-behavior: smooth;
+  background: #f8fafc;
 }
 
 body {
   margin: 0;
   min-width: 0;
+  overflow-x: hidden;
   background: #f8fafc;
   color: #0f172a;
   font-family: Inter, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
@@ -38,4 +39,8 @@ textarea {
 
 #root {
   min-height: 100vh;
+}
+
+:focus-visible {
+  scroll-margin: 12px;
 }
