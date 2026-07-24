@@ -68,6 +68,13 @@ VALID_RECONSTRUCTION = {
     "is_demo": True,
 }
 
+PROCESS_METRICS = (
+    "process_cpu_seconds_total",
+    "process_resident_memory_bytes",
+    "process_open_fds",
+    "process_start_time_seconds",
+)
+
 
 def _metric_value(collector, name: str, **labels: str) -> float:
     """Return one labelled Prometheus sample, creating its zero value if needed."""
@@ -173,10 +180,12 @@ def test_metrics_endpoint_uses_prometheus_exposition_format(
     assert "era5_api_http_requests_total" in response.text
     assert "era5_api_http_request_duration_seconds_bucket" in response.text
     assert "era5_api_http_requests_in_progress" in response.text
-    assert "process_cpu_seconds_total" in response.text
-    assert "process_resident_memory_bytes" in response.text
-    assert "process_open_fds" in response.text
-    assert "process_start_time_seconds" in response.text
+    if Path("/proc").exists():
+        for metric_name in PROCESS_METRICS:
+            assert metric_name in response.text
+    else:
+        for metric_name in PROCESS_METRICS:
+            assert metric_name not in response.text
 
 
 def test_health_records_request_counter_and_duration(client: TestClient) -> None:

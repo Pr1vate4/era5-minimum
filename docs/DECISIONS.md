@@ -229,3 +229,14 @@
 **Decision:** считать этот семидневный диапазон техническим multi-day pipeline pilot, а не окончательным исследовательским dataset.
 
 **Consequences:** пилот не подтверждает сезонную или погодную репрезентативность и не открывает temporal split, train-only normalization или model research. Итоговый объём и selection strategy определяются отдельно совместно с ML Lead до завершения DATA-002.
+
+## DEC-025 — First honest codec step uses scalar quantization plus canonical Huffman
+
+**Status:** accepted
+**Date:** 2026-07-24
+
+**Context:** проекту нужен реальный codec contour с сериализованным bitstream и exact symbol roundtrip до появления финальной 32x/64x модели. Latent reduction без entropy coding не считается codec-результатом, а сложный entropy model на первом шаге повышает implementation risk.
+
+**Decision:** первый ML-001 codec harness использует детерминированное per-channel scalar quantization и canonical Huffman coding с self-describing header.
+
+**Consequences:** проект сразу получает честный serialized payload, проверку exact roundtrip по квантованным символам и отдельный serialized ratio. Tensor ratio и serialized ratio остаются разными метриками и не подменяют друг друга.
