@@ -13,6 +13,10 @@ data:
 model:
   type: pca
   latent_dim: 16
+  codec:
+    version: ml-001
+    grid: synthetic-8x8
+    quantization_step: 0.25
 
 training:
   train_sizes: [20, 40, 64]

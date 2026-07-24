@@ -4,6 +4,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+import numpy as np
+
 
 @dataclass(frozen=True)
 class CodecConfig:
@@ -37,6 +39,7 @@ class CodecResult:
     serialized_ratio: float
     roundtrip_ok: bool
     metadata: dict[str, Any]
+    decoded_latent: np.ndarray | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -46,4 +49,5 @@ class CodecResult:
             "serialized_ratio": float(self.serialized_ratio),
             "roundtrip_ok": self.roundtrip_ok,
             "metadata": self.metadata,
+            "decoded_latent_shape": list(self.decoded_latent.shape) if self.decoded_latent is not None else None,
         }
