@@ -1,0 +1,92 @@
+{
+  "meta": {
+    "team": "ERA5-Minimum",
+    "run_id": "run-2026-07-24-01",
+    "grid": "0.25deg",
+    "checkpoint": "quantized-bottleneck-32x",
+    "generated_at": "2026-07-24T12:00:00Z"
+  },
+  "compression": {
+    "target_ratio": 32,
+    "actual_ratio": 33.7,
+    "bitstream_bytes": 123456,
+    "roundtrip_exact": true
+  },
+  "scores": {
+    "surface_nrmse": 0.041,
+    "pressure_nrmse": 0.038,
+    "overall_nrmse": 0.0395,
+    "delta_vs_reference_pct": 1.8,
+    "delta_ci95": [0.9, 2.6],
+    "psnr_delta_db": -0.12,
+    "spectral_error_pct": 3.1
+  },
+  "criteria": [
+    { "name": "Overall NRMSE", "target": "<= +3%", "value": 1.8, "unit": "%", "pass": true },
+    { "name": "Surface/Pressure score", "target": "<= +5%", "value": 3.2, "unit": "%", "pass": true },
+    { "name": "Critical field (worst-case)", "target": "<= +7%", "value": 5.9, "unit": "%", "pass": true },
+    { "name": "PSNR delta", "target": ">= -0.25 dB", "value": -0.12, "unit": "dB", "pass": true },
+    { "name": "Spectral error", "target": "<= 5%", "value": 3.1, "unit": "%", "pass": true },
+    { "name": "Exact roundtrip", "target": "required", "value": 1, "unit": "bool", "pass": true }
+  ],
+  "per_channel": [
+    { "code": "t2m", "group": "surface", "name": "2m temperature", "unit": "K", "rmse": 0.62, "nrmse": 0.035, "psnr": 41.2 },
+    { "code": "mslp", "group": "surface", "name": "MSLP", "unit": "Pa", "rmse": 95.3, "nrmse": 0.040, "psnr": 38.9 },
+    { "code": "u10", "group": "surface", "name": "10m zonal wind", "unit": "m/s", "rmse": 0.84, "nrmse": 0.049, "psnr": 37.4 },
+    { "code": "v10", "group": "surface", "name": "10m meridional wind", "unit": "m/s", "rmse": 0.81, "nrmse": 0.046, "psnr": 37.8 },
+    { "code": "tp", "group": "surface", "name": "Total precipitation", "unit": "mm", "rmse": 0.18, "nrmse": 0.052, "psnr": 36.6 },
+    { "code": "T850", "group": "pressure", "name": "Temperature @850hPa", "unit": "K", "rmse": 0.71, "nrmse": 0.033, "psnr": 40.1 },
+    { "code": "T700", "group": "pressure", "name": "Temperature @700hPa", "unit": "K", "rmse": 0.68, "nrmse": 0.034, "psnr": 39.7 },
+    { "code": "Z500", "group": "pressure", "name": "Geopotential @500hPa", "unit": "m2/s2", "rmse": 25.1, "nrmse": 0.031, "psnr": 42.3 },
+    { "code": "Q925", "group": "pressure", "name": "Specific humidity @925hPa", "unit": "kg/kg", "rmse": 0.0014, "nrmse": 0.042, "psnr": 38.5 },
+    { "code": "Q700", "group": "pressure", "name": "Specific humidity @700hPa", "unit": "kg/kg", "rmse": 0.0011, "nrmse": 0.039, "psnr": 39.4 }
+  ],
+  "data_efficiency": [
+    { "n_samples": 128, "overall_nrmse": 0.091 },
+    { "n_samples": 256, "overall_nrmse": 0.071 },
+    { "n_samples": 512, "overall_nrmse": 0.058 },
+    { "n_samples": 1024, "overall_nrmse": 0.047 },
+    { "n_samples": 2048, "overall_nrmse": 0.042 },
+    { "n_samples": 4096, "overall_nrmse": 0.0398 },
+    { "n_samples": 8192, "overall_nrmse": 0.0395 }
+  ],
+  "rate_distortion": [
+    { "compression_ratio": 16, "overall_nrmse": 0.028 },
+    { "compression_ratio": 32, "overall_nrmse": 0.0395 },
+    { "compression_ratio": 64, "overall_nrmse": 0.061 }
+  ],
+  "spectral": [
+    { "wavenumber": 1, "reference_energy": 1.0, "model_energy": 0.98 },
+    { "wavenumber": 8, "reference_energy": 0.6, "model_energy": 0.55 },
+    { "wavenumber": 32, "reference_energy": 0.12, "model_energy": 0.09 },
+    { "wavenumber": 64, "reference_energy": 0.03, "model_energy": 0.02 }
+  ],
+  "probe_forecast": {
+    "n_pairs": 1024,
+    "steps": 5000,
+    "improvement_vs_persistence_pct": 24.5,
+    "improvement_vs_reference_probe_pct": 3.2
+  },
+  "resources": {
+    "gpu_hours": 41.5,
+    "peak_vram_gb": 21.4,
+    "params_millions": 17.2,
+    "optimizer_steps": 48000
+  },
+  "reconstructions": [
+    {
+      "timestamp": "2021-06-15T12:00:00Z",
+      "channel": "t2m",
+      "original_image": "images/t2m_2021-06-15T12_orig.png",
+      "reconstructed_image": "images/t2m_2021-06-15T12_recon.png",
+      "diff_image": "images/t2m_2021-06-15T12_diff.png"
+    },
+    {
+      "timestamp": "2021-06-15T12:00:00Z",
+      "channel": "Z500",
+      "original_image": "images/z500_2021-06-15T12_orig.png",
+      "reconstructed_image": "images/z500_2021-06-15T12_recon.png",
+      "diff_image": "images/z500_2021-06-15T12_diff.png"
+    }
+  ]
+}

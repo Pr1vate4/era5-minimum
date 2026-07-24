@@ -33,3 +33,44 @@ mlartifacts/
 /grafana-data/
 /monitoring/prometheus-data/
 /monitoring/grafana-data/
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+build/
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Python (backend)
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.coverage*
+coverage.xml
+.env
+.claude/
+.claude
+
+# CI / compose artifacts
+compose-rendered.yml
+backend/*-report.xml
+

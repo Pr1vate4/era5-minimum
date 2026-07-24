@@ -64,3 +64,15 @@ make download-range-dry-run
 - `docs/THEORY.md` — теория и методология;
 - `docs/CODEX_PROMPTS.md` — готовые промты;
 - `docs/PITCH.md` — каркас защиты.
+
+## Frontend demo dashboard
+
+```bash
+npm install
+npm run dev
+npm run build
+```
+
+- `public/data/results.json` — статический контракт данных для демо-дашборда;
+- `public/data/images/` — placeholder SVG/PNG для визуальной реконструкции;
+- `src/` — Vite + React + TypeScript UI, секции дашборда и типизация данных.
