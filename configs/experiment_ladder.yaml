@@ -1,0 +1,102 @@
+# Experiment Ladder Configuration
+# Compares PCA, ConvAE, and CRA5 codecs on the same data and metrics
+
+metadata:
+  name: "era5-minimum-experiment-ladder"
+  description: "Compare PCA, ConvAE, and CRA5 compression on ERA5 data"
+  output_dir: "outputs/experiment_ladder"
+
+# Stopping criteria
+stopping:
+  # Stop when next larger n doesn't improve validation RMSE by min_improvement
+  min_improvement: 0.05  # 5% relative improvement
+  max_experiments: 10
+  
+# Common evaluation settings
+evaluation:
+  metrics:
+    - tensor_compression_ratio
+    - serialized_compression_ratio  
+    - physical_rmse_overall
+    - physical_rmse_t2m
+    - physical_rmse_msl
+    - latitude_weighted_rmse
+    - encode_decode_seconds
+  
+  # Report best model per codec type
+  selection_criteria: "physical_rmse_overall"
+
+# Experiment sequence
+experiments:
+  # Baseline: PCA 32x
+  - name: pca-32x
+    type: pca
+    config_path: configs/patch_pca_32x.yaml
+    enabled: true
+    baseline: true
+    
+  # Baseline: PCA 64x  
+  - name: pca-64x
+    type: pca
+    config_path: configs/patch_pca_64x.yaml
+    enabled: true
+    baseline: true
+
+  # ConvAE smoke test (if implemented)
+  - name: convae-smoke
+    type: convae
+    config_path: configs/codec/smoke.yaml
+    enabled: true
+    experimental: true
+    
+  # CRA5 sample size ladder
+  - name: cra5-n16
+    type: cra5
+    config_path: configs/cra5/cra5_adapter_n16.yaml
+    enabled: true
+    sample_size: 16
+    
+  - name: cra5-n32
+    type: cra5
+    config_path: configs/cra5/cra5_adapter_n32.yaml
+    enabled: true
+    sample_size: 32
+    depends_on: [cra5-n16]
+    
+  - name: cra5-n64
+    type: cra5
+    config_path: configs/cra5/cra5_adapter_n64.yaml
+    enabled: true
+    sample_size: 64
+    depends_on: [cra5-n32]
+    
+  - name: cra5-n128
+    type: cra5
+    config_path: configs/cra5/cra5_adapter_n128.yaml
+    enabled: false  # Enable manually for full experiment
+    sample_size: 128
+    depends_on: [cra5-n64]
+
+# Runtime settings
+runtime:
+  max_parallel: 1  # Run experiments sequentially 
+  timeout_minutes: 120  # 2 hours per experiment
+  
+  # Device allocation
+  prefer_gpu: true
+  fallback_cpu: true
+  
+  # Error handling
+  continue_on_error: true
+  save_partial_results: true
+
+# Output settings
+output:
+  save_individual_results: true
+  save_comparison_table: true
+  save_plots: false  # Plotting not implemented yet
+  
+  # Artifact preservation
+  preserve_checkpoints: false
+  preserve_bitstreams: true
+  preserve_logs: true

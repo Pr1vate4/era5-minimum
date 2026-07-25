@@ -176,7 +176,66 @@ python scripts/fetch_cra5_checkpoint.py --download
 
 Скачивает checkpoint в `~/.cache/era5-minimum/cra5/` с проверкой hash/size. Файл никогда не копируется в репозиторий.
 
-## 20. Before creating a Pull Request
+## 19. ML workflow: training sample manifests and CRA5 checkpoint
+
+Для адаптации претренированного CRA5-159 на 28-канальную ERA5 используется leakage-safe workflow с детерминированными манифестами.
+
+### Generate nested training sample manifests
+
+```bash
+make ml-samples
+```
+
+Создаёт манифест с размерами 16/32/64/128 для обучения, используя train pool 2014–2019-12-24T18:00 с seven-day embargo перед validation 2020. Выходной файл: `/tmp/era5-minimum-samples.json`.
+
+### Show CRA5-159 checkpoint provenance (dry-run)
+
+```bash
+make cra5-checkpoint-dry-run
+```
+
+Показывает upstream commit, SHA-256, размер и cache path для CRA5-159v checkpoint без скачивания.
+
+### Fetch CRA5-159 checkpoint
+
+```bash
+python scripts/fetch_cra5_checkpoint.py --download
+```
+
+Скачивает checkpoint в `~/.cache/era5-minimum/cra5/` с проверкой hash/size. Файл никогда не копируется в репозиторий.
+
+## 20. CRA5 Adapter Workflow
+
+CRA5 adapter адаптирует претренированный CRA5-159 checkpoint для работы с 28-канальной ERA5 data.
+
+### CRA5 runtime smoke test
+
+```bash
+make cra5-smoke
+```
+
+Выполняет полный end-to-end тест CRA5 workflow: load checkpoint → adapt → encode → bitstream → decode. Использует синтетические данные и сохраняет метрики в `outputs/smoke_cra5/`.
+
+### Train CRA5 adapter
+
+```bash
+make cra5-train-n16  # Train with 16 samples
+make cra5-train-n32  # Train with 32 samples
+make cra5-train-n64  # Train with 64 samples
+make cra5-train-n128 # Train with 128 samples
+```
+
+Обучает только input/output projections при замороженных encoder/decoder. Каждый эксперимент сохраняет метрики в `outputs/cra5/nXX/`.
+
+### Run complete experiment ladder
+
+```bash
+make experiment-ladder
+```
+
+Запускает последовательность экспериментов: PCA → ConvAE → CRA5 с автоматическим early stopping при недостаточном улучшении validation RMSE. Результаты в `outputs/experiment_ladder/`.
+
+## 21. Before creating a Pull Request
 
 ```bash
 make verify
