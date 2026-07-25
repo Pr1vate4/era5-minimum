@@ -25,6 +25,7 @@ services:
       ERA5_WEATHER_PROVIDER: ${ERA5_WEATHER_PROVIDER:-zarr}
       ERA5_DATASET_ROOT: ${ERA5_DATASET_ROOT:-/workspace/data/era5_28ch_demo}
       ERA5_DATASET_SPLIT: ${ERA5_DATASET_SPLIT:-validation}
+      ERA5_CODEC_MODEL_DIR: ${ERA5_CODEC_MODEL_DIR:-/workspace/artifacts/model-n32}
     ports:
       - "${API_PORT:-8000}:8000"
     volumes:

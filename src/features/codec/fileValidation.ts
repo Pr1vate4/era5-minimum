@@ -1,15 +1,15 @@
-const MAX_BROWSER_UPLOAD_BYTES = 2 * 1024 ** 3
-const SUPPORTED_SUFFIXES = ['.npz', '.npy', '.nc', '.zarr.zip']
+const MAX_BROWSER_UPLOAD_BYTES = 64 * 1024 ** 2
+const SUPPORTED_SUFFIXES = ['.npz']
 
 export function validateCodecFile(file: File): string | null {
   const normalizedName = file.name.trim().toLowerCase()
 
   if (!SUPPORTED_SUFFIXES.some((suffix) => normalizedName.endsWith(suffix))) {
-    return 'Неподдерживаемый формат. Используйте NPZ, NPY, NetCDF или Zarr ZIP.'
+    return 'Неподдерживаемый формат. Используйте NPZ с массивом data.'
   }
   if (file.size === 0) return 'Файл пуст.'
   if (file.size > MAX_BROWSER_UPLOAD_BYTES) {
-    return 'Файл больше 2 ГиБ. Подготовьте один ERA5-кадр или используйте серверный импорт.'
+    return 'Файл больше 64 МиБ. Подготовьте один ERA5-кадр в NPZ.'
   }
   return null
 }

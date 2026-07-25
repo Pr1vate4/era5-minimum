@@ -48,7 +48,7 @@ export default function CodecPage() {
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1.45fr)_minmax(320px,0.55fr)]">
         <ContentCard
           title="Новый запуск"
-          description="32×/64× — целевой tensor ratio. Фактический serialized ratio сервер вычисляет отдельно по полному bitstream."
+            description="Подключён проверенный профиль N32. Фактический serialized ratio сервер вычисляет отдельно по полному bitstream."
           className="ui-panel !rounded-[24px] !p-5"
         >
           <CodecDropzone
@@ -61,14 +61,14 @@ export default function CodecPage() {
           <div className="mt-5 grid gap-4 border-t border-[var(--border)] pt-5 sm:grid-cols-[1fr_auto] sm:items-end">
             <fieldset>
               <legend className="text-[12px] font-bold text-[var(--text-secondary)]">
-                Целевой tensor ratio
+                Профиль модели
               </legend>
               <div className="mt-2 grid grid-cols-2 gap-2">
                 {([32, 64] as CodecTargetRatio[]).map((ratio) => (
                   <button
                     key={ratio}
                     type="button"
-                    disabled={workspace.processing}
+                    disabled={workspace.processing || ratio !== 32}
                     onClick={() => workspace.setTargetRatio(ratio)}
                     className={`codec-ratio ui-focus-ring ${
                       workspace.targetRatio === ratio ? 'codec-ratio--active' : ''

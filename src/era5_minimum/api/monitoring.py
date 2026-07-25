@@ -92,6 +92,16 @@ BUILD_INFO = Gauge(
     "Static build information for the ERA5 Artifact API.",
     labelnames=("version", "commit", "environment"),
 )
+CODEC_JOBS_TOTAL = Counter(
+    "era5_api_codec_jobs_total",
+    "Completed interactive codec jobs by bounded outcome.",
+    labelnames=("status",),
+)
+CODEC_JOB_DURATION_SECONDS = Histogram(
+    "era5_api_codec_job_duration_seconds",
+    "End-to-end interactive codec job duration.",
+    buckets=(0.1, 0.25, 0.5, 1, 2.5, 5, 10, 30, 60),
+)
 
 _artifact_load_states: dict[ArtifactType, int] = {
     artifact_type: 0 for artifact_type in ARTIFACT_TYPES
@@ -162,6 +172,16 @@ def initialize_monitoring_metrics() -> None:
         commit=os.getenv("ERA5_BUILD_COMMIT", "unknown"),
         environment=os.getenv("ERA5_ENVIRONMENT", "local"),
     ).set(1)
+    CODEC_JOBS_TOTAL.labels(status="success")
+    CODEC_JOBS_TOTAL.labels(status="error")
+
+
+def record_codec_job(*, status: Literal["success", "error"], elapsed_seconds: float | None = None) -> None:
+    """Record one interactive codec request without unbounded user labels."""
+
+    CODEC_JOBS_TOTAL.labels(status=status).inc()
+    if elapsed_seconds is not None:
+        CODEC_JOB_DURATION_SECONDS.observe(elapsed_seconds)
 
 
 def record_artifact_load_error(artifact_type: ArtifactType) -> None:
