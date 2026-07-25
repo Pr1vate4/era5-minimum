@@ -34,18 +34,18 @@ model:
   trainable_blocks: [input_proj, output_proj]
 
 training:
-  epochs: 50
+  epochs: 15
   batch_size: 4
   learning_rate: 1e-4
   weight_decay: 1e-6
   target_compression: 32
   
   # Early stopping
-  patience: 10
+  patience: 5
   min_delta: 0.001
   
   # Validation
-  val_frequency: 5
+  val_frequency: 2
   save_best: true
 
 codec:
@@ -64,9 +64,10 @@ optimizer:
   weight_decay: 1e-6
 
 scheduler:
-  type: cosine_annealing
-  T_max: 50
-  eta_min: 1e-6
+  type: one_cycle
+  pct_start: 0.3
+  div_factor: 25.0
+  final_div_factor: 10000.0
 
 logging:
   wandb_project: era5-minimum-cra5

@@ -190,6 +190,23 @@ def run_smoke_test(
         if checkpoint_path and checkpoint_path.exists():
             print(f"Adapting checkpoint: {checkpoint_path}")
             adapted_state_dict, adapter_metadata = adapt_cra5_checkpoint(checkpoint_path)
+            
+            # Handle pos_embed interpolation if needed
+            if "backbone.encoder.pos_embed" in adapted_state_dict:
+                ckpt_pos_embed = adapted_state_dict["backbone.encoder.pos_embed"]
+                model_pos_embed = model.backbone.encoder.pos_embed
+                if ckpt_pos_embed.shape != model_pos_embed.shape:
+                    # Reshape to [1, C, H, W] for interpolation
+                    # Assuming checkpoint is 72x144 patches
+                    ckpt_pos_embed = ckpt_pos_embed.reshape(1, 72, 144, -1).permute(0, 3, 1, 2)
+                    # Target is 32x72 patches
+                    target_h, target_w = 32, 72
+                    ckpt_pos_embed = torch.nn.functional.interpolate(
+                        ckpt_pos_embed, size=(target_h, target_w), mode="bicubic", align_corners=False
+                    )
+                    # Reshape back to [1, N, C]
+                    adapted_state_dict["backbone.encoder.pos_embed"] = ckpt_pos_embed.permute(0, 2, 3, 1).reshape(1, target_h * target_w, -1)
+                    
             model.load_state_dict(adapted_state_dict, strict=False)
             
             results["checkpoint_adapted"] = True

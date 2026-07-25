@@ -9,6 +9,7 @@ import time
 from pathlib import Path
 from typing import Any
 
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -31,7 +32,7 @@ def create_synthetic_data(config: dict[str, Any]) -> tuple[torch.Tensor, torch.T
     data_config = config["data"]
     subset_size = data_config["subset_size"]
     channels = data_config["channels"]
-    shape = data_config.get("synthetic_shape", [28, 361, 720])
+    shape = data_config.get("synthetic_shape", [28, 352, 720])
     
     # Generate more samples for train/val split
     total_samples = max(subset_size + 10, 32)
@@ -83,6 +84,23 @@ def build_model(config: dict[str, Any]) -> nn.Module:
             print(f"Loading and adapting checkpoint: {checkpoint_path}")
             adapted_state_dict, metadata = adapt_cra5_checkpoint(checkpoint_path)
             
+            # Handle pos_embed interpolation if needed
+            if "backbone.encoder.pos_embed" in adapted_state_dict:
+                ckpt_pos_embed = adapted_state_dict["backbone.encoder.pos_embed"]
+                model_pos_embed = model.backbone.encoder.pos_embed
+                if ckpt_pos_embed.shape != model_pos_embed.shape:
+                    print(f"Interpolating pos_embed from {ckpt_pos_embed.shape} to {model_pos_embed.shape}")
+                    # Reshape to [1, C, H, W] for interpolation
+                    # Assuming checkpoint is 72x144 patches
+                    ckpt_pos_embed = ckpt_pos_embed.reshape(1, 72, 144, -1).permute(0, 3, 1, 2)
+                    # Target is 32x72 patches
+                    target_h, target_w = 32, 72
+                    ckpt_pos_embed = torch.nn.functional.interpolate(
+                        ckpt_pos_embed, size=(target_h, target_w), mode="bicubic", align_corners=False
+                    )
+                    # Reshape back to [1, N, C]
+                    adapted_state_dict["backbone.encoder.pos_embed"] = ckpt_pos_embed.permute(0, 2, 3, 1).reshape(1, target_h * target_w, -1)
+            
             # Load adapted weights
             missing_keys, unexpected_keys = model.load_state_dict(adapted_state_dict, strict=False)
             
@@ -99,20 +117,40 @@ def build_model(config: dict[str, Any]) -> nn.Module:
     return model
 
 
+class LatitudeWeightedMSELoss(nn.Module):
+    """Latitude-weighted Mean Squared Error Loss."""
+
+    def __init__(self, height: int, device: str) -> None:
+        super().__init__()
+        # Create latitudes from 90 to -90
+        latitudes = np.linspace(90, -90, height)
+        # Calculate weights based on cosine of latitude
+        values = np.cos(np.deg2rad(latitudes.astype(np.float64)))
+        values = np.clip(values, 0.0, None)
+        values = values / values.mean()
+        # Shape for broadcasting: [1, 1, H, 1]
+        weights = torch.tensor(values, dtype=torch.float32).view(1, 1, -1, 1).to(device)
+        self.register_buffer("weights", weights)
+
+    def forward(self, pred: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
+        squared_error = (pred - target) ** 2
+        return torch.mean(squared_error * self.weights)
+
+
 def train_epoch(
     model: nn.Module,
     data: torch.Tensor,
     optimizer: optim.Optimizer,
     batch_size: int,
     device: str,
+    criterion: nn.Module,
+    grad_clip: float = 1.0,
+    scheduler: optim.lr_scheduler.LRScheduler | None = None,
 ) -> float:
     """Train for one epoch."""
     model.train()
     total_loss = 0.0
     n_batches = 0
-    
-    # Simple reconstruction loss
-    criterion = nn.MSELoss()
     
     for i in range(0, len(data), batch_size):
         batch = data[i:i + batch_size].to(device)
@@ -125,7 +163,17 @@ def train_epoch(
         
         # Backward pass
         loss.backward()
+        
+        # Gradient clipping
+        if grad_clip > 0:
+            torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=grad_clip)
+            
         optimizer.step()
+        
+        if scheduler is not None and isinstance(scheduler, optim.lr_scheduler.OneCycleLR):
+            # Only step if we haven't reached total_steps yet
+            if scheduler._step_count < scheduler.total_steps:
+                scheduler.step()
         
         total_loss += loss.item()
         n_batches += 1
@@ -133,10 +181,9 @@ def train_epoch(
     return total_loss / n_batches if n_batches > 0 else 0.0
 
 
-def validate(model: nn.Module, data: torch.Tensor, device: str) -> float:
+def validate(model: nn.Module, data: torch.Tensor, device: str, criterion: nn.Module) -> float:
     """Validate model."""
     model.eval()
-    criterion = nn.MSELoss()
     
     with torch.no_grad():
         data_device = data.to(device)
@@ -227,9 +274,20 @@ def main() -> None:
     optimizer = optim.AdamW(
         model.parameters(),
         lr=float(opt_config["lr"]),
-        betas=opt_config["betas"],
-        weight_decay=float(opt_config["weight_decay"]),
+        betas=opt_config.get("betas", (0.9, 0.999)),
+        weight_decay=float(opt_config.get("weight_decay", 0.05)),
     )
+    
+    # Setup criterion with latitude weighting
+    height = train_data.shape[2]  # [B, C, H, W]
+    criterion = LatitudeWeightedMSELoss(height=height, device=device)
+    
+    # Training loop setup
+    train_config = config["training"]
+    epochs = train_config["epochs"]
+    batch_size = train_config["batch_size"]
+    val_frequency = train_config["val_frequency"]
+    grad_clip = train_config.get("grad_clip", 1.0)
     
     # Setup scheduler if specified
     scheduler = None
@@ -241,12 +299,17 @@ def main() -> None:
                 T_max=sched_config["T_max"],
                 eta_min=float(sched_config["eta_min"]),
             )
-    
-    # Training loop
-    train_config = config["training"]
-    epochs = train_config["epochs"]
-    batch_size = train_config["batch_size"]
-    val_frequency = train_config["val_frequency"]
+        elif sched_config["type"] == "one_cycle":
+            steps_per_epoch = max(1, (len(train_data) + batch_size - 1) // batch_size)
+            scheduler = optim.lr_scheduler.OneCycleLR(
+                optimizer,
+                max_lr=float(opt_config["lr"]),
+                epochs=epochs,
+                steps_per_epoch=steps_per_epoch,
+                pct_start=sched_config.get("pct_start", 0.3),
+                div_factor=sched_config.get("div_factor", 25.0),
+                final_div_factor=sched_config.get("final_div_factor", 1e4),
+            )
     
     train_losses = []
     val_losses = []
@@ -258,12 +321,12 @@ def main() -> None:
     
     for epoch in range(epochs):
         # Train
-        train_loss = train_epoch(model, train_data, optimizer, batch_size, device)
+        train_loss = train_epoch(model, train_data, optimizer, batch_size, device, criterion, grad_clip, scheduler)
         train_losses.append(train_loss)
         
         # Validate
         if epoch % val_frequency == 0:
-            val_loss = validate(model, val_data, device)
+            val_loss = validate(model, val_data, device, criterion)
             val_losses.append(val_loss)
             
             # Early stopping
@@ -290,7 +353,12 @@ def main() -> None:
         
         # Step scheduler
         if scheduler is not None:
-            scheduler.step()
+            if isinstance(scheduler, optim.lr_scheduler.OneCycleLR):
+                # OneCycleLR is usually stepped per batch, and we already step it in train_epoch
+                # So we shouldn't step it here again to avoid stepping too many times
+                pass
+            else:
+                scheduler.step()
     
     training_time = time.time() - start_time
     print(f"Training completed in {training_time:.1f} seconds")

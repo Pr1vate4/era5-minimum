@@ -85,11 +85,11 @@ class Encoder(nn.Module):
         num_blocks: int = 4,
         num_heads: int = 8,
         patch_size: tuple[int, int] = (11, 10),
+        max_patches: int = 2304,
     ) -> None:
         super().__init__()
         self.patch_embed = PatchEmbed(in_channels, hidden_dim, patch_size)
-        # pos_embed will be loaded from checkpoint or ignored
-        self.pos_embed = None
+        self.pos_embed = nn.Parameter(torch.zeros(1, max_patches, hidden_dim))
         self.blocks = nn.ModuleList([TransformerBlock(hidden_dim, num_heads) for _ in range(num_blocks)])
         self.patch_size = patch_size
 
