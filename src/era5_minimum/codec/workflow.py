@@ -15,6 +15,12 @@ import torch
 from torch import nn
 from torch.utils.data import DataLoader, TensorDataset
 
+from era5_minimum.codec.evaluation import (
+    EVALUATOR_VERSION,
+    evaluate_reconstruction,
+    fit_train_channel_bounds,
+    train_statistics_checksum,
+)
 from era5_minimum.codec.harness import CodecHarness
 from era5_minimum.codec.normalization import NormalizationSpec
 from era5_minimum.codec.rate_distortion import (
@@ -210,6 +216,21 @@ def run_codec_smoke(config: dict[str, Any]) -> dict[str, Any]:
     )
     total_invalid_count = int(train_invalid_count + validation_invalid_count + test_invalid_count)
     total_nan_count = int(train_nan_count + validation_nan_count + test_nan_count)
+    train_range_bounds = fit_train_channel_bounds(
+        train_raw,
+        validity_mask=train_valid_mask,
+    )
+    train_ranges = train_range_bounds[:, 1] - train_range_bounds[:, 0]
+    train_statistics = {
+        "train_only": True,
+        "std": [float(value) for value in train_std.reshape(-1)],
+        "ranges": [float(value) for value in train_ranges],
+        "range_bounds": train_range_bounds.tolist(),
+    }
+    train_statistics["checksum"] = train_statistics_checksum(
+        train_std.reshape(-1),
+        train_ranges,
+    )
 
     model = ConvAutoencoder(in_channels=len(SMOKE_CHANNELS), latent_channels=int(model_cfg["latent_channels"]))
     entropy_model = FactorizedLogisticEntropyModel(
@@ -268,6 +289,7 @@ def run_codec_smoke(config: dict[str, Any]) -> dict[str, Any]:
             "codec_config": codec_cfg,
             "git_commit": git_commit,
             "normalization": normalization.to_dict(),
+            "train_statistics": train_statistics,
             "channel_order": list(SMOKE_CHANNELS),
             "inference_config": config.get("inference"),
             "preprocessing": {
@@ -363,7 +385,17 @@ def run_codec_smoke(config: dict[str, Any]) -> dict[str, Any]:
     test_prediction = np.where(test_valid_mask > 0, test_prediction, 0.0).astype(np.float32)
     test_physical = np.where(test_valid_mask > 0, test_physical, 0.0).astype(np.float32)
 
-    metrics_validation = _validation_metrics(
+    local_evaluation = evaluate_reconstruction(
+        validation_physical,
+        prediction_physical,
+        latitudes=latitudes,
+        channel_order=SMOKE_CHANNELS,
+        train_std=train_std.reshape(-1),
+        train_ranges=train_ranges,
+        validity_mask=validation_valid_mask,
+    )
+    local_evaluation["train_statistics"]["range_bounds"] = train_range_bounds.tolist()
+    normalized_metrics = _validation_metrics(
         validation_norm,
         prediction_norm,
         latitudes,
@@ -372,13 +404,16 @@ def run_codec_smoke(config: dict[str, Any]) -> dict[str, Any]:
         invalid_value_count=total_invalid_count,
         nan_value_count=total_nan_count,
     )
-    per_channel = _per_channel_metrics(
-        validation_physical,
-        prediction_physical,
-        train_std.reshape(-1),
-        SMOKE_CHANNELS,
-        validity_mask=validation_valid_mask,
-    )
+    metrics_validation = {
+        **normalized_metrics,
+        "evaluator_version": local_evaluation["evaluator_version"],
+        "surface_score": local_evaluation["surface_score"],
+        "pressure_score": local_evaluation["pressure_score"],
+        "overall_score": local_evaluation["overall_score"],
+        "mean_finite_psnr_db": local_evaluation["mean_finite_psnr_db"],
+        "train_statistics_checksum": local_evaluation["train_statistics"]["checksum"],
+    }
+    per_channel = local_evaluation["per_channel"]
     per_time = _per_time_metrics(validation_norm, prediction_norm, validity_mask=validation_valid_mask)
     tile_report = _maybe_run_tiled_inference_report(
         validation_tiled=prediction_norm,
@@ -390,12 +425,6 @@ def run_codec_smoke(config: dict[str, Any]) -> dict[str, Any]:
         inference_cfg=inference_cfg,
     )
 
-    metrics_validation_path = output_dir / "metrics_validation.json"
-    metrics_per_channel_path = output_dir / "metrics_per_channel.json"
-    metrics_per_time_path = output_dir / "metrics_per_time.json"
-    _write_json(metrics_validation_path, metrics_validation)
-    _write_json(metrics_per_channel_path, per_channel)
-    _write_json(metrics_per_time_path, per_time)
     bitstream_dir = output_dir / "bitstreams"
     bitstream_dir.mkdir(parents=True, exist_ok=True)
     validation_bitstream = bitstream_dir / "validation.bin"
@@ -450,9 +479,56 @@ def run_codec_smoke(config: dict[str, Any]) -> dict[str, Any]:
     target_ratio = float(codec_cfg.get("target_compression_ratio", 0))
     exact_roundtrip = bool(validation_codec_result.roundtrip_ok and test_codec_result.roundtrip_ok)
     codec_eligible = bool(exact_roundtrip and actual_ratio >= target_ratio) if target_ratio > 0 else bool(exact_roundtrip)
+    run_id = f"codec-smoke-{seed}"
+    local_evaluation.update(
+        {
+            "run_id": run_id,
+            "dataset_split": "validation",
+            "seed": seed,
+            "exact_roundtrip": exact_roundtrip,
+            "compression": {
+                "actual_serialized_compression_ratio": actual_ratio,
+                "tensor_compression_ratio": latent_ratio,
+                "serialized_bitstream_bytes": total_bitstream_bytes,
+                "original_float32_bytes": total_input_bytes,
+                "validation_bitstream_bytes": int(
+                    validation_codec_result.metadata["compression"]["bitstream_bytes"]
+                ),
+                "test_bitstream_bytes": int(
+                    test_codec_result.metadata["compression"]["bitstream_bytes"]
+                ),
+            },
+            "actual_serialized_compression_ratio": actual_ratio,
+            "tensor_compression_ratio": latent_ratio,
+            "timings": {
+                "encode_seconds": float(encode_seconds),
+                "decode_seconds": float(decode_seconds),
+            },
+            "encode_seconds": float(encode_seconds),
+            "decode_seconds": float(decode_seconds),
+            "provenance": {
+                "run_id": run_id,
+                "git_commit": git_commit,
+                "seed": seed,
+                "normalization_train_only": normalization.train_only,
+                "train_statistics_checksum": local_evaluation["train_statistics"]["checksum"],
+                "normalization_manifest_sha256": normalization.source_manifest_sha256,
+            },
+            "limitations": [
+                "Preliminary local evaluator; it does not replace EVAL-001 spectral, bootstrap, or extreme-precipitation evaluation."
+            ],
+        }
+    )
+    metrics_validation_path = output_dir / "metrics_validation.json"
+    metrics_per_channel_path = output_dir / "metrics_per_channel.json"
+    metrics_per_time_path = output_dir / "metrics_per_time.json"
+    _write_json(metrics_validation_path, metrics_validation)
+    _write_json(metrics_per_channel_path, per_channel)
+    _write_json(metrics_per_time_path, per_time)
+    _write_json(output_dir / "local_evaluation.json", local_evaluation)
 
     summary = {
-        "experiment_id": f"codec-smoke-{seed}",
+        "experiment_id": run_id,
         "git_commit": git_commit,
         "model_name": "conv_autoencoder",
         "grid_resolution": str(codec_cfg["grid"]),
@@ -485,7 +561,12 @@ def run_codec_smoke(config: dict[str, Any]) -> dict[str, Any]:
         "checkpoint_path": str(checkpoint_path),
         "bitstream_path": str(validation_bitstream),
         "manifest_sha256": normalization.source_manifest_sha256,
-        "run_id": f"codec-smoke-{seed}",
+        "run_id": run_id,
+        "local_evaluator_version": EVALUATOR_VERSION,
+        "local_evaluation_path": str(output_dir / "local_evaluation.json"),
+        "train_statistics_checksum": train_statistics["checksum"],
+        "encode_seconds": encode_seconds,
+        "decode_seconds": decode_seconds,
         "resource_compliance": train_result["resource_compliance"],
         "test_bitstream_path": str(test_bitstream),
         "invalid_value_count": total_invalid_count,
@@ -504,6 +585,7 @@ def run_codec_smoke(config: dict[str, Any]) -> dict[str, Any]:
         "codec_config": codec_cfg,
         "git_commit": git_commit,
         "normalization": normalization.to_dict(),
+        "train_statistics": train_statistics,
         "inference_config": config.get("inference"),
         "ocean_mask_shape": list(ocean_mask.shape),
         "ocean_mask_sha256": _sha256_bytes(ocean_mask.tobytes()),
@@ -519,6 +601,8 @@ def run_codec_smoke(config: dict[str, Any]) -> dict[str, Any]:
         ],
         "rate_lambda": loss_config["rate_lambda"],
         "run_id": summary["run_id"],
+        "local_evaluator_version": EVALUATOR_VERSION,
+        "local_evaluation_path": str(output_dir / "local_evaluation.json"),
         "manifest_sha256": normalization.source_manifest_sha256,
         "invalid_value_count": total_invalid_count,
         "nan_value_count": total_nan_count,
@@ -550,10 +634,13 @@ def run_codec_smoke(config: dict[str, Any]) -> dict[str, Any]:
     return {
         "actual_compression_ratio": actual_ratio,
         "git_commit": git_commit,
+        "run_id": run_id,
         "latent_reduction_ratio": latent_ratio,
         "exact_roundtrip": exact_roundtrip,
         "output_dir": str(output_dir),
         "run_summary_path": str(output_dir / "run_summary.json"),
+        "local_evaluation_path": str(output_dir / "local_evaluation.json"),
+        "train_statistics_checksum": train_statistics["checksum"],
         "invalid_value_count": total_invalid_count,
         "nan_value_count": total_nan_count,
         "reconstruction_inference_mode": reconstruction_mode,
