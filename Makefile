@@ -7,8 +7,8 @@ TOOLS_SERVICE ?= tools
 DATA_SERVICE ?= data-tools
 GPU_SERVICE ?= gpu-tools
 API_PORT ?= 8000
-LOCAL_API_HOST ?= 127.0.0.1
-VITE_HOST ?= 127.0.0.1
+MODEL_ARCHIVE ?= era5-minimum-n32-model.zip
+MODEL_ARTIFACT_DIR ?= artifacts/model-n32
 
 export API_PORT
 
@@ -23,7 +23,9 @@ export API_PORT
 	monitoring-check-rules monitoring-clean frontend-up frontend-build dev \
 	ml-samples cra5-checkpoint-dry-run cra5-smoke cra5-train-n16 cra5-train-n32 \
 	cra5-train-n64 cra5-train-n128 experiment-ladder demo demo-ultra demo-full \
-	cra5-profile-params cra5-produce-checkpoint cra5-verify-checkpoint
+	cra5-profile-params cra5-produce-checkpoint cra5-verify-checkpoint \
+	weatherbench2-pilot-n128 pca-weatherbench2-n128 weatherbench2-merge-n128 conv-ae-weatherbench2-n128 conv-ae-bitstream-n128 \
+	model-unpack
 
 help: ## Show available project and container commands.
 
@@ -186,6 +188,30 @@ pca-fit-32x: runtime-dirs ## Run the existing 32x Patch PCA config against mount
 
 pca-fit-64x: runtime-dirs ## Run the existing 64x Patch PCA config against mounted outputs.
 	$(DOCKER_COMPOSE) -f $(COMPOSE_FILE) --profile tools run --rm $(TOOLS_SERVICE) python scripts/fit_pca_baseline.py --config configs/patch_pca_64x.yaml
+
+weatherbench2-pilot-n128: ## Prepare 128 real WeatherBench2 train frames plus 16/16 fixed holdouts at 0.5°.
+	python scripts/prepare_weatherbench2_05.py --output-dir data/weatherbench2_28ch_05_n128 --train-size 128 --validation-size 16 --test-size 16 --seed 42
+
+pca-weatherbench2-n128: ## Fit the real 0.5° Patch-PCA reference with train-only statistics.
+	python scripts/fit_patch_pca_zarr.py --config configs/patch_pca_weatherbench2_05_n128.yaml
+
+weatherbench2-merge-n128: ## Merge a local pilot plus two verified teammate train shards.
+	python scripts/merge_weatherbench2_shards.py --base data/weatherbench2_28ch_05_pilot16_v2 --train-shard data/weatherbench2_28ch_05_n128_shard_a --train-shard data/weatherbench2_28ch_05_n128_shard_b --output-dir data/weatherbench2_28ch_05_n128 --seed 42 --train-size 128
+
+conv-ae-weatherbench2-n128: ## Train the 32× real-data ConvAE after N=128 shards are merged.
+	python scripts/train_conv_autoencoder_zarr.py --config configs/conv_ae_weatherbench2_05_n128.yaml
+
+conv-ae-bitstream-n128: ## Measure an actual ConvAE bitstream after real N=128 training.
+	python scripts/evaluate_conv_ae_bitstream_zarr.py --checkpoint outputs/conv_ae_weatherbench2_05_n128/model.ckpt --dataset-dir data/weatherbench2_28ch_05_n128 --output-dir outputs/conv_ae_weatherbench2_05_n128_codec
+
+model-unpack: ## Unpack a shared N32 model ZIP from the repository root into ignored artifacts/model-n32/.
+	@test -f "$(MODEL_ARCHIVE)" || { echo "Model archive not found: $(MODEL_ARCHIVE)" >&2; exit 2; }
+	@test ! -e "$(MODEL_ARTIFACT_DIR)/model.ckpt" || { echo "Refusing to overwrite installed model: $(MODEL_ARTIFACT_DIR)/model.ckpt" >&2; exit 2; }
+	@mkdir -p "$(MODEL_ARTIFACT_DIR)"
+	@unzip -q "$(MODEL_ARCHIVE)" -d "$(MODEL_ARTIFACT_DIR)"
+	@test -f "$(MODEL_ARTIFACT_DIR)/model.ckpt" || { echo "Archive must contain model.ckpt at its root." >&2; exit 2; }
+	@test -f "$(MODEL_ARTIFACT_DIR)/normalization_train_only.json" || { echo "Archive must contain normalization_train_only.json at its root." >&2; exit 2; }
+	@echo "Installed shared model in $(MODEL_ARTIFACT_DIR)"
 
 artifacts-validate: runtime-dirs ## Validate the bundled demo artifact directory in the CPU image.
 	$(DOCKER_COMPOSE) -f $(COMPOSE_FILE) --profile tools run --rm $(TOOLS_SERVICE) python scripts/validate_artifact_bundle.py demo/mock

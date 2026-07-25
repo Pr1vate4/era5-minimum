@@ -81,8 +81,11 @@ compose-rendered.yml
 backend/*-report.xml
 
 # Local ERA5 datasets
+data/
 data/era5_28ch_demo/
 data/**/*.zarr/
 data/**/*.zarr.tmp/
 # Local packaged ERA5 demo data; too large for GitHub and reproducible outside Git.
 era5_28ch_demo.tar.zst
+weatherbench2_*.zip
+era5-minimum-*-model.zip

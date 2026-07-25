@@ -265,7 +265,10 @@ def _weighted_rmse(
     denominator = float(np.sum(weighted_mask, dtype=np.float64))
     if denominator <= 0.0:
         raise ValueError(f"channel {channel_name} has no positive latitude weight")
-    squared_error = (reconstruction - original) ** 2
+    # ``NaN * 0`` is still NaN.  SST is deliberately NaN over land, so mask
+    # invalid values before the weighted reduction rather than multiplying a
+    # NaN error by a zero validity weight.
+    squared_error = np.where(valid, (reconstruction - original) ** 2, 0.0)
     value = float(np.sqrt(np.sum(squared_error * weighted_mask, dtype=np.float64) / denominator))
     return value, int(np.count_nonzero(valid))
 
