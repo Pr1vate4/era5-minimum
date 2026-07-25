@@ -1,0 +1,869 @@
+{
+  "uid": "era5-model-overview",
+  "title": "ERA5 Model — Compression & Quality",
+  "description": "Validated physical-space, latitude-weighted metrics from the selected real ERA5 model artifact.",
+  "tags": ["era5", "model", "compression", "quality", "prometheus"],
+  "timezone": "browser",
+  "schemaVersion": 41,
+  "version": 1,
+  "refresh": "10s",
+  "time": {"from": "now-6h", "to": "now"},
+  "timepicker": {},
+  "templating": {"list": []},
+  "annotations": {"list": []},
+  "links": [
+    {
+      "title": "API telemetry",
+      "type": "link",
+      "url": "/d/era5-api-overview/era5-api-overview",
+      "targetBlank": false,
+      "icon": "dashboard"
+    },
+    {
+      "title": "Prometheus",
+      "type": "link",
+      "url": "http://localhost:9090",
+      "targetBlank": true,
+      "icon": "external link"
+    }
+  ],
+  "panels": [
+    {
+      "id": 1,
+      "title": "Result status",
+      "type": "row",
+      "collapsed": false,
+      "gridPos": {"x": 0, "y": 0, "w": 24, "h": 1},
+      "panels": []
+    },
+    {
+      "id": 2,
+      "title": "Artifact contract",
+      "description": "1 only when both JSON artifacts satisfy the canonical scientific contract.",
+      "type": "stat",
+      "gridPos": {"x": 0, "y": 1, "w": 4, "h": 5},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [
+        {"expr": "era5_codec_artifact_ready", "instant": true, "refId": "A"}
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "noValue": "No data",
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "0": {"text": "INVALID", "color": "red"},
+                "1": {"text": "VALID", "color": "green"}
+              }
+            }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "red", "value": null},
+              {"color": "green", "value": 1}
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false},
+        "orientation": "auto",
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "textMode": "value_and_name"
+      }
+    },
+    {
+      "id": 3,
+      "title": "Serialized compression ratio",
+      "description": "Measured raw tensor bytes / actual serialized bitstream bytes.",
+      "type": "stat",
+      "gridPos": {"x": 4, "y": 1, "w": 4, "h": 5},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [
+        {
+          "expr": "era5_codec_actual_compression_ratio",
+          "instant": true,
+          "legendFormat": "serialized",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "decimals": 1,
+          "noValue": "No data",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "blue", "value": null},
+              {"color": "green", "value": 32}
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false},
+        "orientation": "auto",
+        "colorMode": "background",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "textMode": "value_and_name"
+      }
+    },
+    {
+      "id": 4,
+      "title": "Tensor element ratio",
+      "description": "Input tensor elements / latent tensor elements. This is not a serialized compression ratio.",
+      "type": "stat",
+      "gridPos": {"x": 8, "y": 1, "w": 4, "h": 5},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [
+        {
+          "expr": "era5_codec_tensor_compression_ratio",
+          "instant": true,
+          "legendFormat": "tensor",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "decimals": 0,
+          "noValue": "No data",
+          "color": {"mode": "fixedColor", "fixedColor": "purple"}
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false},
+        "orientation": "auto",
+        "colorMode": "background",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "textMode": "value_and_name"
+      }
+    },
+    {
+      "id": 5,
+      "title": "Exact quantized-symbol roundtrip",
+      "description": "Exact equality after serializing and decoding all evaluated quantized symbols.",
+      "type": "stat",
+      "gridPos": {"x": 12, "y": 1, "w": 4, "h": 5},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [
+        {"expr": "era5_codec_exact_roundtrip", "instant": true, "refId": "A"}
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "noValue": "No data",
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "0": {"text": "FAILED", "color": "red"},
+                "1": {"text": "VERIFIED", "color": "green"}
+              }
+            }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "red", "value": null},
+              {"color": "green", "value": 1}
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false},
+        "orientation": "auto",
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "textMode": "value_and_name"
+      }
+    },
+    {
+      "id": 6,
+      "title": "Serialized bitstream",
+      "type": "stat",
+      "gridPos": {"x": 16, "y": 1, "w": 4, "h": 5},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [
+        {
+          "expr": "era5_codec_bitstream_bytes",
+          "instant": true,
+          "legendFormat": "all frames",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "decimals": 2,
+          "noValue": "No data",
+          "color": {"mode": "fixedColor", "fixedColor": "semi-dark-blue"}
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false},
+        "orientation": "auto",
+        "colorMode": "background",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "textMode": "value_and_name"
+      }
+    },
+    {
+      "id": 7,
+      "title": "Evaluated frames",
+      "type": "stat",
+      "gridPos": {"x": 20, "y": 1, "w": 4, "h": 5},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [
+        {
+          "expr": "era5_codec_frame_count",
+          "instant": true,
+          "legendFormat": "test frames",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "noValue": "No data",
+          "color": {"mode": "fixedColor", "fixedColor": "semi-dark-green"}
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false},
+        "orientation": "auto",
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "textMode": "value_and_name"
+      }
+    },
+    {
+      "id": 8,
+      "title": "Scientific quality",
+      "type": "row",
+      "collapsed": false,
+      "gridPos": {"x": 0, "y": 6, "w": 24, "h": 1},
+      "panels": []
+    },
+    {
+      "id": 9,
+      "title": "Overall / surface / pressure NRMSE",
+      "description": "Latitude-weighted normalized RMSE after inverse normalization to physical units. Lower is better.",
+      "type": "bargauge",
+      "gridPos": {"x": 0, "y": 7, "w": 12, "h": 7},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [
+        {
+          "expr": "era5_codec_overall_score",
+          "instant": true,
+          "legendFormat": "Overall",
+          "refId": "A"
+        },
+        {
+          "expr": "era5_codec_surface_score",
+          "instant": true,
+          "legendFormat": "Surface",
+          "refId": "B"
+        },
+        {
+          "expr": "era5_codec_pressure_score",
+          "instant": true,
+          "legendFormat": "Pressure levels",
+          "refId": "C"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "decimals": 2,
+          "min": 0,
+          "noValue": "No data",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "green", "value": null},
+              {"color": "yellow", "value": 0.15},
+              {"color": "orange", "value": 0.25},
+              {"color": "red", "value": 0.4}
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "displayMode": "gradient",
+        "legend": {"displayMode": "list", "placement": "bottom", "showLegend": false},
+        "minVizHeight": 10,
+        "minVizWidth": 0,
+        "namePlacement": "auto",
+        "orientation": "horizontal",
+        "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false},
+        "showUnfilled": true,
+        "sizing": "auto",
+        "valueMode": "color"
+      }
+    },
+    {
+      "id": 10,
+      "title": "Mean finite PSNR",
+      "type": "stat",
+      "gridPos": {"x": 12, "y": 7, "w": 4, "h": 7},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [
+        {
+          "expr": "era5_codec_mean_psnr_db",
+          "instant": true,
+          "legendFormat": "PSNR",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "dB",
+          "decimals": 2,
+          "noValue": "No data",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "orange", "value": null},
+              {"color": "yellow", "value": 25},
+              {"color": "green", "value": 30}
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false},
+        "orientation": "vertical",
+        "colorMode": "background",
+        "graphMode": "area",
+        "justifyMode": "center",
+        "textMode": "value_and_name"
+      }
+    },
+    {
+      "id": 11,
+      "title": "Unique timestamps",
+      "description": "Split counts kept separate to make the sample-efficiency setup explicit.",
+      "type": "bargauge",
+      "gridPos": {"x": 16, "y": 7, "w": 8, "h": 7},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [
+        {
+          "expr": "era5_codec_unique_train_timestamps",
+          "instant": true,
+          "legendFormat": "Train",
+          "refId": "A"
+        },
+        {
+          "expr": "era5_codec_unique_validation_timestamps",
+          "instant": true,
+          "legendFormat": "Validation",
+          "refId": "B"
+        },
+        {
+          "expr": "era5_codec_unique_test_timestamps",
+          "instant": true,
+          "legendFormat": "Test",
+          "refId": "C"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "min": 0,
+          "noValue": "No data",
+          "color": {"mode": "continuous-BlYlRd"}
+        },
+        "overrides": []
+      },
+      "options": {
+        "displayMode": "gradient",
+        "legend": {"displayMode": "list", "placement": "bottom", "showLegend": false},
+        "orientation": "horizontal",
+        "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false},
+        "showUnfilled": true,
+        "valueMode": "color"
+      }
+    },
+    {
+      "id": 12,
+      "title": "Canonical 28-channel contract",
+      "type": "row",
+      "collapsed": false,
+      "gridPos": {"x": 0, "y": 14, "w": 24, "h": 1},
+      "panels": []
+    },
+    {
+      "id": 13,
+      "title": "NRMSE by canonical channel",
+      "description": "All 28 channels in the official order; latitude-weighted and evaluated in physical space.",
+      "type": "bargauge",
+      "gridPos": {"x": 0, "y": 15, "w": 12, "h": 14},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [
+        {
+          "expr": "era5_codec_channel_nrmse",
+          "instant": true,
+          "legendFormat": "{{channel}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "decimals": 2,
+          "min": 0,
+          "noValue": "No data",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "green", "value": null},
+              {"color": "yellow", "value": 0.15},
+              {"color": "orange", "value": 0.25},
+              {"color": "red", "value": 0.4}
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "displayMode": "gradient",
+        "legend": {"displayMode": "list", "placement": "bottom", "showLegend": false},
+        "minVizHeight": 10,
+        "minVizWidth": 0,
+        "namePlacement": "left",
+        "orientation": "horizontal",
+        "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false},
+        "showUnfilled": true,
+        "sizing": "auto",
+        "valueMode": "color"
+      }
+    },
+    {
+      "id": 14,
+      "title": "PSNR by canonical channel",
+      "description": "Per-channel peak signal-to-noise ratio. Higher is better.",
+      "type": "bargauge",
+      "gridPos": {"x": 12, "y": 15, "w": 12, "h": 14},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [
+        {
+          "expr": "era5_codec_channel_psnr_db",
+          "instant": true,
+          "legendFormat": "{{channel}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "dB",
+          "decimals": 1,
+          "min": 0,
+          "noValue": "No data",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "red", "value": null},
+              {"color": "orange", "value": 20},
+              {"color": "yellow", "value": 25},
+              {"color": "green", "value": 30}
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "displayMode": "gradient",
+        "legend": {"displayMode": "list", "placement": "bottom", "showLegend": false},
+        "minVizHeight": 10,
+        "minVizWidth": 0,
+        "namePlacement": "left",
+        "orientation": "horizontal",
+        "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false},
+        "showUnfilled": true,
+        "sizing": "auto",
+        "valueMode": "color"
+      }
+    },
+    {
+      "id": 15,
+      "title": "Physical diagnostics & codec speed",
+      "type": "row",
+      "collapsed": false,
+      "gridPos": {"x": 0, "y": 29, "w": 24, "h": 1},
+      "panels": []
+    },
+    {
+      "id": 16,
+      "title": "MSLP RMSE",
+      "description": "Mean sea-level pressure RMSE after inverse normalization.",
+      "type": "stat",
+      "gridPos": {"x": 0, "y": 30, "w": 4, "h": 5},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [
+        {
+          "expr": "era5_codec_mslp_rmse_hpa",
+          "instant": true,
+          "legendFormat": "MSLP",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "suffix:hPa",
+          "decimals": 2,
+          "noValue": "No data",
+          "color": {"mode": "fixedColor", "fixedColor": "blue"}
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false},
+        "colorMode": "background",
+        "graphMode": "area",
+        "textMode": "value_and_name"
+      }
+    },
+    {
+      "id": 17,
+      "title": "TP6H RMSE",
+      "description": "Six-hour precipitation RMSE after inverse normalization.",
+      "type": "stat",
+      "gridPos": {"x": 4, "y": 30, "w": 4, "h": 5},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [
+        {
+          "expr": "era5_codec_tp6h_rmse_mm_per_6h",
+          "instant": true,
+          "legendFormat": "precipitation",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "suffix:mm/6h",
+          "decimals": 2,
+          "noValue": "No data",
+          "color": {"mode": "fixedColor", "fixedColor": "semi-dark-blue"}
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false},
+        "colorMode": "background",
+        "graphMode": "area",
+        "textMode": "value_and_name"
+      }
+    },
+    {
+      "id": 18,
+      "title": "Wind-speed RMSE",
+      "type": "stat",
+      "gridPos": {"x": 8, "y": 30, "w": 4, "h": 5},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [
+        {
+          "expr": "era5_codec_wind_speed_rmse_m_per_s",
+          "instant": true,
+          "legendFormat": "wind speed",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "velocityms",
+          "decimals": 2,
+          "noValue": "No data",
+          "color": {"mode": "fixedColor", "fixedColor": "cyan"}
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false},
+        "colorMode": "background",
+        "graphMode": "area",
+        "textMode": "value_and_name"
+      }
+    },
+    {
+      "id": 19,
+      "title": "Codec time per frame",
+      "type": "bargauge",
+      "gridPos": {"x": 12, "y": 30, "w": 6, "h": 5},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [
+        {
+          "expr": "era5_codec_encode_per_frame_seconds",
+          "instant": true,
+          "legendFormat": "Encode",
+          "refId": "A"
+        },
+        {
+          "expr": "era5_codec_decode_per_frame_seconds",
+          "instant": true,
+          "legendFormat": "Decode",
+          "refId": "B"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "decimals": 3,
+          "min": 0,
+          "noValue": "No data",
+          "color": {"mode": "continuous-BlPu"}
+        },
+        "overrides": []
+      },
+      "options": {
+        "displayMode": "gradient",
+        "orientation": "horizontal",
+        "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false},
+        "showUnfilled": true,
+        "valueMode": "color"
+      }
+    },
+    {
+      "id": 20,
+      "title": "Total codec time",
+      "type": "bargauge",
+      "gridPos": {"x": 18, "y": 30, "w": 6, "h": 5},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [
+        {
+          "expr": "era5_codec_encode_duration_seconds",
+          "instant": true,
+          "legendFormat": "Encode total",
+          "refId": "A"
+        },
+        {
+          "expr": "era5_codec_decode_duration_seconds",
+          "instant": true,
+          "legendFormat": "Decode total",
+          "refId": "B"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "decimals": 2,
+          "min": 0,
+          "noValue": "No data",
+          "color": {"mode": "continuous-BlPu"}
+        },
+        "overrides": []
+      },
+      "options": {
+        "displayMode": "gradient",
+        "orientation": "horizontal",
+        "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false},
+        "showUnfilled": true,
+        "valueMode": "color"
+      }
+    },
+    {
+      "id": 21,
+      "title": "Data & compute",
+      "type": "row",
+      "collapsed": false,
+      "gridPos": {"x": 0, "y": 35, "w": 24, "h": 1},
+      "panels": []
+    },
+    {
+      "id": 22,
+      "title": "Bits per value",
+      "type": "stat",
+      "gridPos": {"x": 0, "y": 36, "w": 4, "h": 5},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [
+        {
+          "expr": "era5_codec_bits_per_value",
+          "instant": true,
+          "legendFormat": "serialized",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bits",
+          "decimals": 3,
+          "noValue": "No data",
+          "color": {"mode": "fixedColor", "fixedColor": "blue"}
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false},
+        "colorMode": "value",
+        "graphMode": "area",
+        "textMode": "value_and_name"
+      }
+    },
+    {
+      "id": 23,
+      "title": "Optimizer steps",
+      "type": "stat",
+      "gridPos": {"x": 4, "y": 36, "w": 4, "h": 5},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [
+        {
+          "expr": "era5_codec_optimizer_steps",
+          "instant": true,
+          "legendFormat": "steps",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {"unit": "short", "decimals": 0, "noValue": "No data"},
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false},
+        "colorMode": "value",
+        "graphMode": "area",
+        "textMode": "value_and_name"
+      }
+    },
+    {
+      "id": 24,
+      "title": "Trainable parameters",
+      "type": "stat",
+      "gridPos": {"x": 8, "y": 36, "w": 4, "h": 5},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [
+        {
+          "expr": "era5_codec_trainable_parameters",
+          "instant": true,
+          "legendFormat": "parameters",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {"unit": "short", "decimals": 0, "noValue": "No data"},
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false},
+        "colorMode": "value",
+        "graphMode": "area",
+        "textMode": "value_and_name"
+      }
+    },
+    {
+      "id": 25,
+      "title": "Training runtime",
+      "type": "stat",
+      "gridPos": {"x": 12, "y": 36, "w": 4, "h": 5},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [
+        {
+          "expr": "era5_codec_training_duration_seconds",
+          "instant": true,
+          "legendFormat": "runtime",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {"unit": "s", "decimals": 1, "noValue": "No data"},
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false},
+        "colorMode": "value",
+        "graphMode": "area",
+        "textMode": "value_and_name"
+      }
+    },
+    {
+      "id": 26,
+      "title": "Peak VRAM",
+      "description": "Shown only when the selected artifact contains a measured peak VRAM value.",
+      "type": "stat",
+      "gridPos": {"x": 16, "y": 36, "w": 4, "h": 5},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [
+        {
+          "expr": "era5_codec_peak_vram_bytes",
+          "instant": true,
+          "legendFormat": "peak VRAM",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {"unit": "bytes", "decimals": 2, "noValue": "No data"},
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false},
+        "colorMode": "value",
+        "graphMode": "none",
+        "textMode": "value_and_name"
+      }
+    },
+    {
+      "id": 27,
+      "title": "GPU hours",
+      "description": "Shown only when measured GPU-hours are present in the selected artifact.",
+      "type": "stat",
+      "gridPos": {"x": 20, "y": 36, "w": 4, "h": 5},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [
+        {
+          "expr": "era5_codec_gpu_hours",
+          "instant": true,
+          "legendFormat": "GPU-hours",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {"unit": "h", "decimals": 2, "noValue": "No data"},
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false},
+        "colorMode": "value",
+        "graphMode": "none",
+        "textMode": "value_and_name"
+      }
+    },
+    {
+      "id": 28,
+      "title": "Evidence boundary",
+      "type": "row",
+      "collapsed": false,
+      "gridPos": {"x": 0, "y": 41, "w": 24, "h": 1},
+      "panels": []
+    },
+    {
+      "id": 29,
+      "title": "Evidence not present in this artifact",
+      "description": "An explicit boundary prevents absent research evidence from appearing as a pass.",
+      "type": "text",
+      "gridPos": {"x": 0, "y": 42, "w": 24, "h": 7},
+      "options": {
+        "mode": "markdown",
+        "content": "### Confirmed here\n\nThe selected artifact provides measured serialized compression, a separate tensor element ratio, exact codec roundtrip, physical-space latitude-weighted NRMSE/PSNR, physical diagnostics, sample counts, and runtime metadata.\n\n### Not present — no pass/fail claim is made\n\n- non-inferiority **confidence interval** against **VAEformer**;\n- **spectral** degradation evaluation;\n- **extreme** precipitation evaluation;\n- latent **probe** improvement evidence.\n\nThese criteria remain unavailable until real evaluator outputs are added to the validated exporter contract. Missing GPU measurements intentionally render as **No data**, never as zero."
+      }
+    }
+  ]
+}

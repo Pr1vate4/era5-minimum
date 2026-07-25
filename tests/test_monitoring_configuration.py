@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import json
+import re
 from pathlib import Path
 
 import yaml
@@ -59,3 +61,92 @@ def test_grafana_allows_anonymous_viewer_without_signup() -> None:
     assert environment["GF_AUTH_ANONYMOUS_ENABLED"] == "true"
     assert environment["GF_AUTH_ANONYMOUS_ORG_ROLE"] == "Viewer"
     assert environment["GF_USERS_ALLOW_SIGN_UP"] == "false"
+
+
+def test_model_dashboard_has_required_panels_and_honest_queries() -> None:
+    dashboard = json.loads(
+        (ROOT / "monitoring/grafana/dashboards/era5-model-overview.json").read_text(
+            encoding="utf-8"
+        )
+    )
+
+    assert dashboard["uid"] == "era5-model-overview"
+    assert dashboard["title"] == "ERA5 Model — Compression & Quality"
+    assert dashboard["refresh"] == "10s"
+    titles = {panel["title"] for panel in dashboard["panels"]}
+    assert {
+        "Serialized compression ratio",
+        "Tensor element ratio",
+        "Exact quantized-symbol roundtrip",
+        "Overall / surface / pressure NRMSE",
+        "NRMSE by canonical channel",
+        "PSNR by canonical channel",
+        "Evidence not present in this artifact",
+    } <= titles
+    serialized = next(
+        panel
+        for panel in dashboard["panels"]
+        if panel["title"] == "Serialized compression ratio"
+    )
+    assert serialized["targets"][0]["expr"] == "era5_codec_actual_compression_ratio"
+
+
+def test_model_dashboard_queries_only_exported_metrics() -> None:
+    dashboard = json.loads(
+        (ROOT / "monitoring/grafana/dashboards/era5-model-overview.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    exported = {
+        "era5_codec_artifact_ready",
+        "era5_codec_actual_compression_ratio",
+        "era5_codec_tensor_compression_ratio",
+        "era5_codec_bitstream_bytes",
+        "era5_codec_bits_per_value",
+        "era5_codec_exact_roundtrip",
+        "era5_codec_frame_count",
+        "era5_codec_overall_score",
+        "era5_codec_surface_score",
+        "era5_codec_pressure_score",
+        "era5_codec_mean_psnr_db",
+        "era5_codec_channel_nrmse",
+        "era5_codec_channel_psnr_db",
+        "era5_codec_mslp_rmse_hpa",
+        "era5_codec_tp6h_rmse_mm_per_6h",
+        "era5_codec_wind_speed_rmse_m_per_s",
+        "era5_codec_encode_duration_seconds",
+        "era5_codec_decode_duration_seconds",
+        "era5_codec_encode_per_frame_seconds",
+        "era5_codec_decode_per_frame_seconds",
+        "era5_codec_unique_train_timestamps",
+        "era5_codec_unique_validation_timestamps",
+        "era5_codec_unique_test_timestamps",
+        "era5_codec_optimizer_steps",
+        "era5_codec_trainable_parameters",
+        "era5_codec_training_duration_seconds",
+        "era5_codec_peak_vram_bytes",
+        "era5_codec_gpu_hours",
+    }
+    expressions = [
+        target["expr"]
+        for panel in dashboard["panels"]
+        for target in panel.get("targets", [])
+        if "expr" in target
+    ]
+    queried = {
+        metric
+        for expression in expressions
+        for metric in re.findall(r"\bera5_codec_[a-z0-9_]+\b", expression)
+    }
+
+    assert queried <= exported
+    limitation = next(
+        panel
+        for panel in dashboard["panels"]
+        if panel["title"] == "Evidence not present in this artifact"
+    )
+    content = limitation["options"]["content"].lower()
+    assert all(
+        term in content
+        for term in ("vaeformer", "confidence interval", "spectral", "extreme", "probe")
+    )
