@@ -1,0 +1,8 @@
+numpy>=2.0
+pillow>=10.0
+matplotlib>=3.8
+xarray>=2024.1
+zarr>=2.18
+dask[array]>=2024.1
+# Optional for remote stores explicitly opened by the operator:
+gcsfs>=2024.1

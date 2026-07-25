@@ -1,3 +1,5 @@
+import type { GlobeMode } from './features/globe/types/globe'
+
 export type NumericValue = number | string
 
 export type Meta = {
@@ -139,4 +141,10 @@ export type DashboardResults = {
   probe_forecast: ProbeForecast
   resources: Resources
   reconstructions: Reconstruction[]
+  globe?: {
+    manifestUrl?: string
+    defaultTimestamp?: string
+    defaultChannel?: string
+    availableModes?: GlobeMode[]
+  }
 }

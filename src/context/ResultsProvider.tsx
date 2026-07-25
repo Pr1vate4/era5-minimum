@@ -29,6 +29,7 @@ function normalizeResults(input: Partial<DashboardResults> | null | undefined): 
     probe_forecast: input?.probe_forecast ?? emptyResults.probe_forecast,
     resources: input?.resources ?? emptyResults.resources,
     reconstructions: Array.isArray(input?.reconstructions) ? input.reconstructions : [],
+    globe: input?.globe,
   }
 }
 

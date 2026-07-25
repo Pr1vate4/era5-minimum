@@ -73,6 +73,16 @@
     "params_millions": 17.2,
     "optimizer_steps": 48000
   },
+  "globe": {
+    "manifestUrl": "data/globe/manifest.json",
+    "defaultTimestamp": "2021-06-15T12:00:00Z",
+    "defaultChannel": "t2m",
+    "availableModes": [
+      "original",
+      "reconstruction",
+      "absolute-error"
+    ]
+  },
   "reconstructions": [
     {
       "timestamp": "2021-06-15T12:00:00Z",
