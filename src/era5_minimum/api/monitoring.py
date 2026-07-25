@@ -3,11 +3,20 @@
 from __future__ import annotations
 
 import os
+import resource
+import sys
 from threading import Lock
-from time import perf_counter, time
+from time import perf_counter, process_time, time
 from typing import Literal
 
-from prometheus_client import Counter, Gauge, Histogram
+from prometheus_client import (
+    REGISTRY,
+    PROCESS_COLLECTOR,
+    Counter,
+    Gauge,
+    Histogram,
+)
+from prometheus_client.core import CounterMetricFamily, GaugeMetricFamily
 from starlette.routing import Match, Router
 
 from era5_minimum import __version__
@@ -88,10 +97,61 @@ _artifact_load_states: dict[ArtifactType, int] = {
     artifact_type: 0 for artifact_type in ARTIFACT_TYPES
 }
 _artifact_load_states_lock = Lock()
+_process_fallback_registered = False
+_process_fallback_lock = Lock()
+_process_start_time = time()
+
+
+class _ProcessMetricsFallback:
+    """Expose basic process metrics on platforms without a readable ``/proc``."""
+
+    def collect(self):
+        """Yield the process metrics expected by the monitoring contract."""
+        yield CounterMetricFamily(
+            "process_cpu_seconds",
+            "Total user and system CPU time spent in seconds.",
+            value=process_time(),
+        )
+        resident_memory = float(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss)
+        if sys.platform != "darwin":
+            resident_memory *= 1024.0
+        yield GaugeMetricFamily(
+            "process_resident_memory_bytes",
+            "Resident memory size in bytes.",
+            value=resident_memory,
+        )
+        yield GaugeMetricFamily(
+            "process_start_time_seconds",
+            "Start time of the process since unix epoch in seconds.",
+            value=_process_start_time,
+        )
+        try:
+            open_fds = len(os.listdir("/dev/fd"))
+        except OSError:
+            open_fds = 0
+        yield GaugeMetricFamily(
+            "process_open_fds",
+            "Number of open file descriptors.",
+            value=open_fds,
+        )
+
+
+def _ensure_process_metrics() -> None:
+    """Register a portable process collector only when the default is empty."""
+    global _process_fallback_registered
+    if _process_fallback_registered:
+        return
+    with _process_fallback_lock:
+        if _process_fallback_registered:
+            return
+        if not list(PROCESS_COLLECTOR.collect()):
+            REGISTRY.register(_ProcessMetricsFallback())
+        _process_fallback_registered = True
 
 
 def initialize_monitoring_metrics() -> None:
     """Create stable startup series without registering duplicate collectors."""
+    _ensure_process_metrics()
     labels = {"method": "GET", "route": "/health"}
     HTTP_REQUESTS_TOTAL.labels(**labels, status_code="200")
     HTTP_REQUEST_DURATION_SECONDS.labels(**labels)

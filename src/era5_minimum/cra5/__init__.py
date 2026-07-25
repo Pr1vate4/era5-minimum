@@ -1,5 +1,12 @@
 """Adapters and provenance helpers for the external CRA5 runtime."""
 
+from .bridge import (
+    BRIDGE_PROTOCOL_VERSION,
+    Cra5BridgeError,
+    Cra5BridgeRequest,
+    Cra5BridgeResponse,
+    run_cra5_bridge,
+)
 from .channel_mapping import (
     CRA5_CHANNEL_MAPPING,
     CRA5_PRESSURE_LEVELS,
@@ -22,6 +29,7 @@ from .provenance import (
 )
 
 __all__ = [
+    "BRIDGE_PROTOCOL_VERSION",
     "CRA5_159_SHA256",
     "CRA5_159_SIZE",
     "CRA5_CHANNEL_MAPPING",
@@ -33,9 +41,13 @@ __all__ = [
     "CRA5_UPSTREAM_COMMIT",
     "CheckpointRecord",
     "CheckpointValidationError",
+    "Cra5BridgeError",
+    "Cra5BridgeRequest",
+    "Cra5BridgeResponse",
     "Cra5ChannelMapping",
     "checkpoint_cache_path",
     "fetch_checkpoint",
     "validate_checkpoint_file",
     "validate_cra5_channel_mapping",
+    "run_cra5_bridge",
 ]
