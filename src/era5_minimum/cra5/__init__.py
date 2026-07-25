@@ -19,6 +19,10 @@ from .channel_mapping import (
     Cra5ChannelMapping,
     validate_cra5_channel_mapping,
 )
+from .model import (
+    Cra5Vaeformer28,
+    build_cra5_model,
+)
 from .provenance import (
     CRA5_159_SHA256,
     CRA5_159_SIZE,
@@ -49,8 +53,10 @@ __all__ = [
     "Cra5BridgeError",
     "Cra5BridgeRequest",
     "Cra5BridgeResponse",
+    "Cra5Vaeformer28",
     "Cra5ChannelMapping",
     "adapt_cra5_checkpoint",
+    "build_cra5_model",
     "checkpoint_cache_path",
     "fetch_checkpoint",
     "validate_checkpoint_file",
