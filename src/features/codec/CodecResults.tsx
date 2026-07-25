@@ -1,6 +1,4 @@
 import {
-  CheckCircle2,
-  Clock3,
   Download,
   FileArchive,
   Gauge,
@@ -43,8 +41,8 @@ export function CodecResults({
   sourceFile: File
   resolveDownload: (path: string) => string
 }) {
-  if (!job.metrics) return null
-  const { metrics } = job
+  if (!job.metrics || !job.downloads || !job.previews) return null
+  const { downloads, metrics, previews } = job
 
   return (
     <div className="space-y-4">
@@ -82,26 +80,26 @@ export function CodecResults({
       <div className="grid gap-3 lg:grid-cols-2">
         <ArtifactPanel
           eyebrow="Исходное состояние"
-          title={sourceFile.name}
-          caption={`${formatBytes(sourceFile.size)} · загруженный ERA5-контейнер`}
-          icon={Clock3}
+          title="Исходное поле ERA5"
+          caption={`${sourceFile.name} · ${formatBytes(sourceFile.size)}`}
+          previewSrc={resolveDownload(previews.original)}
+          previewAlt="Исходное поле ERA5"
         />
         <ArtifactPanel
           eyebrow="Восстановленное состояние"
-          title="Реконструкция готова"
+          title="Восстановленное поле ERA5"
           caption={`Encode ${formatSeconds(metrics.encodeSeconds)} · Decode ${formatSeconds(metrics.decodeSeconds)}`}
-          icon={CheckCircle2}
+          previewSrc={resolveDownload(previews.reconstruction)}
+          previewAlt="Восстановленное поле ERA5"
           actions={
-            job.downloads ? (
-              <div className="flex flex-wrap gap-2">
-                <DownloadLink href={resolveDownload(job.downloads.bitstream)}>
-                  Bitstream
-                </DownloadLink>
-                <DownloadLink href={resolveDownload(job.downloads.reconstruction)}>
-                  Реконструкция
-                </DownloadLink>
-              </div>
-            ) : null
+            <div className="flex flex-wrap gap-2">
+              <DownloadLink href={resolveDownload(downloads.bitstream)}>
+                Bitstream
+              </DownloadLink>
+              <DownloadLink href={resolveDownload(downloads.reconstruction)}>
+                Реконструкция
+              </DownloadLink>
+            </div>
           }
         />
       </div>
@@ -140,21 +138,29 @@ function ArtifactPanel({
   eyebrow,
   title,
   caption,
-  icon: Icon,
+  previewSrc,
+  previewAlt,
   actions,
 }: {
   eyebrow: string
   title: string
   caption: string
-  icon: typeof Gauge
+  previewSrc: string
+  previewAlt: string
   actions?: React.ReactNode
 }) {
   return (
-    <div className="ui-panel flex min-h-[142px] flex-col justify-between gap-4 p-4">
-      <div className="flex items-start gap-3">
-        <span className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--background-subtle)] text-[var(--text-secondary)]">
-          <Icon className="h-4 w-4" aria-hidden="true" />
-        </span>
+    <div className="ui-panel overflow-hidden">
+      <div className="aspect-[2/1] overflow-hidden border-b border-[var(--border)] bg-[var(--background-subtle)]">
+        <img
+          src={previewSrc}
+          alt={previewAlt}
+          loading="lazy"
+          decoding="async"
+          className="h-full w-full object-cover"
+        />
+      </div>
+      <div className="flex min-h-[124px] flex-col justify-between gap-4 p-4">
         <div className="min-w-0">
           <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-[var(--text-muted)]">
             {eyebrow}
@@ -162,8 +168,8 @@ function ArtifactPanel({
           <p className="mt-1 truncate text-[15px] font-bold text-[var(--text-primary)]">{title}</p>
           <p className="mt-1 text-[11px] leading-5 text-[var(--text-muted)]">{caption}</p>
         </div>
+        {actions}
       </div>
-      {actions}
     </div>
   )
 }

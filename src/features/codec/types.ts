@@ -23,6 +23,11 @@ export type CodecDownloads = {
   reconstruction: string
 }
 
+export type CodecPreviews = {
+  original: string
+  reconstruction: string
+}
+
 export type CodecJob = {
   id: string
   status: CodecJobStatus
@@ -31,6 +36,7 @@ export type CodecJob = {
   error: string | null
   metrics: CodecMetrics | null
   downloads: CodecDownloads | null
+  previews: CodecPreviews | null
 }
 
 export type CodecClient = {

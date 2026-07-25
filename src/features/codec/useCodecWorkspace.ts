@@ -22,6 +22,7 @@ export function useCodecWorkspace() {
   const [submitting, setSubmitting] = useState(false)
   const [runError, setRunError] = useState<string | null>(null)
   const [statusRevision, setStatusRevision] = useState(0)
+  const pollingJobId = shouldPollCodecJob(job) ? job.id : null
 
   const client = useMemo(
     () =>
@@ -51,29 +52,20 @@ export function useCodecWorkspace() {
   }, [client, statusRevision])
 
   useEffect(() => {
-    if (!shouldPollCodecJob(job)) return
-    const jobId = job.id
-    const controller = new AbortController()
-    const timeoutId = window.setTimeout(() => {
-      client
-        .getJob(jobId, controller.signal)
-        .then((nextJob) => {
-          setJob(nextJob)
-          if (nextJob.status === 'failed') {
-            setRunError(nextJob.error ?? 'Обработка завершилась с ошибкой.')
-          }
-        })
-        .catch((error: unknown) => {
-          if (!controller.signal.aborted) {
-            setRunError(toMessage(error, 'Не удалось получить статус задачи.'))
-          }
-        })
-    }, POLL_INTERVAL_MS)
-    return () => {
-      controller.abort()
-      window.clearTimeout(timeoutId)
-    }
-  }, [client, job])
+    if (!pollingJobId) return
+    return startCodecPolling({
+      jobId: pollingJobId,
+      getJob: client.getJob,
+      onJob: (nextJob) => {
+        setJob(nextJob)
+        setRunError(getCodecJobFailure(nextJob))
+      },
+      onError: (error) => {
+        setRunError(toMessage(error, 'Не удалось получить статус задачи. Повторяем запрос…'))
+      },
+      delayMs: POLL_INTERVAL_MS,
+    })
+  }, [client, pollingJobId])
 
   const setFile = useCallback((nextFile: File | null) => {
     setJob(null)
@@ -100,7 +92,9 @@ export function useCodecWorkspace() {
     setJob(null)
     setSubmitting(true)
     try {
-      setJob(await client.createJob(file, targetRatio))
+      const nextJob = await client.createJob(file, targetRatio)
+      setJob(nextJob)
+      setRunError(getCodecJobFailure(nextJob))
     } catch (error) {
       setJob(null)
       setRunError(toMessage(error, 'Не удалось запустить сжатие.'))
@@ -130,6 +124,56 @@ export function shouldPollCodecJob(
   job: CodecJob | null,
 ): job is CodecJob & { status: 'queued' | 'running' } {
   return job?.status === 'queued' || job?.status === 'running'
+}
+
+export function getCodecJobFailure(job: CodecJob) {
+  if (job.status !== 'failed') return null
+  return job.error ?? job.message ?? 'Обработка завершилась с ошибкой.'
+}
+
+export function startCodecPolling({
+  jobId,
+  getJob,
+  onJob,
+  onError,
+  delayMs,
+}: {
+  jobId: string
+  getJob: (jobId: string, signal: AbortSignal) => Promise<CodecJob>
+  onJob: (job: CodecJob) => void
+  onError: (error: unknown) => void
+  delayMs: number
+}) {
+  let active = true
+  let controller: AbortController | null = null
+  let timeoutId: ReturnType<typeof setTimeout> | null = null
+
+  const schedule = () => {
+    if (!active) return
+    timeoutId = globalThis.setTimeout(() => void poll(), delayMs)
+  }
+
+  const poll = async () => {
+    controller = new AbortController()
+    try {
+      const nextJob = await getJob(jobId, controller.signal)
+      if (!active) return
+      onJob(nextJob)
+      if (shouldPollCodecJob(nextJob)) schedule()
+    } catch (error) {
+      if (!active || controller.signal.aborted) return
+      onError(error)
+      schedule()
+    }
+  }
+
+  schedule()
+
+  return () => {
+    active = false
+    controller?.abort()
+    if (timeoutId !== null) globalThis.clearTimeout(timeoutId)
+  }
 }
 
 function toMessage(error: unknown, fallback: string) {

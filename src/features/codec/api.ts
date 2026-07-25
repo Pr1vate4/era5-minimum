@@ -4,6 +4,7 @@ import type {
   CodecJob,
   CodecJobStatus,
   CodecMetrics,
+  CodecPreviews,
   CodecServiceStatus,
   CodecTargetRatio,
 } from './types'
@@ -33,9 +34,13 @@ export function parseCodecJob(input: unknown): CodecJob {
   const progress = clamp(asFiniteNumber(value.progress ?? 0, 'progress'), 0, 1)
   const metrics = value.metrics == null ? null : parseMetrics(value.metrics)
   const downloads = value.downloads == null ? null : parseDownloads(value.downloads)
+  const previews = value.previews == null ? null : parsePreviews(value.previews)
 
   if (status === 'completed' && !metrics) {
     throw new Error('Completed codec job must contain serialized metrics')
+  }
+  if (status === 'completed' && (!downloads || !previews)) {
+    throw new Error('Completed codec job must contain downloads and previews artifacts')
   }
 
   return {
@@ -46,6 +51,7 @@ export function parseCodecJob(input: unknown): CodecJob {
     error: optionalString(value.error),
     metrics,
     downloads,
+    previews,
   }
 }
 
@@ -60,9 +66,14 @@ export function createCodecClient({
     path: string,
     init: RequestInit = {},
     externalSignal?: AbortSignal,
+    requestKind: 'metadata' | 'upload' = 'metadata',
   ) => {
     const controller = new AbortController()
-    const timeoutId = window.setTimeout(() => controller.abort(), timeoutMs)
+    const requestTimeoutMs = getCodecRequestTimeoutMs(requestKind, timeoutMs)
+    const timeoutId =
+      requestTimeoutMs === null
+        ? null
+        : window.setTimeout(() => controller.abort(), requestTimeoutMs)
     const abort = () => controller.abort()
     externalSignal?.addEventListener('abort', abort, { once: true })
 
@@ -81,7 +92,7 @@ export function createCodecClient({
       }
       return (await response.json()) as unknown
     } finally {
-      window.clearTimeout(timeoutId)
+      if (timeoutId !== null) window.clearTimeout(timeoutId)
       externalSignal?.removeEventListener('abort', abort)
     }
   }
@@ -94,7 +105,12 @@ export function createCodecClient({
       body.set('file', file)
       body.set('target_ratio', String(targetRatio))
       return parseCodecJob(
-        await request('/api/v1/codec/jobs', { method: 'POST', body }, signal),
+        await request(
+          '/api/v1/codec/jobs',
+          { method: 'POST', body },
+          signal,
+          'upload',
+        ),
       )
     },
     getJob: async (jobId, signal) =>
@@ -102,6 +118,13 @@ export function createCodecClient({
         await request(`/api/v1/codec/jobs/${encodeURIComponent(jobId)}`, {}, signal),
       ),
   }
+}
+
+export function getCodecRequestTimeoutMs(
+  requestKind: 'metadata' | 'upload',
+  defaultTimeoutMs: number,
+) {
+  return requestKind === 'upload' ? null : defaultTimeoutMs
 }
 
 export function isCodecTargetRatio(value: number): value is CodecTargetRatio {
@@ -136,6 +159,17 @@ function parseDownloads(input: unknown): CodecDownloads {
     reconstruction: asNonEmptyString(
       value.reconstruction,
       'downloads.reconstruction',
+    ),
+  }
+}
+
+function parsePreviews(input: unknown): CodecPreviews {
+  const value = asRecord(input, 'Codec previews')
+  return {
+    original: asNonEmptyString(value.original, 'previews.original'),
+    reconstruction: asNonEmptyString(
+      value.reconstruction,
+      'previews.reconstruction',
     ),
   }
 }

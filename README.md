@@ -76,3 +76,4 @@ npm run build
 - `public/data/results.json` — статический контракт данных для демо-дашборда;
 - `public/data/images/` — placeholder SVG/PNG для визуальной реконструкции;
 - `src/` — Vite + React + TypeScript UI, секции дашборда и типизация данных.
+- `docs/CODEC_API.md` — контракт подключения реальной ML-модели, артефактов и preview.

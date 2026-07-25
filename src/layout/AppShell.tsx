@@ -33,7 +33,7 @@ export function AppShell() {
       <TopHeader />
       <Sidebar />
 
-      <main className="ml-[72px] min-h-[calc(100vh-64px)] overflow-x-hidden pt-16">
+      <main className="min-h-[calc(100vh-64px)] overflow-x-hidden pb-20 pt-16 sm:ml-[72px] sm:pb-0">
         <div className={`mx-auto w-full max-w-[1720px] ${contentSpacing}`}>
           {independentPage ? (
             <Suspense fallback={<LoadingSkeleton />}>

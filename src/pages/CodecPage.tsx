@@ -48,7 +48,7 @@ export default function CodecPage() {
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1.45fr)_minmax(320px,0.55fr)]">
         <ContentCard
           title="Новый запуск"
-          description="Файл проверяется сервером по официальному порядку 28 каналов."
+          description="32×/64× — целевой tensor ratio. Фактический serialized ratio сервер вычисляет отдельно по полному bitstream."
           className="ui-panel !rounded-[24px] !p-5"
         >
           <CodecDropzone
@@ -61,7 +61,7 @@ export default function CodecPage() {
           <div className="mt-5 grid gap-4 border-t border-[var(--border)] pt-5 sm:grid-cols-[1fr_auto] sm:items-end">
             <fieldset>
               <legend className="text-[12px] font-bold text-[var(--text-secondary)]">
-                Целевой режим
+                Целевой tensor ratio
               </legend>
               <div className="mt-2 grid grid-cols-2 gap-2">
                 {([32, 64] as CodecTargetRatio[]).map((ratio) => (
@@ -74,7 +74,7 @@ export default function CodecPage() {
                       workspace.targetRatio === ratio ? 'codec-ratio--active' : ''
                     }`}
                   >
-                    <strong>{ratio}×</strong>
+                    <strong>Tensor {ratio}×</strong>
                     <span>{ratio === 32 ? 'Больше качества' : 'Меньше размер'}</span>
                   </button>
                 ))}
@@ -110,7 +110,9 @@ export default function CodecPage() {
         <div className="flex items-start gap-3 rounded-[18px] border border-rose-200 bg-rose-50 p-4 text-rose-800" role="alert">
           <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0" aria-hidden="true" />
           <div>
-            <p className="text-[13px] font-bold">Сжатие не запущено</p>
+            <p className="text-[13px] font-bold">
+              {workspace.processing ? 'Связь с задачей прервана' : 'Сжатие не выполнено'}
+            </p>
             <p className="mt-1 text-[12px] leading-5">{workspace.runError}</p>
           </div>
         </div>
