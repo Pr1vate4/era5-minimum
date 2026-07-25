@@ -318,3 +318,74 @@
 **Decision:** CRA5-159v checkpoint (SHA-256 `36dfdf0458bb9ed9ecfd1dcdbd75bf9d2599f2320041e769d6c766f3d8563a11`, size 1,450,747,681 bytes, upstream commit `2b9e06d8ca31f7b27c5039c9b5fc3334a43b4976`) is cached outside Git under `~/.cache/era5-minimum/cra5/`. Mapping from CRA5-159 to ERA5-28 copies 26 channels by explicit index; `sst` and `tcwv` use learned-boundary zero initialization. A versioned bridge protocol isolates the main Python 3.12 process from an explicitly configured CRA5 runtime. Provenance records upstream commit, checkpoint hash, size, URL, and license note. Checkpoint bytes never enter the repository or run artifacts. Transfer results report the external initialization, not training from scratch.
 
 **Consequences:** the project preserves Python 3.12 and canonical dependencies in `pyproject.toml`. CRA5 runtime remains an optional external component with explicit provenance. Channel mapping prevents silent substitution or reordering. Transfer results are eligible for comparison against PCA and ConvAE because normalization, splits, and metrics use identical repository rules. Experiments mark whether CRA5 runtime was successfully verified on GPU or remained blocked.
+
+## DEC-033 — CRA5 Adapter Architecture
+
+**Status:** accepted
+**Date:** 2026-07-25
+
+**Context:** необходимо адаптировать претренированный CRA5-159 checkpoint для работы с 28-канальной ERA5 data.
+
+**Decision:** 
+- Копировать 26 каналов по explicit mapping из CRA5-159 в ERA5-28
+- Инициализировать sst/tcwv границы нулями для обучения
+- Заморозить encoder/decoder/hyperprior, тренировать только input_proj/output_proj
+- Использовать patch_size (11, 10) для совместимости с существующими checkpoint
+
+**Consequences:** 
+- Адаптер требует минимального обучения на малых выборках
+- Существующие веса CRA5 переиспользуются максимально
+- Размер входных данных должен быть кратен patch_size
+
+## DEC-034 — CRA5 Training Strategy
+
+**Status:** accepted 
+**Date:** 2026-07-25
+
+**Context:** определить стратегию обучения CRA5 adapter с разными размерами выборки.
+
+**Decision:**
+- Тренировать последовательно на размерах выборки 16/32/64/128
+- Применять early stopping при улучшении validation RMSE < 5%
+- Использовать детерминированные seeds для воспроизводимости
+- Сохранять только лучшие checkpoints по validation loss
+
+**Consequences:**
+- Эксперименты воспроизводимы 
+- Автоматическое определение минимального размера выборки
+- Экономия compute time за счет early stopping
+
+## DEC-035 — Experiment Ladder Protocol
+
+**Status:** accepted
+**Date:** 2026-07-25
+
+**Context:** необходимо сравнить PCA, ConvAE и CRA5 на одинаковых данных и метриках.
+
+**Decision:**
+- Запускать эксперименты последовательно: PCA → ConvAE → CRA5
+- Использовать одинаковые evaluation metrics для всех codec
+- Применять tensor и serialized compression ratios раздельно
+- Останавливать ladder при недостаточном улучшении
+
+**Consequences:**
+- Честное сравнение всех методов
+- Единая инфраструктура экспериментов
+- Воспроизводимые результаты для публикации
+
+## DEC-036 — Patch Size Compatibility
+
+**Status:** accepted
+**Date:** 2026-07-25
+
+**Context:** CRA5 использует patch_size (11, 10), что не совместимо с ERA5 half-degree resolution (361×720).
+
+**Decision:**
+- Для smoke tests использовать 352×720 (кратно 11×10)
+- Для реальных экспериментов адаптировать patch_size или padding
+- Документировать это ограничение в config templates
+
+**Consequences:**
+- Smoke tests работают без ошибок размерности
+- Требуется дополнительная работа для full-resolution ERA5
+- Четкое понимание совместимости размеров

@@ -19,7 +19,8 @@ export API_PORT
 	monitoring-restart monitoring-logs monitoring-ps monitoring-prometheus-logs \
 	monitoring-grafana-logs monitoring-smoke monitoring-check-prometheus-config \
 	monitoring-check-rules monitoring-clean frontend-up frontend-build \
-	ml-samples cra5-checkpoint-dry-run
+	ml-samples cra5-checkpoint-dry-run cra5-smoke cra5-train-n16 cra5-train-n32 \
+	cra5-train-n64 cra5-train-n128 experiment-ladder
 
 help: ## Show available project and container commands.
 
@@ -53,6 +54,24 @@ ml-samples: ## Generate nested leakage-safe training sample manifests (16/32/64/
 
 cra5-checkpoint-dry-run: ## Show CRA5-159 checkpoint provenance without downloading.
 	python scripts/fetch_cra5_checkpoint.py
+
+cra5-smoke: ## Run CRA5 runtime smoke test with synthetic data.
+	python scripts/smoke_cra5_runtime.py
+
+cra5-train-n16: ## Train CRA5 adapter with 16 samples.
+	python scripts/train_cra5_adapter.py --config configs/cra5/cra5_adapter_n16.yaml
+
+cra5-train-n32: ## Train CRA5 adapter with 32 samples.
+	python scripts/train_cra5_adapter.py --config configs/cra5/cra5_adapter_n32.yaml
+
+cra5-train-n64: ## Train CRA5 adapter with 64 samples.
+	python scripts/train_cra5_adapter.py --config configs/cra5/cra5_adapter_n64.yaml
+
+cra5-train-n128: ## Train CRA5 adapter with 128 samples.
+	python scripts/train_cra5_adapter.py --config configs/cra5/cra5_adapter_n128.yaml
+
+experiment-ladder: ## Run full experiment ladder (PCA → ConvAE → CRA5).
+	python scripts/run_experiment_ladder.py
 
 clean: ## Remove only generated MVP outputs and local caches.
 	rm -rf outputs/mvp .pytest_cache .mypy_cache .ruff_cache build dist

@@ -1,0 +1,67 @@
+# CRA5 Adapter Training Configuration - 64 samples
+# Trains input/output projections on 64 ERA5 samples while keeping encoder/decoder frozen
+
+experiment:
+  name: cra5-adapter-n64
+  description: "CRA5-159 adapter trained on 64 ERA5 samples"
+  seed: 42
+  output_dir: outputs/cra5/n64
+
+data:
+  manifest_path: /tmp/era5-minimum-samples.json
+  subset_size: 64
+  validation_split: "2020"
+  test_split: "2021"
+  channels: 28
+  normalize: true
+  fallback_demo: true
+
+model:
+  type: cra5_adapter
+  checkpoint_path: ~/.cache/era5-minimum/cra5/cra5_159v_150k.pth
+  in_channels: 28
+  out_channels: 28
+  hidden_dim: 1024
+  num_encoder_blocks: 4
+  num_decoder_blocks: 4
+  num_heads: 8
+  patch_size: [11, 10]
+  
+  freeze_backbone: true
+  frozen_blocks: [encoder, decoder, hyperprior]
+  trainable_blocks: [input_proj, output_proj]
+
+training:
+  epochs: 75
+  batch_size: 4
+  learning_rate: 1e-4
+  weight_decay: 1e-6
+  target_compression: 32
+  
+  patience: 15
+  min_delta: 0.001
+  val_frequency: 5
+  save_best: true
+
+codec:
+  quantization_step: 0.1
+  bits_per_channel: 8
+  entropy_coding: huffman
+  compute_physical_rmse: true
+  latitude_weighted: true
+
+optimizer:
+  type: adamw
+  lr: 1e-4
+  betas: [0.9, 0.999]
+  weight_decay: 1e-6
+
+scheduler:
+  type: cosine_annealing
+  T_max: 75
+  eta_min: 1e-6
+
+logging:
+  wandb_project: era5-minimum-cra5
+  log_frequency: 10
+  save_checkpoint_frequency: 10

@@ -1,0 +1,60 @@
+# CRA5 Smoke Test Configuration
+# Fast smoke test for CRA5 adapter with synthetic data
+
+experiment:
+  name: cra5-smoke
+  description: "CRA5 adapter smoke test with synthetic data"
+  seed: 42
+  output_dir: outputs/cra5/smoke
+
+data:
+  source: synthetic
+  subset_size: 16
+  channels: 28
+  normalize: true
+  synthetic_shape: [28, 352, 720]  # Compatible with patch_size (11, 10)
+
+model:
+  type: cra5_adapter
+  # For smoke test, use random initialization instead of checkpoint
+  use_pretrained: false
+  in_channels: 28
+  out_channels: 28
+  hidden_dim: 1024
+  num_encoder_blocks: 2  # Reduced for speed
+  num_decoder_blocks: 2  # Reduced for speed
+  num_heads: 8
+  patch_size: [11, 10]
+  
+  freeze_backbone: false  # Train everything for smoke test
+
+training:
+  epochs: 5  # Very short for smoke test
+  batch_size: 2
+  learning_rate: 1e-3
+  weight_decay: 1e-6
+  target_compression: 32
+  
+  val_frequency: 2
+  save_best: false  # Don't save checkpoints in smoke test
+
+codec:
+  quantization_step: 0.1
+  bits_per_channel: 8
+  entropy_coding: huffman
+  compute_physical_rmse: false  # Skip for smoke test
+  latitude_weighted: false
+
+optimizer:
+  type: adamw
+  lr: 1e-3
+  betas: [0.9, 0.999]
+  weight_decay: 1e-6
+
+scheduler:
+  type: constant
+  
+logging:
+  wandb_project: null  # No wandb for smoke test
+  log_frequency: 1
+  save_checkpoint_frequency: 999  # Effectively disabled
