@@ -50,10 +50,10 @@ export default function OverviewPage() {
         />
       </Suspense>
 
-      <ContentCard className="border-blue-100">
+      <ContentCard className="border-[var(--accent-border)]">
         <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-center">
           <div>
-            <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-blue-600">
+            <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[var(--accent)]">
               Эксперимент нейросетевого сжатия ERA5
             </div>
             <h2 className="mt-2 text-[21px] font-semibold text-slate-900">

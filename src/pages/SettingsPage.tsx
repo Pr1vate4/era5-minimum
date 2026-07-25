@@ -24,6 +24,7 @@ import {
   type InterfaceSettings,
 } from '../app/settings'
 import { getNavigationItem } from '../app/navigationConfig'
+import { AnimatedSegmentedControl } from '../components/common/AnimatedSegmentedControl'
 import { PageHeader } from '../components/common/PageHeader'
 import { useAppSettings } from '../hooks/useAppSettings'
 
@@ -148,7 +149,7 @@ export default function SettingsPage() {
           <button
             type="button"
             onClick={resetAll}
-            className="inline-flex h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3.5 text-[12px] font-semibold text-slate-600 transition-colors hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-200"
+            className="ui-button-ghost ui-focus-ring inline-flex h-10 items-center gap-2 rounded-xl px-3.5 text-[12px] font-semibold"
           >
             <RotateCcw className="h-4 w-4" aria-hidden="true" />
             Сбросить всё
@@ -156,8 +157,8 @@ export default function SettingsPage() {
         }
       />
 
-      <div className="grid min-h-[520px] overflow-hidden rounded-2xl border border-slate-200 bg-white lg:grid-cols-[240px_minmax(0,1fr)]">
-        <aside className="border-b border-slate-200 bg-slate-50/70 p-3 lg:border-b-0 lg:border-r">
+      <div className="grid min-h-[520px] overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface)] shadow-[var(--shadow-soft)] lg:grid-cols-[240px_minmax(0,1fr)]">
+        <aside className="border-b border-[var(--border)] bg-[var(--background-subtle)] p-3 lg:border-b-0 lg:border-r">
           <div
             className="grid grid-cols-3 gap-2 lg:grid-cols-1"
             role="tablist"
@@ -174,22 +175,22 @@ export default function SettingsPage() {
                   role="tab"
                   aria-selected={active}
                   onClick={() => setActiveSection(section.id)}
-                  className={`group flex min-w-0 items-center gap-3 rounded-xl border px-3 py-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-200 ${
+                  className={`ui-focus-ring group flex min-w-0 items-center gap-3 rounded-xl border px-3 py-3 text-left transition-colors ${
                     active
-                      ? 'border-blue-300 bg-blue-50 text-blue-700'
-                      : 'border-transparent text-slate-500 hover:border-slate-200 hover:bg-white hover:text-slate-800'
+                      ? 'ui-selected'
+                      : 'border-transparent text-[var(--text-muted)] hover:border-[var(--border)] hover:bg-[var(--surface-hover)] hover:text-[var(--text-secondary)]'
                   }`}
                 >
                   <span
                     className={`inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${
-                      active ? 'bg-blue-100' : 'bg-white'
+                      active ? 'bg-[var(--accent-soft)]' : 'bg-[var(--surface)]'
                     }`}
                   >
                     <Icon className="h-[17px] w-[17px]" aria-hidden="true" />
                   </span>
                   <span className="hidden min-w-0 lg:block">
                     <span className="block text-[13px] font-semibold">{section.title}</span>
-                    <span className="mt-0.5 block truncate text-[11px] font-medium text-slate-400">
+                    <span className="mt-0.5 block truncate text-[11px] font-medium text-[var(--text-muted)]">
                       {section.description}
                     </span>
                   </span>
@@ -201,11 +202,11 @@ export default function SettingsPage() {
             })}
           </div>
 
-          <div className="mt-4 hidden rounded-xl border border-blue-200 bg-blue-50 p-3 lg:block">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-blue-700">
+          <div className="mt-4 hidden rounded-xl border border-[var(--accent-border)] bg-[var(--accent-soft)] p-3 lg:block">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--accent-text)]">
               Локальные настройки
             </p>
-            <p className="mt-1.5 text-[11px] leading-5 text-slate-500">
+            <p className="mt-1.5 text-[11px] leading-5 text-[var(--text-muted)]">
               Они сохраняются только в этом браузере и не изменяют научные данные на сервере.
             </p>
           </div>
@@ -282,13 +283,22 @@ function InterfacePanel({
         title="Тема оформления"
         description="Тёмная тема снижает яркость фона, сохраняя исходные цвета научных визуализаций."
       >
-        <ChoiceGroup
+        <AnimatedSegmentedControl
           value={draft.theme}
           options={[
-            { value: 'light', label: 'Светлая', icon: Sun },
-            { value: 'dark', label: 'Тёмная', icon: Moon },
+            {
+              value: 'light',
+              label: 'Светлая',
+              icon: <Sun className="h-4 w-4" />,
+            },
+            {
+              value: 'dark',
+              label: 'Тёмная',
+              icon: <Moon className="h-4 w-4" />,
+            },
           ]}
           onChange={(theme) => onChange({ ...draft, theme })}
+          ariaLabel="Тема оформления"
         />
       </SettingRow>
 
@@ -296,13 +306,14 @@ function InterfacePanel({
         title="Плотность интерфейса"
         description="Компактный режим уменьшает внешние отступы и освобождает больше места для графиков."
       >
-        <ChoiceGroup
+        <AnimatedSegmentedControl
           value={draft.density}
           options={[
             { value: 'comfortable', label: 'Обычная' },
             { value: 'compact', label: 'Компактная' },
           ]}
           onChange={(density) => onChange({ ...draft, density })}
+          ariaLabel="Плотность интерфейса"
         />
       </SettingRow>
 
@@ -310,7 +321,7 @@ function InterfacePanel({
         title="Размер текста"
         description="Меняет размер подписей, кнопок, таблиц и заголовков без замены самого шрифта."
       >
-        <ChoiceGroup
+        <AnimatedSegmentedControl
           value={draft.fontSize}
           options={[
             { value: 'small', label: 'Меньше' },
@@ -318,17 +329,7 @@ function InterfacePanel({
             { value: 'large', label: 'Больше' },
           ]}
           onChange={(fontSize) => onChange({ ...draft, fontSize })}
-        />
-      </SettingRow>
-
-      <SettingRow
-        title="Уменьшить движение"
-        description="Отключает пульсацию загрузки и почти все анимации интерфейса."
-      >
-        <Toggle
-          checked={draft.reduceMotion}
-          label={draft.reduceMotion ? 'Включено' : 'Выключено'}
-          onChange={(reduceMotion) => onChange({ ...draft, reduceMotion })}
+          ariaLabel="Размер текста"
         />
       </SettingRow>
 
@@ -473,7 +474,7 @@ function ApiPanel({
             type="button"
             onClick={onTest}
             disabled={connection.status === 'testing'}
-            className="inline-flex h-9 shrink-0 items-center justify-center gap-2 rounded-lg border border-blue-300 bg-blue-50 px-3 text-[12px] font-semibold text-blue-700 transition-colors hover:bg-blue-100 disabled:cursor-wait disabled:opacity-60"
+            className="ui-button-subtle ui-focus-ring inline-flex h-9 shrink-0 items-center justify-center gap-2 rounded-lg px-3 text-[12px] font-semibold disabled:cursor-wait disabled:opacity-60"
           >
             {connection.status === 'testing' ? (
               <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />
@@ -504,12 +505,12 @@ function SettingsPanel({
   return (
     <section>
       <div className="mb-5 flex items-start gap-3 border-b border-slate-200 pb-5">
-        <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-blue-200 bg-blue-50 text-blue-700">
+        <span className="ui-accent-icon inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl">
           <Icon className="h-[18px] w-[18px]" aria-hidden="true" />
         </span>
         <div>
-          <h2 className="text-[18px] font-semibold text-slate-900">{title}</h2>
-          <p className="mt-1 text-[12px] leading-5 text-slate-500">{description}</p>
+          <h2 className="text-[18px] font-semibold text-[var(--text-primary)]">{title}</h2>
+          <p className="mt-1 text-[12px] leading-5 text-[var(--text-muted)]">{description}</p>
         </div>
       </div>
       <div className="space-y-1">{children}</div>
@@ -530,52 +531,15 @@ function SettingRow({
 }) {
   return (
     <div
-      className={`border-b border-slate-100 py-4 ${
+      className={`border-b border-[var(--border)] py-4 ${
         vertical ? 'grid gap-3' : 'grid gap-3 md:grid-cols-[minmax(0,1fr)_280px] md:items-center'
       }`}
     >
       <div>
-        <h3 className="text-[13px] font-semibold text-slate-800">{title}</h3>
-        <p className="mt-1 max-w-xl text-[11px] leading-5 text-slate-500">{description}</p>
+        <h3 className="text-[13px] font-semibold text-[var(--text-secondary)]">{title}</h3>
+        <p className="mt-1 max-w-xl text-[11px] leading-5 text-[var(--text-muted)]">{description}</p>
       </div>
       <div className={vertical ? 'max-w-2xl' : ''}>{children}</div>
-    </div>
-  )
-}
-
-function ChoiceGroup<T extends string>({
-  value,
-  options,
-  onChange,
-}: {
-  value: T
-  options: Array<{ value: T; label: string; icon?: LucideIcon }>
-  onChange: (value: T) => void
-}) {
-  return (
-    <div
-      className="grid rounded-xl border border-slate-200 bg-slate-50 p-1"
-      style={{ gridTemplateColumns: `repeat(${options.length}, minmax(0, 1fr))` }}
-    >
-      {options.map((option) => {
-        const active = option.value === value
-        const Icon = option.icon
-        return (
-          <button
-            key={option.value}
-            type="button"
-            onClick={() => onChange(option.value)}
-            className={`inline-flex h-9 items-center justify-center gap-1.5 rounded-lg border border-transparent px-2 text-[12px] font-semibold transition-colors ${
-              active
-                ? 'border-blue-300 bg-blue-50 text-blue-700 shadow-[0_1px_3px_rgba(15,23,42,0.10)]'
-                : 'text-slate-500 hover:text-slate-800'
-            }`}
-          >
-            {Icon ? <Icon className="h-4 w-4 shrink-0" aria-hidden="true" /> : null}
-            {option.label}
-          </button>
-        )
-      })}
     </div>
   )
 }
@@ -595,24 +559,13 @@ function Toggle({
       role="switch"
       aria-checked={checked}
       onClick={() => onChange(!checked)}
-      className={`flex w-full items-center justify-between gap-3 rounded-xl border px-3 py-2.5 text-[12px] font-semibold transition-colors ${
-        checked
-          ? 'border-blue-300 bg-blue-50 text-blue-700'
-          : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
+      className={`ui-switch ui-focus-ring flex w-full items-center justify-between gap-3 rounded-xl px-3 py-2.5 text-[12px] font-semibold ${
+        checked ? 'ui-switch--on' : ''
       }`}
     >
       <span>{label}</span>
-      <span
-        className={`relative h-6 w-11 rounded-full transition-colors ${
-          checked ? 'bg-blue-600' : 'bg-slate-300'
-        }`}
-        aria-hidden="true"
-      >
-        <span
-          className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow-sm transition-transform ${
-            checked ? 'translate-x-[22px]' : 'translate-x-0.5'
-          }`}
-        />
+      <span className="ui-switch__track" aria-hidden="true">
+        <span className="ui-switch__thumb" />
       </span>
     </button>
   )
@@ -637,7 +590,7 @@ function TextInput({
       aria-label={ariaLabel}
       onChange={(event) => onChange(event.target.value)}
       spellCheck={false}
-      className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3.5 text-[13px] font-medium text-slate-700 outline-none transition-colors placeholder:text-slate-400 hover:border-slate-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+      className="ui-field h-11 w-full rounded-xl px-3.5 text-[13px] font-medium placeholder:text-[var(--text-disabled)]"
     />
   )
 }
@@ -659,7 +612,7 @@ function SelectInput({
         value={value}
         aria-label={ariaLabel}
         onChange={(event) => onChange(event.target.value)}
-        className="h-11 w-full appearance-none rounded-xl border border-slate-200 bg-white px-3.5 pr-10 text-[13px] font-medium text-slate-700 outline-none transition-colors hover:border-slate-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+        className="ui-field h-11 w-full appearance-none rounded-xl px-3.5 pr-10 text-[13px] font-medium"
       >
         {options.map((option) => (
           <option key={option.value} value={option.value}>
@@ -686,7 +639,7 @@ function ConnectionStatus({ state }: { state: ConnectionState }) {
           : Wifi
   const color =
     state.status === 'success'
-      ? 'text-blue-600'
+      ? 'text-[var(--accent)]'
       : state.status === 'error'
         ? 'text-rose-600'
         : 'text-slate-500'
@@ -716,14 +669,14 @@ function SaveBar({
 }) {
   return (
     <div className="flex flex-col-reverse justify-between gap-3 pt-5 sm:flex-row sm:items-center">
-      <p className={`text-[11px] font-semibold ${dirty ? 'text-amber-700' : 'text-blue-600'}`}>
+      <p className={`text-[11px] font-semibold ${dirty ? 'text-amber-700' : 'text-[var(--accent)]'}`}>
         {dirty ? 'Есть несохранённые изменения' : 'Все изменения сохранены'}
       </p>
       <div className="flex gap-2">
         <button
           type="button"
           onClick={onReset}
-          className="inline-flex h-10 items-center justify-center rounded-xl border border-slate-200 bg-white px-3.5 text-[12px] font-semibold text-slate-600 transition-colors hover:bg-slate-50"
+          className="ui-button-ghost ui-focus-ring inline-flex h-10 items-center justify-center rounded-xl px-3.5 text-[12px] font-semibold"
         >
           По умолчанию
         </button>
@@ -731,7 +684,7 @@ function SaveBar({
           type="button"
           onClick={onSave}
           disabled={!dirty}
-          className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-blue-600 bg-blue-600 px-4 text-[12px] font-semibold text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-400"
+          className="ui-button-primary ui-focus-ring inline-flex h-10 items-center justify-center gap-2 rounded-xl px-4 text-[12px] font-semibold disabled:cursor-not-allowed disabled:border-[var(--border)] disabled:bg-[var(--surface-active)] disabled:text-[var(--text-disabled)]"
         >
           <Save className="h-4 w-4" aria-hidden="true" />
           Сохранить

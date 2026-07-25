@@ -1,7 +1,7 @@
 type StatusTone = 'success' | 'danger' | 'warning' | 'neutral'
 
 const tones: Record<StatusTone, string> = {
-  success: 'border-blue-200 bg-blue-50 text-blue-700',
+  success: 'ui-accent-badge',
   danger: 'border-rose-200 bg-rose-50 text-rose-700',
   warning: 'border-amber-200 bg-amber-50 text-amber-700',
   neutral: 'border-slate-200 bg-slate-50 text-slate-600',

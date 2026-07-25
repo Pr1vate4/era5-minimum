@@ -18,7 +18,7 @@ export function GlobeErrorState({
           <button
             type="button"
             onClick={onRetry}
-            className="mt-4 inline-flex h-10 items-center gap-2 rounded-xl border border-[#D0D5DD] bg-white px-4 text-[13px] font-semibold text-[#475467] hover:bg-[#F9FAFB] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-100"
+            className="ui-button-ghost ui-focus-ring mt-4 inline-flex h-10 items-center gap-2 rounded-xl px-4 text-[13px] font-semibold"
           >
             <RotateCcw className="h-3.5 w-3.5" aria-hidden="true" />
             Повторить

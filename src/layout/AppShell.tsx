@@ -28,7 +28,7 @@ export function AppShell() {
       : 'px-5 py-5 lg:px-7'
 
   return (
-    <div className="min-h-screen overflow-x-hidden bg-[#F7F8FA] text-[#101828]">
+    <div className="min-h-screen overflow-x-hidden bg-[var(--background)] text-[var(--text-primary)]">
       <ScrollToTop />
       <TopHeader />
       <Sidebar />

@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import {
   DEFAULT_APP_SETTINGS,
   normalizeStoredSettings,
@@ -18,13 +18,13 @@ function readSettings() {
 
 export function AppSettingsProvider({ children }: { children: ReactNode }) {
   const [settings, setSettings] = useState<AppSettings>(readSettings)
+  const transitionTimerRef = useRef<number | null>(null)
 
   useEffect(() => {
     const root = document.documentElement
     root.dataset.uiDensity = settings.interface.density
     root.dataset.theme = settings.interface.theme
     root.dataset.uiFontSize = settings.interface.fontSize
-    root.dataset.reduceMotion = String(settings.interface.reduceMotion)
     root.style.colorScheme = settings.interface.theme
 
     try {
@@ -34,12 +34,42 @@ export function AppSettingsProvider({ children }: { children: ReactNode }) {
     }
   }, [settings])
 
+  useEffect(
+    () => () => {
+      if (transitionTimerRef.current !== null) {
+        window.clearTimeout(transitionTimerRef.current)
+      }
+      document.documentElement.classList.remove('theme-transition')
+    },
+    [],
+  )
+
+  const commitSettings = (nextSettings: AppSettings) => {
+    const normalized = normalizeStoredSettings(nextSettings)
+    const themeChanged = normalized.interface.theme !== settings.interface.theme
+
+    if (themeChanged) {
+      const root = document.documentElement
+      root.classList.add('theme-transition')
+
+      if (transitionTimerRef.current !== null) {
+        window.clearTimeout(transitionTimerRef.current)
+      }
+      transitionTimerRef.current = window.setTimeout(() => {
+        root.classList.remove('theme-transition')
+        transitionTimerRef.current = null
+      }, 280)
+    }
+
+    setSettings(normalized)
+  }
+
   const saveSettings = (nextSettings: AppSettings) => {
-    setSettings(normalizeStoredSettings(nextSettings))
+    commitSettings(nextSettings)
   }
 
   const resetSettings = () => {
-    setSettings(DEFAULT_APP_SETTINGS)
+    commitSettings(DEFAULT_APP_SETTINGS)
   }
 
   return (

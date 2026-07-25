@@ -1,9 +1,10 @@
 import { ChevronDown, RotateCcw, Search } from 'lucide-react'
 import type { ReactNode } from 'react'
+import { AnimatedSegmentedControl } from './AnimatedSegmentedControl'
 
 export function FilterBar({ children }: { children: ReactNode }) {
   return (
-    <div className="flex flex-wrap items-end gap-3 rounded-2xl border border-slate-200 bg-white p-3">
+    <div className="ui-surface flex flex-wrap items-end gap-3 rounded-2xl border p-3">
       {children}
     </div>
   )
@@ -32,7 +33,7 @@ export function SelectField({ label, value, options, onChange, disabled }: Selec
           value={value}
           onChange={(event) => onChange(event.target.value)}
           disabled={disabled}
-          className="h-10 w-full appearance-none rounded-xl border border-slate-200 bg-white/90 px-3 pr-9 text-[13px] font-medium text-slate-700 outline-none transition-colors hover:border-slate-300 hover:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400"
+          className="ui-field h-10 w-full appearance-none rounded-xl px-3 pr-9 text-[13px] font-medium"
         >
           {options.map((option) => (
             <option key={option.value} value={option.value} disabled={option.disabled}>
@@ -71,24 +72,12 @@ export function SegmentedControl<T extends string>({
   return (
     <fieldset className="grid gap-1">
       <legend className="text-[11px] font-semibold text-slate-500">{label}</legend>
-      <div className="inline-flex h-9 rounded-lg border border-slate-300 bg-slate-50 p-0.5">
-        {options.map((option) => (
-          <button
-            key={option.value}
-            type="button"
-            disabled={option.disabled}
-            aria-pressed={value === option.value}
-            onClick={() => onChange(option.value)}
-            className={`rounded-md px-3 text-[12px] font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${
-              value === option.value
-                ? 'bg-white text-blue-700 shadow-sm'
-                : 'text-slate-500 hover:text-slate-800 disabled:cursor-not-allowed disabled:opacity-40'
-            }`}
-          >
-            {option.label}
-          </button>
-        ))}
-      </div>
+      <AnimatedSegmentedControl
+        value={value}
+        options={options}
+        onChange={onChange}
+        ariaLabel={label}
+      />
     </fieldset>
   )
 }
@@ -111,7 +100,7 @@ export function SearchInput({ label, value, onChange, placeholder }: SearchInput
           value={value}
           onChange={(event) => onChange(event.target.value)}
           placeholder={placeholder}
-          className="h-9 w-full rounded-lg border border-slate-300 bg-white pl-8 pr-3 text-[13px] font-medium text-slate-700 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
+          className="ui-field h-9 w-full rounded-lg pl-8 pr-3 text-[13px] font-medium"
         />
       </span>
     </label>
@@ -136,7 +125,8 @@ export function CheckboxField({
         checked={checked}
         onChange={(event) => onChange(event.target.checked)}
         disabled={disabled}
-        className="h-4 w-4 rounded border-slate-300 accent-blue-600 disabled:cursor-not-allowed"
+        className="h-4 w-4 rounded border-slate-300 disabled:cursor-not-allowed"
+        style={{ accentColor: 'var(--accent-active)' }}
       />
       <span className={disabled ? 'text-slate-400' : undefined}>{label}</span>
     </label>
@@ -149,7 +139,7 @@ export function ResetFiltersButton({ onClick, disabled }: { onClick: () => void;
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className="inline-flex h-9 items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 text-[12px] font-semibold text-slate-600 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
+      className="ui-button-ghost ui-focus-ring inline-flex h-9 items-center gap-2 rounded-lg px-3 text-[12px] font-semibold disabled:cursor-not-allowed disabled:opacity-50"
     >
       <RotateCcw className="h-3.5 w-3.5" aria-hidden="true" />
       Сбросить
