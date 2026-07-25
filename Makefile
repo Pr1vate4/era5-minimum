@@ -90,8 +90,8 @@ docker-config: ## Render and validate the CPU Compose configuration.
 docker-gpu-config: ## Render and validate the CPU plus GPU Compose configuration.
 	$(DOCKER_COMPOSE) -f $(COMPOSE_FILE) -f $(GPU_COMPOSE_FILE) config
 
-app-up: runtime-dirs ## Start the API in the background with one Uvicorn worker.
-	$(DOCKER_COMPOSE) -f $(COMPOSE_FILE) up -d --build $(API_SERVICE)
+app-up: runtime-dirs ## Start the API and Vite frontend together in Docker.
+	$(DOCKER_COMPOSE) -f $(COMPOSE_FILE) up -d --build $(API_SERVICE) frontend
 
 app-down: ## Stop the Compose stack without deleting bind-mounted artifacts.
 	$(DOCKER_COMPOSE) -f $(COMPOSE_FILE) down
