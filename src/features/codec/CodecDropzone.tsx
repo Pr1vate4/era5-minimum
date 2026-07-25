@@ -29,7 +29,7 @@ export function CodecDropzone({
       <input
         ref={inputRef}
         type="file"
-        accept=".npz,.npy,.nc,.zip"
+        accept=".npz"
         className="sr-only"
         disabled={disabled}
         onChange={(event) => onFileChange(event.target.files?.[0] ?? null)}
@@ -80,7 +80,7 @@ export function CodecDropzone({
                   Перетащите ERA5-файл сюда
                 </p>
                 <p className="mt-1 text-[12px] leading-5 text-[var(--text-muted)]">
-                  NPZ, NPY, NetCDF или Zarr ZIP · один 28-канальный кадр · до 2 ГиБ
+                  NPZ с <code>data</code> float32 · один 28-канальный кадр · до 64 МиБ
                 </p>
               </div>
             </>

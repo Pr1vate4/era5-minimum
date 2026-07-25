@@ -8,7 +8,7 @@ from typing import Optional
 
 from functools import lru_cache
 
-from fastapi import APIRouter, Depends, FastAPI, HTTPException, Query, Request
+from fastapi import APIRouter, Depends, FastAPI, File, Form, HTTPException, Query, Request, UploadFile
 from fastapi.responses import JSONResponse, Response
 from fastapi.middleware.cors import CORSMiddleware
 from prometheus_client import make_asgi_app
@@ -36,6 +36,7 @@ from era5_minimum.api.schemas import (
     SummaryArtifact,
 )
 from era5_minimum.api.weather_data_service import WeatherDataService
+from era5_minimum.api.codec_service import CodecInputError, CodecService, CodecUnavailableError
 
 DEFAULT_ARTIFACTS_ROOT = Path(
     os.getenv("ERA5_ARTIFACTS_ROOT", "demo/mock")
@@ -45,6 +46,12 @@ DEFAULT_ARTIFACTS_ROOT = Path(
 def get_repository() -> ArtifactRepository:
     """Return the default artifact repository dependency."""
     return ArtifactRepository(artifacts_root=DEFAULT_ARTIFACTS_ROOT)
+
+
+@lru_cache(maxsize=1)
+def get_codec_service() -> CodecService:
+    """Return the process-local immutable N32 codec service."""
+    return CodecService()
 
 
 router = APIRouter()
@@ -60,6 +67,74 @@ def get_weather_data_service() -> WeatherDataService:
 def health() -> dict[str, str]:
     """Return the API liveness response."""
     return {"status": "ok"}
+
+
+@router.get("/api/v1/codec/status", tags=["codec"])
+def codec_status(service: CodecService = Depends(get_codec_service)) -> dict:
+    """Expose N32 readiness for the interactive frontend without fake results."""
+    return service.status()
+
+
+@router.post("/api/v1/codec/jobs", status_code=201, tags=["codec"])
+async def create_codec_job(
+    file: UploadFile = File(...),
+    target_ratio: int = Form(...),
+    service: CodecService = Depends(get_codec_service),
+) -> dict:
+    """Compress one canonical NPZ frame with the accepted model checkpoint."""
+    try:
+        payload = await file.read()
+        return service.create_job(
+            payload=payload,
+            filename=file.filename or "upload.npz",
+            target_ratio=target_ratio,
+        )
+    except CodecUnavailableError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    except CodecInputError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    finally:
+        await file.close()
+
+
+def _codec_job_or_404(identifier: str, service: CodecService):
+    job = service.get_job(identifier)
+    if job is None:
+        raise HTTPException(status_code=404, detail="codec job does not exist or its downloads expired")
+    return job
+
+
+@router.get("/api/v1/codec/jobs/{identifier}", tags=["codec"])
+def read_codec_job(identifier: str, service: CodecService = Depends(get_codec_service)) -> dict:
+    """Return a completed job during the API process lifetime."""
+    return _codec_job_or_404(identifier, service).payload
+
+
+@router.get("/api/v1/codec/jobs/{identifier}/bitstream", tags=["codec"])
+def download_codec_bitstream(identifier: str, service: CodecService = Depends(get_codec_service)) -> Response:
+    """Download the self-describing, checkpoint-bound bitstream."""
+    job = _codec_job_or_404(identifier, service)
+    return Response(job.artifact.bitstream, media_type="application/octet-stream", headers={"Content-Disposition": 'attachment; filename="era5-frame.e5ac"'})
+
+
+@router.get("/api/v1/codec/jobs/{identifier}/reconstruction", tags=["codec"])
+def download_codec_reconstruction(identifier: str, service: CodecService = Depends(get_codec_service)) -> Response:
+    """Download the reconstructed canonical NPZ frame."""
+    job = _codec_job_or_404(identifier, service)
+    return Response(job.artifact.reconstruction, media_type="application/x-npz", headers={"Content-Disposition": 'attachment; filename="era5-reconstruction.npz"'})
+
+
+@router.get("/api/v1/codec/jobs/{identifier}/preview/{kind}.png", tags=["codec"])
+def codec_preview(identifier: str, kind: str, service: CodecService = Depends(get_codec_service)) -> Response:
+    """Return a t2m preview for the original or reconstructed physical field."""
+    job = _codec_job_or_404(identifier, service)
+    if kind == "original":
+        image = job.artifact.original_preview
+    elif kind == "reconstruction":
+        image = job.artifact.reconstruction_preview
+    else:
+        raise HTTPException(status_code=404, detail="preview kind must be original or reconstruction")
+    return Response(image, media_type="image/png", headers={"Cache-Control": "private, max-age=300"})
 
 
 @router.get(
@@ -177,16 +252,19 @@ def weather_layer(
             detail="model reconstruction is not connected to the real Zarr provider",
         )
 
-    payload, cache_status = service.get_layer_with_status(
-        variable=variable,
-        timestamp=timestamp,
-        level=level,
-        mode=mode,
-        target_width=target_width,
-        target_height=target_height,
-        stride=1,
-        response_format="json",
-    )
+    try:
+        payload, cache_status = service.get_layer_with_status(
+            variable=variable,
+            timestamp=timestamp,
+            level=level,
+            mode=mode,
+            target_width=target_width,
+            target_height=target_height,
+            stride=1,
+            response_format="json",
+        )
+    except WeatherProviderError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
 
     if service.settings.enabled:
         response.headers["X-ERA5-Cache"] = cache_status.upper()
@@ -306,7 +384,7 @@ def create_app() -> FastAPI:
     api.add_middleware(
         CORSMiddleware,
         allow_origins=[origin.strip() for origin in allowed_origins if origin.strip()],
-        allow_methods=["GET"],
+        allow_methods=["GET", "POST"],
         allow_headers=["*"],
     )
     api.include_router(router)
