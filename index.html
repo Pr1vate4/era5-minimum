@@ -9,8 +9,24 @@
       name="description"
       content="Аналитическая платформа экспериментов по нейросетевому сжатию данных ERA5."
     />
+    <script>
+      try {
+        const stored = JSON.parse(localStorage.getItem('era5-minimum:settings:v1') || 'null')
+        const ui = stored && stored.interface
+        const root = document.documentElement
+        const theme = ui && ui.theme === 'dark' ? 'dark' : 'light'
+
+        root.dataset.theme = theme
+        root.dataset.uiDensity = ui && ui.density === 'compact' ? 'compact' : 'comfortable'
+        root.dataset.uiFontSize =
+          ui && (ui.fontSize === 'small' || ui.fontSize === 'large') ? ui.fontSize : 'medium'
+        root.style.colorScheme = theme
+      } catch {
+        document.documentElement.dataset.theme = 'light'
+      }
+    </script>
   </head>
-  <body class="bg-slate-50">
+  <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

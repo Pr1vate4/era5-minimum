@@ -21,7 +21,7 @@ export function ErrorState({ title, message, details, onRetry }: ErrorStateProps
             <button
               type="button"
               onClick={onRetry}
-              className="mt-4 inline-flex h-9 items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 text-sm font-semibold text-slate-700 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+              className="ui-button-ghost ui-focus-ring mt-4 inline-flex h-9 items-center gap-2 rounded-lg px-3 text-sm font-semibold"
             >
               <RotateCcw className="h-4 w-4" aria-hidden="true" />
               Повторить загрузку

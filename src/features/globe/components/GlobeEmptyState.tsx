@@ -20,7 +20,7 @@ export function GlobeEmptyState({
         <button
           type="button"
           onClick={onSelectAvailable}
-          className="mt-4 inline-flex h-10 items-center rounded-xl border border-blue-200 bg-blue-50 px-4 text-[13px] font-semibold text-blue-700 hover:bg-blue-100 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-100"
+          className="ui-button-subtle ui-focus-ring mt-4 inline-flex h-10 items-center rounded-xl px-4 text-[13px] font-semibold"
         >
           Выбрать доступный кадр
         </button>

@@ -7,7 +7,6 @@ export type InterfaceSettings = {
   density: InterfaceDensity
   theme: InterfaceTheme
   fontSize: InterfaceFontSize
-  reduceMotion: boolean
 }
 
 export type DataSettings = {
@@ -35,7 +34,6 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
     density: 'comfortable',
     theme: 'light',
     fontSize: 'medium',
-    reduceMotion: false,
   },
   data: {
     resultsUrl: 'data/results.json',
@@ -85,10 +83,6 @@ export function normalizeStoredSettings(input: unknown): AppSettings {
         storedInterface?.fontSize === 'small' || storedInterface?.fontSize === 'large'
           ? storedInterface.fontSize
           : 'medium',
-      reduceMotion:
-        typeof storedInterface?.reduceMotion === 'boolean'
-          ? storedInterface.reduceMotion
-          : DEFAULT_APP_SETTINGS.interface.reduceMotion,
     },
     data: {
       resultsUrl:

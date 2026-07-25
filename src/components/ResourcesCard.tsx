@@ -17,7 +17,7 @@ export function ResourcesCard({ resources }: { resources: ResourcesData }) {
               ? 'bg-rose-500'
               : percent >= 85
                 ? 'bg-amber-500'
-                : 'bg-blue-500'
+                : 'bg-[var(--accent)]'
 
         return (
           <div key={limit.key} className="rounded-2xl border border-slate-200 bg-white p-4">

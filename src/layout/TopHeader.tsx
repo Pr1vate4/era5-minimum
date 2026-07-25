@@ -34,16 +34,16 @@ export function TopHeader() {
   }
 
   return (
-    <header className="fixed inset-x-0 top-0 z-50 flex h-14 items-center justify-between gap-4 border-b border-[#E4E7EC] bg-white px-4 sm:px-5">
+    <header className="fixed inset-x-0 top-0 z-50 flex h-14 items-center justify-between gap-4 border-b border-[var(--border)] bg-[var(--chrome)] px-4 shadow-[var(--shadow-soft)] sm:px-5">
       <div className="flex min-w-0 items-center gap-2.5">
-        <div className="h-8 w-8 shrink-0 overflow-hidden rounded-full border border-slate-300 bg-white shadow-sm">
+        <div className="h-8 w-8 shrink-0 overflow-hidden rounded-full border border-[var(--border-strong)] bg-[var(--surface)] shadow-[var(--shadow-soft)]">
           <img
             src={`${import.meta.env.BASE_URL}data/images/logo.png`}
             alt="Логотип МетеоКода"
             className="h-full w-full object-cover"
           />
         </div>
-        <span className="hidden whitespace-nowrap text-[15px] font-semibold text-slate-950 sm:block">
+        <span className="hidden whitespace-nowrap text-[15px] font-semibold text-[var(--text-primary)] sm:block">
           МетеоКод
         </span>
       </div>
