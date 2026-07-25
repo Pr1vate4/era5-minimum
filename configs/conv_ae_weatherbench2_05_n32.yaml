@@ -1,0 +1,18 @@
+experiment:
+  name: conv_ae_weatherbench2_05_n32
+  seed: 42
+data:
+  dataset_dir: data/weatherbench2_28ch_05_n32
+model:
+  name: conv_autoencoder
+  # 28*8*8 / 56 = exactly 32 tensor elements per latent element.
+  latent_channels: 56
+training:
+  # 80 × 32 frames allows max_steps to be the effective 2,560-step limit.
+  epochs: 80
+  max_steps: 2560
+  learning_rate: 0.0003
+  weight_decay: 0.00001
+  grad_clip: 1.0
+codec:
+  quantization_step: 0.1

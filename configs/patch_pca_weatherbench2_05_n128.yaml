@@ -1,0 +1,22 @@
+# First real-data, near-training-free reference.  The matching data-prep
+# command selects 128 balanced train frames plus 16/16 fixed holdouts.
+experiment:
+  name: patch_pca_weatherbench2_05_n128
+  seed: 42
+data:
+  dataset_dir: data/weatherbench2_28ch_05_n128
+  expected_resolution_degrees: 0.5
+  channels: 28
+model:
+  name: patch_pca
+  patch_shape: [8, 8]
+  target_payload_ratio: 32
+  incremental_batch_size: 4096
+evaluation:
+  split: validation
+  metric_space: physical
+  latitude_weighted: true
+  train_statistics_only: true
+codec:
+  status: latent_reduction_baseline_only
+  note: "No serialized codec claim is made by this PCA baseline."

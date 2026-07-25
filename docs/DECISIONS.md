@@ -389,3 +389,26 @@
 - Smoke tests работают без ошибок размерности
 - Требуется дополнительная работа для full-resolution ERA5
 - Четкое понимание совместимости размеров
+
+## DEC-037 — Real-data linear reference before neural training
+
+**Status:** accepted
+**Date:** 2026-07-25
+
+**Context:** Organizers explicitly allow an existing or nearly untrained
+solution, while the project still needs a reproducible scientific reference
+before any neural-codec claim. The old demo scripts use synthetic tensors and
+therefore cannot establish ERA5 quality.
+
+**Decision:** The first real-data experiment is Patch-PCA on the official
+28-channel WeatherBench2 source. It uses an explicit season/hour-balanced
+training subset (first target `N=128`), fixed 2020 validation and 2021 test
+holdouts, train-only normalization, and first-order conservative remapping to
+the canonical 360×720 cell-centred 0.5° grid. Results report latitude-weighted
+physical RMSE/NRMSE/PSNR per channel. PCA payload reduction is labelled as a
+baseline; it is not reported as a serialized codec ratio.
+
+**Consequences:** The team obtains a fast, honest reference and validates the
+data/metric path before spending compute on ConvAE or an external CRA5
+checkpoint. The shorter `N=16` run is a pipeline pilot only and must not be
+used to claim sample-efficiency results.
