@@ -14,12 +14,12 @@ from era5_minimum.cra5.model import Cra5Vaeformer28, build_cra5_model
 @pytest.fixture
 def adapted_checkpoint(tmp_path: Path) -> dict[str, torch.Tensor]:
     """Create a minimal adapted checkpoint for testing."""
-    # This is a simplified version matching the adapter output
+    # Use the same default max_patches (10368) that model uses for pos_embed
     return {
         "backbone.encoder.patch_embed.proj.weight": torch.randn(1024, 28, 11, 10),
         "backbone.encoder.patch_embed.proj.bias": torch.randn(1024),
-        # pos_embed will match 16x36 patch grid = 576 patches
-        "backbone.encoder.pos_embed": torch.randn(1, 576, 1024),
+        # pos_embed should match model's default max_patches = 10368
+        "backbone.encoder.pos_embed": torch.randn(1, 10368, 1024),
         "backbone.encoder.blocks.0.norm1.weight": torch.randn(1024),
         "backbone.encoder.blocks.0.norm1.bias": torch.randn(1024),
         "backbone.encoder.blocks.0.attn.qkv.weight": torch.randn(3072, 1024),
