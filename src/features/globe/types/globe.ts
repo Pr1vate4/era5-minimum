@@ -55,6 +55,8 @@ export interface GlobeFrameAsset {
   valueEncoding?: 'float32-le'
   noDataValue?: number
   normalization?: GlobeNormalization
+  /** Canonical variable accepted by the live weather API, when it differs from the UI channel. */
+  apiVariable?: string
 }
 
 export interface GlobeManifest {

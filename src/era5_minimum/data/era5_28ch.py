@@ -18,6 +18,7 @@ from typing import Any, Literal
 import numpy as np
 import pandas as pd
 import xarray as xr
+from torch.utils.data import Dataset
 
 from .channel_spec import CHANNEL_NAMES, CHANNEL_SPEC, PRESSURE_LEVELS, validate_wb2_compatibility
 from .weatherbench2 import WB2_URL, open_wb2_era5
@@ -194,6 +195,30 @@ def get_layer(root: str | Path, split: Split, variable: str, timestamp: str,
             "latitude": ds.latitude.values, "longitude": ds.longitude.values, "values": values,
             "mask": mask, "minimum": float(np.nanmin(values)), "maximum": float(np.nanmax(values)),
             "valid_count": int(mask.sum())}
+
+
+class ZarrTensorDataset(Dataset[dict[str, Any]]):
+    """Map-style model adapter that materialises one timestamp at a time only."""
+
+    def __init__(self, root: str | Path, split: Split = "validation") -> None:
+        self.root = Path(root)
+        self.ds = xr.open_zarr(self.root / f"{split}.zarr", consolidated=True)
+        self.static = xr.open_zarr(self.root / "static.zarr", consolidated=True)
+        self.timestamps = self.ds.time.values
+
+    def __len__(self) -> int:
+        return len(self.timestamps)
+
+    def __getitem__(self, index: int) -> dict[str, Any]:
+        import torch
+
+        frame = assemble_model_tensor(self.ds.isel(time=slice(index, index + 1))).load().values[0].astype(np.float32, copy=False)
+        # The physical store remains NaN over land; fill only at model boundary.
+        mask = self.static["ocean_mask"].load().values.astype(bool, copy=False)
+        mask = mask & np.isfinite(frame[5])
+        frame[5] = np.where(mask, frame[5], 0.0)
+        return {"tensor": torch.from_numpy(frame), "timestamp": str(self.timestamps[index]),
+                "ocean_mask": torch.from_numpy(mask)}
 
 
 def validate_prepared(root: str | Path) -> None:

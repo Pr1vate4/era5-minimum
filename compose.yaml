@@ -22,10 +22,14 @@ services:
       - ${LOG_LEVEL:-info}
     environment:
       ERA5_ARTIFACTS_ROOT: ${ERA5_ARTIFACTS_ROOT:-demo/mock}
+      ERA5_WEATHER_PROVIDER: ${ERA5_WEATHER_PROVIDER:-zarr}
+      ERA5_DATASET_ROOT: ${ERA5_DATASET_ROOT:-/workspace/data/era5_28ch_demo}
+      ERA5_DATASET_SPLIT: ${ERA5_DATASET_SPLIT:-validation}
     ports:
       - "${API_PORT:-8000}:8000"
     volumes:
       - ${ARTIFACTS_DIR:-./artifacts}:/workspace/artifacts:ro
+      - ${DATA_DIR:-./data}:/workspace/data:ro,Z
     healthcheck:
       test:
         - CMD

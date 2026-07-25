@@ -6,6 +6,7 @@ import { useGlobeManifest } from '../hooks/useGlobeManifest'
 import { useGlobeSelection } from '../hooks/useGlobeSelection'
 import { useGlobeValues } from '../hooks/useGlobeValues'
 import { useTccCloudLayer } from '../hooks/useTccCloudLayer'
+import { useWeatherGlobeCatalog, useWeatherGlobeLayer } from '../hooks/useWeatherGlobe'
 import type {
   GlobeCoordinates,
   GlobeGridPoint,
@@ -44,18 +45,23 @@ export default function AtmosphereGlobe({
   const cardRef = useRef<HTMLElement>(null)
   const { manifest, loading: manifestLoading, error: manifestError, reload } =
     useGlobeManifest(manifestUrl)
+  const weatherApiEnabled = import.meta.env.VITE_WEATHER_API_ENABLED !== 'false'
+  const weatherCatalog = useWeatherGlobeCatalog(weatherApiEnabled)
+  const activeModes: GlobeMode[] = weatherApiEnabled ? ['original'] : availableModes
   const demoEnabled = import.meta.env.VITE_ENABLE_GLOBE_DEMO === 'true'
-  const frames = useMemo(
+  const manifestFrames = useMemo(
     () =>
       (manifest?.frames ?? []).filter(
         (frame) => frame.source !== 'demo' || demoEnabled,
       ),
     [demoEnabled, manifest?.frames],
   )
-  const selection = useGlobeSelection(frames, availableModes, {
+  const frames = weatherApiEnabled ? weatherCatalog.frames : manifestFrames
+  const selection = useGlobeSelection(frames, activeModes, {
     channel: defaultChannel,
     timestamp: defaultTimestamp,
     grid: defaultGrid,
+    displayMode: weatherApiEnabled ? 'data' : undefined,
     ...researchDefaults,
   })
   const { autoRotate, setAutoRotate, reducedMotion, resetSignal, resetView } =
@@ -66,22 +72,26 @@ export default function AtmosphereGlobe({
   const [textureRevision, setTextureRevision] = useState(0)
   const [isFullscreen, setIsFullscreen] = useState(false)
   const isEarthMode = selection.displayMode === 'earth'
-  const frame = selection.frame
+  const weatherLayer = useWeatherGlobeLayer(selection.frame, weatherApiEnabled && !isEarthMode)
+  const frame = weatherApiEnabled ? weatherLayer.layer?.frame ?? selection.frame : selection.frame
   const cloudState = useTccCloudLayer(selection.cloudFrame, isEarthMode)
   const valuesState = useGlobeValues(
-    !isEarthMode && selectedCoordinates ? frame?.valuesUrl : undefined,
+    !weatherApiEnabled && !isEarthMode && selectedCoordinates ? frame?.valuesUrl : undefined,
     frame ? frame.width * frame.height : undefined,
   )
+  const activeValues = weatherApiEnabled ? weatherLayer.layer?.values : valuesState.values
   const selectedPoint = useMemo<GlobeGridPoint | null>(
     () =>
       !isEarthMode && selectedCoordinates && frame
-        ? locateGlobeGridPoint(selectedCoordinates, frame, valuesState.values ?? undefined)
+        ? locateGlobeGridPoint(selectedCoordinates, frame, activeValues ?? undefined)
         : null,
-    [frame, isEarthMode, selectedCoordinates, valuesState.values],
+    [activeValues, frame, isEarthMode, selectedCoordinates],
   )
   const textureUrl = isEarthMode
     ? resolvePublicAssetUrl(earthTexturePath)
-    : frame
+    : weatherApiEnabled
+      ? weatherLayer.layer?.textureUrl
+      : frame
       ? resolvePublicAssetUrl(frame.textureUrl)
       : undefined
   const firstAvailableFrame =
@@ -162,7 +172,11 @@ export default function AtmosphereGlobe({
               <h2 className="text-[19px] font-semibold leading-[1.25] tracking-[-0.015em] text-[#101828] sm:text-[21px]">
                 Глобальное состояние атмосферы ERA5
               </h2>
-              {statusFrame?.source === 'demo' ? (
+              {weatherApiEnabled && !isEarthMode ? (
+                <span className="rounded-md border border-emerald-200 bg-emerald-50 px-2 py-1 text-[11px] font-semibold text-emerald-700">
+                  ERA5 Zarr · реальные данные
+                </span>
+              ) : statusFrame?.source === 'demo' ? (
                 <span className="rounded-md border border-amber-200 bg-amber-50 px-2 py-1 text-[11px] font-semibold text-amber-700">
                   Демо-данные
                 </span>
@@ -193,7 +207,7 @@ export default function AtmosphereGlobe({
 
       <GlobeFilters
         selection={selection}
-        availableModes={availableModes}
+        availableModes={activeModes}
         autoRotate={autoRotate}
         onAutoRotateChange={setAutoRotate}
       />
@@ -214,8 +228,11 @@ export default function AtmosphereGlobe({
             onTextureError={setTextureError}
           />
 
-          {!isEarthMode && manifestLoading ? (
-            <GlobeLoadingOverlay message="Загрузка каталога слоёв…" />
+          {!isEarthMode && (weatherApiEnabled ? weatherCatalog.loading : manifestLoading) ? (
+            <GlobeLoadingOverlay message="Загрузка каталога реальных слоёв ERA5…" />
+          ) : null}
+          {!isEarthMode && weatherLayer.loading ? (
+            <GlobeLoadingOverlay message="Загрузка поля ERA5 из Zarr…" />
           ) : null}
           {textureLoading ? (
             <GlobeLoadingOverlay
@@ -226,11 +243,18 @@ export default function AtmosphereGlobe({
               }
             />
           ) : null}
-          {!isEarthMode && manifestError ? (
+          {!isEarthMode && (weatherApiEnabled ? weatherCatalog.error : manifestError) ? (
             <GlobeErrorState
-              message="Не удалось загрузить каталог атмосферы"
-              details={manifestError}
-              onRetry={reload}
+              message="Не удалось загрузить каталог атмосферы ERA5"
+              details={weatherApiEnabled ? weatherCatalog.error ?? '' : manifestError ?? ''}
+              onRetry={weatherApiEnabled ? weatherCatalog.reload : reload}
+            />
+          ) : null}
+          {!isEarthMode && weatherLayer.error ? (
+            <GlobeErrorState
+              message="Не удалось загрузить поле ERA5"
+              details={weatherLayer.error}
+              onRetry={weatherLayer.reload}
             />
           ) : null}
           {textureError ? (
@@ -244,18 +268,24 @@ export default function AtmosphereGlobe({
               onRetry={retryTexture}
             />
           ) : null}
-          {!isEarthMode && !manifestLoading && !manifestError && !textureError && !frame ? (
+          {!isEarthMode &&
+          !(weatherApiEnabled ? weatherCatalog.loading : manifestLoading) &&
+          !(weatherApiEnabled ? weatherCatalog.error : manifestError) &&
+          !textureError &&
+          !frame ? (
             <GlobeEmptyState
               message={
                 frames.length === 0
-                  ? 'Слой ERA5 ещё не подготовлен'
+                  ? 'Слой ERA5 ещё не доступен'
                   : 'Для выбранной комбинации данных нет'
               }
               details={
                 frames.length === 0
-                  ? demoEnabled
-                    ? 'Добавьте записи в public/data/globe/manifest.json.'
-                    : 'Добавьте реальные записи в manifest или включите VITE_ENABLE_GLOBE_DEMO=true для разработки.'
+                  ? weatherApiEnabled
+                    ? 'Проверьте, что API доступен на http://localhost:8000.'
+                    : demoEnabled
+                      ? 'Добавьте записи в public/data/globe/manifest.json.'
+                      : 'Добавьте реальные записи в manifest или включите VITE_ENABLE_GLOBE_DEMO=true для разработки.'
                   : `${selection.channel} · ${selection.timestamp || 'время не выбрано'} · ${selection.grid}${
                       selection.level ? ` · ${selection.level} hPa` : ''
                     }`
@@ -293,8 +323,8 @@ export default function AtmosphereGlobe({
           }
           onCloudRetry={cloudState.error ? cloudState.retry : undefined}
           point={selectedPoint}
-          valuesLoading={valuesState.loading}
-          valuesError={valuesState.error}
+          valuesLoading={weatherApiEnabled ? weatherLayer.loading : valuesState.loading}
+          valuesError={weatherApiEnabled ? weatherLayer.error : valuesState.error}
         />
       </div>
 

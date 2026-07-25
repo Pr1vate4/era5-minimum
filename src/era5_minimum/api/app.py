@@ -6,8 +6,9 @@ import os
 from pathlib import Path
 from typing import Optional
 
-from fastapi import APIRouter, Depends, FastAPI, Query, Request
+from fastapi import APIRouter, Depends, FastAPI, HTTPException, Query, Request
 from fastapi.responses import JSONResponse, Response
+from fastapi.middleware.cors import CORSMiddleware
 from prometheus_client import make_asgi_app
 
 from era5_minimum.api.errors import (
@@ -24,6 +25,7 @@ from era5_minimum.api.monitoring import (
     initialize_monitoring_metrics,
 )
 from era5_minimum.api.repository import ArtifactRepository
+from era5_minimum.api.weather import WeatherDataProvider, WeatherProviderError, get_weather_provider
 from era5_minimum.api.schemas import (
     ErrorResponse,
     ExperimentArtifact,
@@ -124,6 +126,48 @@ def read_reconstruction(
     return repository.get_reconstruction(
         experiment_id=experiment_id, channel=channel, timestamp=timestamp
     )
+
+
+@router.get("/api/v1/datasets/current", tags=["weather"])
+def current_dataset(provider: WeatherDataProvider = Depends(get_weather_provider)) -> dict:
+    try:
+        return provider.dataset_metadata()
+    except WeatherProviderError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+
+
+@router.get("/api/v1/variables", tags=["weather"])
+def weather_variables(provider: WeatherDataProvider = Depends(get_weather_provider)) -> list[dict]:
+    try:
+        return provider.variables()
+    except WeatherProviderError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+
+
+@router.get("/api/v1/timestamps", tags=["weather"])
+def weather_timestamps(provider: WeatherDataProvider = Depends(get_weather_provider)) -> list[str]:
+    try:
+        return provider.timestamps()
+    except WeatherProviderError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+
+
+@router.get("/api/v1/layers", tags=["weather"])
+def weather_layer(
+    variable: str,
+    timestamp: str,
+    mode: str = Query("original", pattern="^(original|reconstructed|error)$"),
+    level: int | None = None,
+    target_width: int = Query(360, ge=1, le=1440),
+    target_height: int = Query(180, ge=1, le=721),
+    provider: WeatherDataProvider = Depends(get_weather_provider),
+) -> dict:
+    if mode != "original":
+        raise HTTPException(status_code=501, detail="model reconstruction is not connected to the real Zarr provider")
+    try:
+        return provider.layer(variable, timestamp, level, target_width, target_height)
+    except WeatherProviderError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
 
 
 async def handle_experiment_not_found(
@@ -228,6 +272,18 @@ def create_app() -> FastAPI:
             "Backend, отдающий ML-артефакты проекта ERA5-Minimum согласно "
             "docs/ARTIFACT_API_CONTRACT.md."
         ),
+    )
+    # The Vite development server is deliberately separate from the API process.
+    # Keep its origins explicit rather than allowing arbitrary browser clients.
+    allowed_origins = os.getenv(
+        "ERA5_CORS_ORIGINS",
+        "http://localhost:5173,http://127.0.0.1:5173",
+    ).split(",")
+    api.add_middleware(
+        CORSMiddleware,
+        allow_origins=[origin.strip() for origin in allowed_origins if origin.strip()],
+        allow_methods=["GET"],
+        allow_headers=["*"],
     )
     api.include_router(router)
     api.add_exception_handler(ExperimentNotFoundError, handle_experiment_not_found)

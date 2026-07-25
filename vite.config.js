@@ -23,6 +23,12 @@ export default defineConfig(function (_a) {
         server: {
             host: env.VITE_HOST || '0.0.0.0',
             port: Number(env.VITE_PORT || 5173),
+            proxy: {
+                '/api': {
+                    target: env.VITE_WEATHER_API_TARGET || 'http://localhost:8000',
+                    changeOrigin: true,
+                },
+            },
             watch: {
                 // Python environments and experiment artifacts can contain millions of
                 // files. Keep public/data observable because it contains globe assets.

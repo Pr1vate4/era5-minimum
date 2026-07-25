@@ -17,6 +17,7 @@ type SelectionDefaults = GlobeResearchDefaults & {
   channel?: string
   timestamp?: string
   grid?: string
+  displayMode?: GlobeDisplayMode
 }
 
 const gridOrder: GlobeGrid[] = ['0p25', '0p5']
@@ -130,7 +131,10 @@ export function useGlobeSelection(
   const hasValidUrlChannel = enabledChannels.some((candidate) => candidate === urlChannel)
   const requestedView = searchParams.get('view')
   const displayMode: GlobeDisplayMode =
-    requestedView !== 'earth' && hasValidUrlChannel ? 'data' : 'earth'
+    requestedView !== 'earth' &&
+    (hasValidUrlChannel || (requestedView === null && defaults.displayMode === 'data' && enabledChannels.length > 0))
+      ? 'data'
+      : 'earth'
 
   const channelFrames = researchFrames.filter((frame) => frame.channel === channel)
   const availableGrids = new Set(channelFrames.map((frame) => frame.grid))
