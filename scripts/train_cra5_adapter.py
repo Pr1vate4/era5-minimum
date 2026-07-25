@@ -171,7 +171,9 @@ def train_epoch(
         optimizer.step()
         
         if scheduler is not None and isinstance(scheduler, optim.lr_scheduler.OneCycleLR):
-            scheduler.step()
+            # Only step if we haven't reached total_steps yet
+            if scheduler._step_count < scheduler.total_steps:
+                scheduler.step()
         
         total_loss += loss.item()
         n_batches += 1
@@ -298,7 +300,7 @@ def main() -> None:
                 eta_min=float(sched_config["eta_min"]),
             )
         elif sched_config["type"] == "one_cycle":
-            steps_per_epoch = max(1, len(train_data) // batch_size)
+            steps_per_epoch = max(1, (len(train_data) + batch_size - 1) // batch_size)
             scheduler = optim.lr_scheduler.OneCycleLR(
                 optimizer,
                 max_lr=float(opt_config["lr"]),
@@ -351,7 +353,12 @@ def main() -> None:
         
         # Step scheduler
         if scheduler is not None:
-            scheduler.step()
+            if isinstance(scheduler, optim.lr_scheduler.OneCycleLR):
+                # OneCycleLR is usually stepped per batch, and we already step it in train_epoch
+                # So we shouldn't step it here again to avoid stepping too many times
+                pass
+            else:
+                scheduler.step()
     
     training_time = time.time() - start_time
     print(f"Training completed in {training_time:.1f} seconds")

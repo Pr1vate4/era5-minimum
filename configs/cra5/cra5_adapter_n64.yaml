@@ -40,7 +40,7 @@ training:
   
   patience: 15
   min_delta: 0.001
-  val_frequency: 5
+  val_frequency: 2
   save_best: true
 
 codec:
