@@ -14,5 +14,9 @@ export default defineConfig(function (_a) {
             host: env.VITE_HOST || '0.0.0.0',
             port: Number(env.VITE_PORT || 5173),
         },
+        build: {
+            // Three.js is isolated behind React.lazy; keep warnings focused on unexpected growth.
+            chunkSizeWarningLimit: 650,
+        },
     };
 });

@@ -1,3 +1,4 @@
+import { lazy, Suspense } from 'react'
 import {
   Activity,
   BadgeCheck,
@@ -16,8 +17,12 @@ import { PageHeader } from '../components/common/PageHeader'
 import { StatusBadge } from '../components/common/StatusBadge'
 import { formatNumber, selectOverviewData, toFiniteNumber } from '../data/resultsSelectors'
 import { useResults } from '../hooks/useResults'
+import { GlobeSkeleton } from '../features/globe/components/GlobeSkeleton'
 
 const page = getNavigationItem('overview')
+const AtmosphereGlobe = lazy(
+  () => import('../features/globe/components/AtmosphereGlobe'),
+)
 
 export default function OverviewPage() {
   const { data } = useResults()
@@ -34,6 +39,16 @@ export default function OverviewPage() {
   return (
     <div className="space-y-5">
       <PageHeader title={page.title} description={page.description} />
+
+      <Suspense fallback={<GlobeSkeleton />}>
+        <AtmosphereGlobe
+          manifestUrl={data.globe?.manifestUrl}
+          defaultChannel={data.globe?.defaultChannel}
+          defaultTimestamp={data.globe?.defaultTimestamp}
+          defaultGrid={data.meta.grid}
+          availableModes={['original']}
+        />
+      </Suspense>
 
       <ContentCard className="border-blue-100">
         <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-center">
