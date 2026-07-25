@@ -56,11 +56,6 @@ export function GlobePointInspector({
         {frame?.level ? <InfoRow label="Уровень" value={`${frame.level} hPa`} /> : null}
       </dl>
 
-      {!frame?.valuesUrl ? (
-        <p className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-3.5 py-3 text-[12px] leading-5 text-amber-800">
-          Числовой слой для этой текстуры не подготовлен.
-        </p>
-      ) : null}
       {valuesError ? (
         <p className="mt-4 rounded-xl border border-rose-200 bg-rose-50 px-3.5 py-3 text-[12px] leading-5 text-rose-700">
           Не удалось прочитать числовой слой: {valuesError}
