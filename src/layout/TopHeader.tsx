@@ -1,4 +1,4 @@
-import { Activity, Download, ExternalLink, Sparkles } from 'lucide-react'
+import { Activity, Download, ExternalLink } from 'lucide-react'
 import { NavLink } from 'react-router-dom'
 import { useAppSettings } from '../hooks/useAppSettings'
 import { useResults } from '../hooks/useResults'
@@ -47,7 +47,7 @@ export function TopHeader() {
           />
         </div>
         <span className="hidden whitespace-nowrap text-[15px] font-semibold text-[var(--text-primary)] sm:block">
-          МетеоКод <span className="text-[var(--text-muted)]">/ ERA5 Lab</span>
+          МетеоКод
         </span>
       </div>
       <div className="flex items-center gap-2">
@@ -73,7 +73,6 @@ export function TopHeader() {
           <ExternalLink className="h-3.5 w-3.5 opacity-60" />
         </a>
         <NavLink to="/codec" className="ui-action ui-action-primary !min-h-10 !px-3">
-          <Sparkles className="h-4 w-4" />
           <span className="hidden sm:inline">Сжать ERA5</span>
           <span className="sm:hidden">Сжать</span>
         </NavLink>

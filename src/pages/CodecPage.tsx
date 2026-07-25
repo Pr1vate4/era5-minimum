@@ -4,7 +4,6 @@ import {
   LoaderCircle,
   RefreshCw,
   ShieldAlert,
-  Sparkles,
 } from 'lucide-react'
 import { getNavigationItem } from '../app/navigationConfig'
 import { ContentCard } from '../components/common/ContentCard'
@@ -90,9 +89,7 @@ export default function CodecPage() {
             >
               {workspace.processing ? (
                 <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />
-              ) : (
-                <Sparkles className="h-4 w-4" aria-hidden="true" />
-              )}
+              ) : null}
               {workspace.processing ? 'Обрабатываем…' : 'Запустить сжатие'}
             </button>
           </div>
