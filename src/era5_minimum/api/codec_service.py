@@ -1,4 +1,4 @@
-"""In-memory serving adapter for the verified N32 ERA5 codec.
+"""In-memory serving adapter for the verified N128-equivalent ERA5 codec.
 
 The service deliberately accepts a single, canonical physical ERA5 frame.  It
 does not fit statistics or silently reorder channels: both operations would
@@ -141,7 +141,7 @@ class CodecService:
             try:
                 self._codec = WeatherCodec.load(self.checkpoint_path)
             except (AcceptanceError, FileNotFoundError, OSError, RuntimeError, ValueError) as exc:
-                self._load_error = f"N32 checkpoint is unavailable: {exc}"
+                self._load_error = f"N128-equivalent checkpoint is unavailable: {exc}"
                 raise CodecUnavailableError(self._load_error) from exc
             return self._codec
 
@@ -155,8 +155,8 @@ class CodecService:
         return {
             "ready": True,
             "checkpoint": codec.checkpoint_sha256,
-            "model_name": "ConvAE N32 (28 channels, 0.5°)",
-            "message": "N32 checkpoint loaded; serialized rate is measured per uploaded frame.",
+            "model_name": "ConvAE N128-equivalent (28 channels, 0.5°; 32 фактических кадров)",
+            "message": "N128-equivalent checkpoint loaded; serialized rate is measured per uploaded frame.",
             "supported_target_ratios": [32],
         }
 
@@ -240,7 +240,7 @@ class CodecService:
             "id": identifier,
             "status": "completed",
             "progress": 1.0,
-            "message": "Frame compressed and reconstructed by the N32 checkpoint.",
+            "message": "Frame compressed and reconstructed by the N128-equivalent checkpoint.",
             "error": None,
             "metrics": {
                 "serialized_compression_ratio": metrics["compression_ratio"],

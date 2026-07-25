@@ -75,7 +75,7 @@ def health() -> dict[str, str]:
 
 @router.get("/api/v1/codec/status", tags=["codec"])
 def codec_status(service: CodecService = Depends(get_codec_service)) -> dict:
-    """Expose N32 readiness for the interactive frontend without fake results."""
+    """Expose N128-equivalent readiness for the interactive frontend without fake results."""
     return service.status()
 
 

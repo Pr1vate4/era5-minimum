@@ -1,8 +1,9 @@
-# Submission layout
+# Состав материалов для сдачи
 
-The final package is assembled from verified bind-mounted artifacts; this
-repository intentionally does not include placeholder checkpoints, bitstreams,
-results, or resource logs.
+Финальный комплект собирается из проверенных внешних артефактов. Репозиторий
+намеренно не содержит checkpoint, битовые потоки, результаты или логи ресурсов:
+модель передаётся как asset GitHub Release по инструкции
+[docs/DELIVERY_GUIDE.md](../docs/DELIVERY_GUIDE.md).
 
 ```text
 submission/
@@ -16,6 +17,6 @@ submission/
 └── plots/
 ```
 
-Use paths relative to `/workspace` inside containers and CLI arguments or
-environment variables outside them. Do not use developer-specific absolute
-paths.
+В контейнерах используйте пути относительно `/workspace`, вне контейнеров —
+относительные пути CLI или переменные окружения. Не включайте в материалы
+абсолютные пути конкретного компьютера.

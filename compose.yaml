@@ -29,8 +29,8 @@ services:
     ports:
       - "${API_PORT:-8000}:8000"
     volumes:
-      - ${ARTIFACTS_DIR:-./artifacts}:/workspace/artifacts:ro
-      - ${DATA_DIR:-./data}:/workspace/data:ro,Z
+      - ${ARTIFACTS_DIR:-./artifacts}:/workspace/artifacts:ro,z
+      - ${DATA_DIR:-./data}:/workspace/data:ro,z
     healthcheck:
       test:
         - CMD
@@ -48,12 +48,13 @@ services:
     command: sh -c "npm ci && npm run dev -- --host 0.0.0.0"
     environment:
       VITE_WEATHER_API_TARGET: http://api:8000
+      VITE_GRAFANA_URL: ${VITE_GRAFANA_URL:-http://localhost:3000/d/era5-model-overview/era5-model-compression-quality}
       VITE_HOST: 0.0.0.0
       VITE_PORT: "5173"
     ports:
       - "${VITE_PORT:-5173}:5173"
     volumes:
-      - .:/workspace:Z
+      - .:/workspace:z
       - frontend_node_modules:/workspace/node_modules
     depends_on:
       api:

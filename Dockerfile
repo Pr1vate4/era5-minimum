@@ -25,15 +25,22 @@ COPY src ./src
 # No Python lock file exists yet; pyproject.toml is the canonical dependency source.
 # Resolve the existing torch>=2.2 constraint from the official CPU wheel index
 # before installing the API and test extras, so this CPU image does not pull a
-# CUDA runtime stack.
-RUN python -m pip install --no-cache-dir --index-url "${PYTORCH_CPU_INDEX_URL}" "torch>=2.2" \
-    && python -m pip install --no-cache-dir ".[api,dev]"
+# CUDA runtime stack. numcodecs 0.15 has no CPython 3.12 aarch64 wheel, so keep
+# the compiler only for dependency installation and remove it from the runtime.
+RUN apt-get update \
+    && apt-get install --no-install-recommends --yes build-essential \
+    && python -m pip install --no-cache-dir --index-url "${PYTORCH_CPU_INDEX_URL}" "torch>=2.2" \
+    && python -m pip install --no-cache-dir ".[api,dev]" \
+    && apt-get purge --auto-remove --yes build-essential \
+    && rm -rf /var/lib/apt/lists/*
 
 COPY --chown=era5:era5 configs ./configs
 COPY --chown=era5:era5 demo ./demo
 COPY --chown=era5:era5 scripts ./scripts
 COPY --chown=era5:era5 tests ./tests
-COPY --chown=era5:era5 docs/ARTIFACT_API_CONTRACT.md ./docs/ARTIFACT_API_CONTRACT.md
+# Documentation is copied as a directory so the image follows the current
+# retained documentation set and does not depend on a removed legacy file.
+COPY --chown=era5:era5 docs ./docs
 
 RUN mkdir -p data outputs checkpoints bitstreams artifacts submission \
     && chown -R era5:era5 /workspace

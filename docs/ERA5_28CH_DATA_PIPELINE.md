@@ -1,28 +1,28 @@
-# ERA5 28-channel data pipeline
+# Конвейер 28-канальных данных ERA5
 
-The canonical source is the anonymous WeatherBench2 ERA5 Zarr declared in
-`era5_minimum.data.weatherbench2.WB2_URL`. It contains the eight surface fields
-`t2m, mslp, u10, v10, tp6h, sst, tcwv, tcc` and T/U/V/Z/Q at 1000, 925, 850,
-700 hPa. The exact model order is `CHANNEL_NAMES` in
-`src/era5_minimum/data/channel_spec.py`; source variables remain native in
-storage and the lazy adapter creates `[time, channel, latitude, longitude]`.
+Канонический источник — анонимный ERA5 Zarr WeatherBench2, объявленный в
+`era5_minimum.data.weatherbench2.WB2_URL`. Он содержит восемь приземных полей
+`t2m, mslp, u10, v10, tp6h, sst, tcwv, tcc` и T/U/V/Z/Q на уровнях
+1000, 925, 850 и 700 hPa. Полный порядок модели задан `CHANNEL_NAMES` в
+`src/era5_minimum/data/channel_spec.py`; адаптер создаёт ленивый тензор
+`[time, channel, latitude, longitude]`.
 
-Install the project data dependencies from `pyproject.toml`, then inspect only
-remote metadata:
+Установите зависимости данных из `pyproject.toml`, затем запросите только
+метаданные удалённого источника:
 
 ```bash
 python scripts/data/prepare_era5_28ch.py inspect
 ```
 
-The native 0.25° output directory contains `train.zarr`, `validation.zarr`,
-`test.zarr`, `static.zarr`, `manifest.json`, `manifest.json.sha256`, and
-`_SUCCESS` only after all three named splits complete. Dynamic fields are
-float32 and are chunked `time=4, latitude=180, longitude=180, level=4`.
-SST stays NaN over land in physical stores. When present, `ocean_mask` is
-`land_sea_mask <= 0.5`; invalid SST may become zero only in a normalized ML
-batch together with this separate mask.
+Нативная директория 0.25° содержит `train.zarr`, `validation.zarr`,
+`test.zarr`, `static.zarr`, `manifest.json`, `manifest.json.sha256` и
+`_SUCCESS` только после завершения всех трёх именованных split. Динамические
+поля имеют `float32` и chunks `time=4, latitude=180, longitude=180, level=4`.
+В физическом хранилище SST остаётся `NaN` над сушей. `ocean_mask`, если она
+доступна, равна `land_sea_mask <= 0.5`; некорректный SST можно заменить нулём
+только в нормализованном ML batch и только вместе с отдельной маской.
 
-For a safe remote smoke range (not a full split):
+Безопасный удалённый smoke-диапазон — не полный split:
 
 ```bash
 python scripts/data/prepare_era5_28ch.py download --split validation \
@@ -32,7 +32,7 @@ python scripts/data/prepare_era5_28ch.py layer --dataset-dir data/era5_28ch_smok
   --split validation --variable T1000 --pressure-level-hpa 1000 --timestamp 2020-01-01T00:00:00
 ```
 
-Full split commands are intentionally explicit and can be very large:
+Полные split запускаются только явными командами и могут быть очень большими:
 
 ```bash
 python scripts/data/prepare_era5_28ch.py download --split validation
@@ -43,17 +43,18 @@ python scripts/data/prepare_era5_28ch.py statistics
 python scripts/data/prepare_era5_28ch.py remap --source data/era5_28ch_0p25_6h --output data/era5_28ch_0p5_6h
 ```
 
-`statistics` performs explicit lazy Dask mean/std/count reductions on `train`
-only; it never reads validation/test, but it can still take substantial time.
-`remap` deliberately fails closed today: no nearest/subsample/coarsen/bilinear
-replacement is allowed for the required first-order conservative 0.5° remap.
-Implement a validated remapper with persistent weights before using that
-command for production. A native full 0.25° split
-is roughly 28 × 721 × 1440 × 4 bytes = 116 MB per timestamp before Zarr
-compression; six years at four frames/day are therefore about 1 TB raw,
-excluding metadata/static fields. Plan multiple TB of working space and do not
-launch train without approval.
+`statistics` делает ленивые Dask-редукции среднего, стандартного отклонения и
+числа значений только по train; validation/test не читаются. `remap` должен
+падать безопасно, пока не реализован и не проверен обязательный консервативный
+ремаппинг первого порядка: нельзя заменять его nearest, subsampling, coarsen
+или bilinear-приближением.
 
-`get_layer` reads one selected timestamp/variable/level only and returns its
-coordinates, values, finite mask, extrema and valid count for a later backend;
-it must not be used to return whole splits or to serialize NaN directly to JSON.
+Полный нативный timestamp на 0.25° занимает примерно
+`28 × 721 × 1440 × 4` байт, то есть 116 МиБ до Zarr-сжатия. Шесть лет по четыре
+кадра в сутки дают около 1 ТиБ raw-данных без metadata и static fields. Перед
+загрузкой нужны несколько ТиБ рабочего места и явное подтверждение команды.
+
+`get_layer` читает только один timestamp/variable/level и возвращает координаты,
+значения, finite-mask, экстремумы и число valid точек для будущего backend. Его
+нельзя использовать для возврата целых split или сериализации `NaN` напрямую в
+JSON.

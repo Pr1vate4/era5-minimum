@@ -1,4 +1,4 @@
-"""Verify the local API, Prometheus, and Grafana monitoring stack."""
+"""Verify the local API, ML exporter, Prometheus, and Grafana stack."""
 
 from __future__ import annotations
 
@@ -65,6 +65,10 @@ def main() -> int:
         default=os.getenv("ERA5_PROMETHEUS_URL", "http://localhost:9090"),
     )
     parser.add_argument(
+        "--ml-exporter-url",
+        default=os.getenv("ERA5_ML_EXPORTER_URL", "http://localhost:9101"),
+    )
+    parser.add_argument(
         "--grafana-url",
         default=os.getenv("ERA5_GRAFANA_URL", "http://localhost:3000"),
     )
@@ -76,23 +80,28 @@ def main() -> int:
     status, _ = get(f"{args.api_url}/not-a-route")
     assert status == 404, f"unmatched API route returned {status}"
     require_ok(f"{args.api_url}/metrics", "era5_api_http_requests_total")
+    require_ok(
+        f"{args.ml_exporter_url}/metrics",
+        "era5_codec_artifact_ready 1.0",
+    )
     wait_for(
         "Prometheus readiness",
         lambda: require_ok(f"{args.prometheus_url}/-/ready"),
         args.timeout,
     )
 
-    def check_target() -> None:
+    def check_targets() -> None:
         status, body = get(f"{args.prometheus_url}/api/v1/targets")
         assert status == 200
         targets = json.loads(body)["data"]["activeTargets"]
-        assert any(
-            target.get("labels", {}).get("job") == "era5-api"
-            and target.get("health") == "up"
-            for target in targets
-        ), targets
+        for job in ("era5-api", "era5-codec-artifacts"):
+            assert any(
+                target.get("labels", {}).get("job") == job
+                and target.get("health") == "up"
+                for target in targets
+            ), targets
 
-    wait_for("Prometheus scrape target", check_target, args.timeout)
+    wait_for("Prometheus scrape targets", check_targets, args.timeout)
 
     def check_up() -> None:
         result = prometheus_query(args.prometheus_url, 'up{job="era5-api"}')
@@ -101,10 +110,33 @@ def main() -> int:
     wait_for("Prometheus up metric", check_up, args.timeout)
     payload = prometheus_query(args.prometheus_url, "sum(era5_api_http_requests_total)")
     assert payload["result"], "HTTP request metric is absent from Prometheus"
+
+    def check_artifact_ready() -> None:
+        result = prometheus_query(
+            args.prometheus_url, "era5_codec_artifact_ready"
+        )
+        assert result["result"] and result["result"][0]["value"][1] == "1", result
+
+    wait_for("validated ML artifact metric", check_artifact_ready, args.timeout)
+    grafana_root = args.grafana_url.rstrip("/")
     wait_for(
-        "Grafana health", lambda: require_ok(f"{args.grafana_url}/api/health"), args.timeout
+        "Grafana health", lambda: require_ok(f"{grafana_root}/api/health"), args.timeout
     )
-    print("Monitoring smoke test passed: API, Prometheus, and Grafana are healthy.")
+    dashboard_path = "/d/era5-model-overview/era5-model-compression-quality"
+    wait_for(
+        "provisioned model dashboard",
+        lambda: require_ok(f"{grafana_root}/api/dashboards/uid/era5-model-overview"),
+        args.timeout,
+    )
+    wait_for(
+        "anonymous model dashboard",
+        lambda: require_ok(f"{grafana_root}{dashboard_path}"),
+        args.timeout,
+    )
+    print(
+        "Monitoring smoke test passed: API, ML exporter, Prometheus, "
+        "and Grafana model dashboard are healthy."
+    )
     return 0
 
 

@@ -1,10 +1,17 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { DEFAULT_APP_SETTINGS } from '../../app/settings'
 import * as codecApi from './api'
 import { era5CompressionPath, parseCodecJob, parseCodecStatus } from './api'
 import * as codecWorkspace from './useCodecWorkspace'
 import { shouldPollCodecJob } from './useCodecWorkspace'
 
 describe('codec API contract', () => {
+  it('opens the provisioned model dashboard by default', () => {
+    expect(DEFAULT_APP_SETTINGS.services.grafanaUrl).toBe(
+      'http://localhost:3000/d/era5-model-overview/era5-model-compression-quality',
+    )
+  })
+
   it('rejects a ready status without checkpoint provenance', () => {
     expect(() => parseCodecStatus({ ready: true })).toThrow(/checkpoint/i)
   })

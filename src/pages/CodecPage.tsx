@@ -48,7 +48,7 @@ export default function CodecPage() {
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1.45fr)_minmax(320px,0.55fr)]">
         <ContentCard
           title="Новый запуск"
-            description="Подключён проверенный профиль N32. Фактический serialized ratio сервер вычисляет отдельно по полному bitstream."
+            description="Подключён профиль N128-equivalent (32 фактических кадра). Фактический serialized ratio сервер вычисляет отдельно по полному bitstream."
           className="ui-panel !rounded-[24px] !p-5"
         >
           <CodecDropzone
