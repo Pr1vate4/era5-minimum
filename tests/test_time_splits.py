@@ -1,6 +1,7 @@
 import pytest
 import pandas as pd
 from era5_minimum.data.seasonal_subsets import generate_nested_subsets, month_to_season
+from era5_minimum.data.selection import get_split_timestamps
 
 
 def _count_seasons(timestamps: list[str]) -> dict:
@@ -53,3 +54,13 @@ def test_deterministic_seed():
     subsets_2 = generate_nested_subsets(n_list=[128], seed=42)
 
     assert subsets_1[128] == subsets_2[128], "Результат недетерминирован при одинаковом seed"
+
+
+def test_train_end_respects_validation_embargo():
+    """Train заканчивается до validation с семидневным временным зазором."""
+    train = get_split_timestamps("train")
+    validation = get_split_timestamps("val")
+
+    assert train.max() == pd.Timestamp("2019-12-24T18:00:00")
+    assert validation.min() == pd.Timestamp("2020-01-01T00:00:00")
+    assert validation.min() - train.max() >= pd.Timedelta(days=7)
