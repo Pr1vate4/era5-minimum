@@ -186,7 +186,7 @@ export default function AtmosphereGlobe({
           </span>
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2.5">
-              <h2 className="text-[19px] font-semibold leading-[1.25] tracking-[-0.015em] text-[#101828] sm:text-[21px]">
+              <h2 className="text-[19px] font-bold leading-[1.25] tracking-[-0.025em] text-[var(--text-primary)] sm:text-[22px]">
                 Глобальное состояние атмосферы ERA5
               </h2>
               {weatherApiEnabled && !isEarthMode ? (

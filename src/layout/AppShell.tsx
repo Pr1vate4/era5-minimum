@@ -21,21 +21,21 @@ export function AppShell() {
   const { loading, error, reload } = useResults()
   const { settings } = useAppSettings()
   const { pathname } = useLocation()
-  const isSettingsPage = pathname === '/settings'
+  const independentPage = pathname === '/settings' || pathname === '/codec'
   const contentSpacing =
     settings.interface.density === 'compact'
       ? 'px-3 py-3 lg:px-4'
       : 'px-5 py-5 lg:px-7'
 
   return (
-    <div className="min-h-screen overflow-x-hidden bg-[var(--background)] text-[var(--text-primary)]">
+    <div className="app-backdrop min-h-screen overflow-x-hidden text-[var(--text-primary)]">
       <ScrollToTop />
       <TopHeader />
       <Sidebar />
 
-      <main className="ml-[60px] min-h-[calc(100vh-56px)] overflow-x-hidden pt-14">
-        <div className={`w-full ${contentSpacing}`}>
-          {isSettingsPage ? (
+      <main className="ml-[72px] min-h-[calc(100vh-64px)] overflow-x-hidden pt-16">
+        <div className={`mx-auto w-full max-w-[1720px] ${contentSpacing}`}>
+          {independentPage ? (
             <Suspense fallback={<LoadingSkeleton />}>
               <Outlet />
             </Suspense>
