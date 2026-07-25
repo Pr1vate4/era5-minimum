@@ -195,10 +195,7 @@ def run_smoke_test(
             if "backbone.encoder.pos_embed" in adapted_state_dict:
                 ckpt_pos_embed = adapted_state_dict["backbone.encoder.pos_embed"]
                 model_pos_embed = model.backbone.encoder.pos_embed
-                print(f"DEBUG: ckpt_pos_embed shape = {ckpt_pos_embed.shape}")
-                print(f"DEBUG: model_pos_embed shape = {model_pos_embed.shape}")
                 if ckpt_pos_embed.shape != model_pos_embed.shape:
-                    print("DEBUG: INTERPOLATING POS_EMBED!")
                     # Reshape to [1, C, H, W] for interpolation
                     # Assuming checkpoint is 72x144 patches
                     ckpt_pos_embed = ckpt_pos_embed.reshape(1, 72, 144, -1).permute(0, 3, 1, 2)
@@ -209,7 +206,6 @@ def run_smoke_test(
                     )
                     # Reshape back to [1, N, C]
                     adapted_state_dict["backbone.encoder.pos_embed"] = ckpt_pos_embed.permute(0, 2, 3, 1).reshape(1, target_h * target_w, -1)
-                    print(f"DEBUG: New pos_embed shape = {adapted_state_dict['backbone.encoder.pos_embed'].shape}")
                     
             model.load_state_dict(adapted_state_dict, strict=False)
             
