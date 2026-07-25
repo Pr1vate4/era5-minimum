@@ -16,7 +16,7 @@ export function GlobePointInspector({
 }: GlobePointInspectorProps) {
   if (!point) {
     return (
-      <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-5 text-[12px] leading-5 text-slate-500">
+      <div className="rounded-xl border border-dashed border-[#D0D5DD] bg-[#F8FAFC] px-4 py-5 text-[14px] leading-6 text-[#667085]">
         Нажмите на глобус, чтобы получить координаты ближайшей ячейки и числовое значение.
       </div>
     )
@@ -34,7 +34,7 @@ export function GlobePointInspector({
 
   return (
     <div>
-      <dl className="grid gap-2.5 text-[12px]">
+      <dl>
         <InfoRow label="Широта" value={formatCoordinate(point.latitude, 'N', 'S')} />
         <InfoRow label="Долгота" value={formatCoordinate(point.longitude, 'E', 'W')} />
         <InfoRow label="Ячейка сетки" value={`i=${point.row}, j=${point.column}`} />
@@ -57,12 +57,12 @@ export function GlobePointInspector({
       </dl>
 
       {!frame?.valuesUrl ? (
-        <p className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-[11px] leading-4 text-amber-800">
+        <p className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-3.5 py-3 text-[12px] leading-5 text-amber-800">
           Числовой слой для этой текстуры не подготовлен.
         </p>
       ) : null}
       {valuesError ? (
-        <p className="mt-3 rounded-lg bg-rose-50 px-3 py-2 text-[11px] leading-4 text-rose-700">
+        <p className="mt-4 rounded-xl border border-rose-200 bg-rose-50 px-3.5 py-3 text-[12px] leading-5 text-rose-700">
           Не удалось прочитать числовой слой: {valuesError}
         </p>
       ) : null}
@@ -72,9 +72,9 @@ export function GlobePointInspector({
 
 function InfoRow({ label, value }: { label: string; value: string }) {
   return (
-    <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-3 border-b border-slate-100 pb-2 last:border-0 last:pb-0">
-      <dt className="text-slate-500">{label}</dt>
-      <dd className="text-right font-semibold text-slate-800">{value}</dd>
+    <div className="grid min-h-11 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-t border-[#EAECF0] py-3 first:border-t-0">
+      <dt className="text-[13px] font-medium text-[#667085]">{label}</dt>
+      <dd className="text-right text-[15px] font-semibold tabular-nums text-[#101828]">{value}</dd>
     </div>
   )
 }
