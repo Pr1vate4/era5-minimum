@@ -162,6 +162,7 @@ monitoring/              Prometheus/Grafana для API
 ## Документация для приёмки
 
 - [Статус исследования и честные ограничения](docs/RESEARCH_STATUS.md)
+- [Запуск и закреплённая поставка с моделью](docs/DELIVERY_GUIDE.md)
 - [Контракт данных: 28 каналов, единицы и маски](docs/DATA_CONTRACT.md)
 - [Решения и неизменяемые методологические правила](docs/DECISIONS.md)
 - [Pipeline подготовки ERA5](docs/ERA5_28CH_DATA_PIPELINE.md)
