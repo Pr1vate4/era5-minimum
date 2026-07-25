@@ -331,25 +331,27 @@ Artifact dashboard умеет показывать spectral curves и spectral e
 
 ```mermaid
 flowchart TB
-    R[Исследователь] --> UI[React + TypeScript SPA]
+    R["Исследователь"] --> UI["React + TypeScript SPA"]
 
     subgraph Offline["Offline research pipeline"]
-        DATA[NetCDF / WeatherBench2 Zarr] --> PREP[Loaders, validation, manifests]
-        PREP --> ML[PCA / ConvAE / CRA5 experiments]
-        ML --> CODEC[Quantization, Huffman, decode]
-        CODEC --> ART[JSON artifacts, bitstreams, textures]
+        DATA["NetCDF / WeatherBench2 Zarr"] --> PREP["Loaders, validation, manifests"]
+        PREP --> ML["PCA / ConvAE / CRA5 experiments"]
+        ML --> CODEC["Quantization, Huffman, decode"]
+        CODEC --> ART["JSON artifacts, bitstreams, textures"]
     end
 
-    ART --> STATIC[results.json и globe manifest]
-    ART --> REPO[Artifact repository]
+    ART --> STATIC["results.json и globe manifest"]
+    ART --> REPO["Artifact repository"]
     STATIC --> UI
 
-    UI -->|/api| API[FastAPI]
+    UI -->|"/api"| API["FastAPI"]
     API --> REPO
-    API --> ZARR[Local validation.zarr]
-    API --> METRICS[/metrics]
-    METRICS --> PROM[Prometheus]
-    PROM --> GRAF[Grafana]
+    API --> FRAME["ERA5 Frame Preparation Service"]
+    FRAME --> ZARR["Local validation.zarr"]
+    FRAME --> CODEC
+    API --> METRICS["/metrics"]
+    METRICS --> PROM["Prometheus"]
+    PROM --> GRAF["Grafana"]
 ```
 
 Frontend и API запускаются отдельными процессами. Vite проксирует `/api` на
@@ -358,8 +360,8 @@ dashboard в development запускается через `npm run dev`.
 
 ## API
 
-FastAPI обслуживает два типа данных: versioned JSON artifacts и отдельные
-weather-layer запросы к локальному Zarr.
+FastAPI обслуживает versioned JSON artifacts, отдельные weather-layer запросы
+и подготовку реального 28-канального кадра из локального Zarr для codec.
 
 | Method | Endpoint | Назначение |
 | --- | --- | --- |
@@ -373,10 +375,32 @@ weather-layer запросы к локальному Zarr.
 | GET | `/api/v1/variables` | Логические weather variables и уровни |
 | GET | `/api/v1/timestamps` | Доступные исторические timestamps |
 | GET | `/api/v1/layers` | Одно display-sampled поле; сейчас только `mode=original` |
+| GET | `/api/v1/era5/timestamps` | Строго доступные timestamps с фильтрами и pagination |
+| GET | `/api/v1/era5/frames/{timestamp}` | Валидация и metadata canonical model input |
+| GET | `/api/v1/era5/frames/{timestamp}/npz` | Скачать совместимый `float32 [1,28,360,720]` NPZ |
+| POST | `/api/v1/era5/frames/{timestamp}/compress` | Подготовить кадр и вызвать существующий codec |
 | GET | `/metrics` | Prometheus exposition |
 
 OpenAPI доступен по `http://localhost:8000/docs`. Artifact schema описана в
-[docs/ARTIFACT_API_CONTRACT.md](docs/ARTIFACT_API_CONTRACT.md).
+[docs/ARTIFACT_API_CONTRACT.md](docs/ARTIFACT_API_CONTRACT.md), а timestamp flow
+описан в [docs/ERA5_FRAME_API.md](docs/ERA5_FRAME_API.md).
+
+Frame Preparation Service выполняет один воспроизводимый путь:
+
+```text
+configured WeatherBench/Zarr
+-> exact timestamp
+-> existing conservative 0.25° to 0.5° preparation
+-> canonical physical float32 [1, 28, 360, 720]
+-> existing codec normalization and model
+```
+
+Проверка dataset и запуск сжатия для реального кадра:
+
+```bash
+curl "http://localhost:8000/api/v1/era5/timestamps"
+curl -X POST "http://localhost:8000/api/v1/era5/frames/2020-01-01T18:00:00Z/compress"
+```
 
 ## Технологии
 

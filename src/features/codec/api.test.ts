@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import * as codecApi from './api'
-import { parseCodecJob, parseCodecStatus } from './api'
+import { era5CompressionPath, parseCodecJob, parseCodecStatus } from './api'
 import * as codecWorkspace from './useCodecWorkspace'
 import { shouldPollCodecJob } from './useCodecWorkspace'
 
@@ -87,7 +87,7 @@ describe('codec API contract', () => {
     const timeoutPolicy = (
       codecApi as unknown as {
         getCodecRequestTimeoutMs?: (
-          requestKind: 'metadata' | 'upload',
+          requestKind: 'metadata' | 'upload' | 'compression',
           defaultTimeoutMs: number,
         ) => number | null
       }
@@ -96,6 +96,16 @@ describe('codec API contract', () => {
     expect(timeoutPolicy).toBeTypeOf('function')
     expect(timeoutPolicy?.('metadata', 15_000)).toBe(15_000)
     expect(timeoutPolicy?.('upload', 15_000)).toBeNull()
+    expect(timeoutPolicy?.('compression', 15_000)).toBeNull()
+  })
+
+  it('encodes the exact selected timestamp in the ERA5 compression path', () => {
+    expect(era5CompressionPath('2020-01-01T18:00:00Z')).toBe(
+      '/api/v1/era5/frames/2020-01-01T18%3A00%3A00Z/compress',
+    )
+    expect(era5CompressionPath('2020-01-02T06:00:00Z')).toBe(
+      '/api/v1/era5/frames/2020-01-02T06%3A00%3A00Z/compress',
+    )
   })
 
   it('keeps polling after a transient status request failure', async () => {

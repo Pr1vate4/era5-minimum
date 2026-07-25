@@ -30,7 +30,7 @@ describe('CodecResults', () => {
     const html = renderToStaticMarkup(
       <CodecResults
         job={job}
-        sourceFile={{ name: 'frame.npz', size: 4096 } as File}
+        sourceDescription="frame.npz · 4.0 КиБ"
         resolveDownload={(path) => `http://codec.local${path}`}
       />,
     )

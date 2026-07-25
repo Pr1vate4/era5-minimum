@@ -85,6 +85,8 @@ data/
 data/era5_28ch_demo/
 data/**/*.zarr/
 data/**/*.zarr.tmp/
+!src/era5_minimum/data/
+!src/era5_minimum/data/model_input.py
 # Local packaged ERA5 demo data; too large for GitHub and reproducible outside Git.
 era5_28ch_demo.tar.zst
 weatherbench2_*.zip

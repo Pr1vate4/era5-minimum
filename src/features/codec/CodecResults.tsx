@@ -34,11 +34,11 @@ export function CodecProgress({ job }: { job: CodecJob }) {
 
 export function CodecResults({
   job,
-  sourceFile,
+  sourceDescription,
   resolveDownload,
 }: {
   job: CodecJob
-  sourceFile: File
+  sourceDescription: string
   resolveDownload: (path: string) => string
 }) {
   if (!job.metrics || !job.downloads || !job.previews) return null
@@ -81,7 +81,7 @@ export function CodecResults({
         <ArtifactPanel
           eyebrow="Исходное состояние"
           title="Исходное поле ERA5"
-          caption={`${sourceFile.name} · ${formatBytes(sourceFile.size)}`}
+          caption={sourceDescription}
           previewSrc={resolveDownload(previews.original)}
           previewAlt="Исходное поле ERA5"
         />

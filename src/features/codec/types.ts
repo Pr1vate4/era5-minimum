@@ -28,6 +28,12 @@ export type CodecPreviews = {
   reconstruction: string
 }
 
+export type CodecJobSource = {
+  type: 'era5'
+  timestamp: string
+  datasetId: string
+}
+
 export type CodecJob = {
   id: string
   status: CodecJobStatus
@@ -37,6 +43,7 @@ export type CodecJob = {
   metrics: CodecMetrics | null
   downloads: CodecDownloads | null
   previews: CodecPreviews | null
+  source?: CodecJobSource | null
 }
 
 export type CodecClient = {
@@ -46,5 +53,6 @@ export type CodecClient = {
     targetRatio: CodecTargetRatio,
     signal?: AbortSignal,
   ) => Promise<CodecJob>
+  createEra5Job: (timestamp: string, signal?: AbortSignal) => Promise<CodecJob>
   getJob: (jobId: string, signal?: AbortSignal) => Promise<CodecJob>
 }
