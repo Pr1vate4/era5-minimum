@@ -6,6 +6,7 @@ import type {
   CodecMetrics,
   CodecPreviews,
   CodecServiceStatus,
+  CodecJobSource,
   CodecTargetRatio,
 } from './types'
 
@@ -35,6 +36,7 @@ export function parseCodecJob(input: unknown): CodecJob {
   const metrics = value.metrics == null ? null : parseMetrics(value.metrics)
   const downloads = value.downloads == null ? null : parseDownloads(value.downloads)
   const previews = value.previews == null ? null : parsePreviews(value.previews)
+  const source = value.source == null ? null : parseSource(value.source)
 
   if (status === 'completed' && !metrics) {
     throw new Error('Completed codec job must contain serialized metrics')
@@ -52,6 +54,7 @@ export function parseCodecJob(input: unknown): CodecJob {
     metrics,
     downloads,
     previews,
+    source,
   }
 }
 
@@ -66,7 +69,7 @@ export function createCodecClient({
     path: string,
     init: RequestInit = {},
     externalSignal?: AbortSignal,
-    requestKind: 'metadata' | 'upload' = 'metadata',
+    requestKind: 'metadata' | 'upload' | 'compression' = 'metadata',
   ) => {
     const controller = new AbortController()
     const requestTimeoutMs = getCodecRequestTimeoutMs(requestKind, timeoutMs)
@@ -87,7 +90,7 @@ export function createCodecClient({
         },
       })
       if (!response.ok) {
-        const details = (await response.text()).trim()
+        const details = await readErrorDetails(response)
         throw new Error(`Codec API: HTTP ${response.status}${details ? ` · ${details}` : ''}`)
       }
       return (await response.json()) as unknown
@@ -113,6 +116,15 @@ export function createCodecClient({
         ),
       )
     },
+    createEra5Job: async (timestamp, signal) =>
+      parseCodecJob(
+        await request(
+          era5CompressionPath(timestamp),
+          { method: 'POST' },
+          signal,
+          'compression',
+        ),
+      ),
     getJob: async (jobId, signal) =>
       parseCodecJob(
         await request(`/api/v1/codec/jobs/${encodeURIComponent(jobId)}`, {}, signal),
@@ -121,10 +133,15 @@ export function createCodecClient({
 }
 
 export function getCodecRequestTimeoutMs(
-  requestKind: 'metadata' | 'upload',
+  requestKind: 'metadata' | 'upload' | 'compression',
   defaultTimeoutMs: number,
 ) {
-  return requestKind === 'upload' ? null : defaultTimeoutMs
+  return requestKind === 'metadata' ? defaultTimeoutMs : null
+}
+
+export function era5CompressionPath(timestamp: string) {
+  if (!timestamp.trim()) throw new Error('ERA5 timestamp is required')
+  return `/api/v1/era5/frames/${encodeURIComponent(timestamp)}/compress`
 }
 
 export function isCodecTargetRatio(value: number): value is CodecTargetRatio {
@@ -171,6 +188,16 @@ function parsePreviews(input: unknown): CodecPreviews {
       value.reconstruction,
       'previews.reconstruction',
     ),
+  }
+}
+
+function parseSource(input: unknown): CodecJobSource {
+  const value = asRecord(input, 'Codec job source')
+  if (value.type !== 'era5') throw new Error('Unsupported codec job source')
+  return {
+    type: 'era5',
+    timestamp: asNonEmptyString(value.timestamp, 'source.timestamp'),
+    datasetId: asNonEmptyString(value.dataset_id, 'source.dataset_id'),
   }
 }
 
@@ -229,6 +256,23 @@ function asNonEmptyString(input: unknown, label: string) {
     throw new Error(`${label} must be a non-empty string`)
   }
   return input.trim()
+}
+
+async function readErrorDetails(response: Response) {
+  const raw = (await response.text()).trim()
+  if (!raw) return ''
+  try {
+    const parsed = JSON.parse(raw) as Record<string, unknown>
+    if (typeof parsed.message === 'string') return parsed.message
+    if (typeof parsed.detail === 'string') return parsed.detail
+    if (parsed.detail && typeof parsed.detail === 'object') {
+      const detail = parsed.detail as Record<string, unknown>
+      if (typeof detail.message === 'string') return detail.message
+    }
+  } catch {
+    // The backend can return a non-JSON gateway error.
+  }
+  return raw
 }
 
 function joinUrl(baseUrl: string, path: string) {
