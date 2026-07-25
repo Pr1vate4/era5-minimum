@@ -29,6 +29,9 @@ let disposeTimer: number | undefined
 export function useTccCloudLayer(
   frame: GlobeFrameAsset | undefined,
   enabled: boolean,
+  liveValues?: Float32Array,
+  liveLoading = false,
+  liveError: string | null = null,
 ) {
   const [revision, setRevision] = useState(0)
   const requestIdRef = useRef(0)
@@ -80,6 +83,47 @@ export function useTccCloudLayer(
     }
     if (!frame) {
       setState({ result: null, loading: false, error: null })
+      return
+    }
+    if (frame.apiVariable) {
+      if (liveLoading) {
+        setState({ result: null, loading: true, error: null })
+        return
+      }
+      if (liveError) {
+        setState({ result: null, loading: false, error: liveError })
+        return
+      }
+      if (!liveValues) {
+        setState({
+          result: null,
+          loading: true,
+          error: null,
+        })
+        return
+      }
+
+      const cacheKey = getCloudCacheKey(frame)
+      const cached = cloudTextureCache.get(cacheKey)
+      if (cached) {
+        touchCloudTextureCache(cacheKey, cached)
+        setState({ result: cached, loading: false, error: null })
+        return
+      }
+
+      const texture = createTccCloudTexture({ frame, values: liveValues })
+      const result: TccCloudTextureResult = {
+        texture,
+        width: frame.width,
+        height: frame.height,
+        timestamp: frame.timestamp,
+        grid: frame.grid,
+        frame,
+        cacheKey,
+      }
+      cloudTextureCache.set(cacheKey, result)
+      pruneCloudTextureCache(cacheKey)
+      setState({ result, loading: false, error: null })
       return
     }
     if (!frame.valuesUrl) {
@@ -137,7 +181,7 @@ export function useTccCloudLayer(
       })
 
     return () => controller.abort()
-  }, [enabled, frame, revision])
+  }, [enabled, frame, liveError, liveLoading, liveValues, revision])
 
   const retry = useCallback(() => {
     setRevision((current) => current + 1)

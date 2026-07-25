@@ -74,7 +74,22 @@ export default function AtmosphereGlobe({
   const isEarthMode = selection.displayMode === 'earth'
   const weatherLayer = useWeatherGlobeLayer(selection.frame, weatherApiEnabled && !isEarthMode)
   const frame = weatherApiEnabled ? weatherLayer.layer?.frame ?? selection.frame : selection.frame
-  const cloudState = useTccCloudLayer(selection.cloudFrame, isEarthMode)
+  const cloudWeatherLayer = useWeatherGlobeLayer(
+    selection.cloudFrame,
+    weatherApiEnabled && isEarthMode,
+  )
+  const cloudLayer = cloudWeatherLayer.layer
+  const cloudValues =
+    cloudLayer && cloudLayer.frame.id === selection.cloudFrame?.id
+      ? cloudLayer.values
+      : undefined
+  const cloudState = useTccCloudLayer(
+    selection.cloudFrame,
+    isEarthMode,
+    cloudValues,
+    cloudWeatherLayer.loading,
+    cloudWeatherLayer.error,
+  )
   const valuesState = useGlobeValues(
     !weatherApiEnabled && !isEarthMode && selectedCoordinates ? frame?.valuesUrl : undefined,
     frame ? frame.width * frame.height : undefined,

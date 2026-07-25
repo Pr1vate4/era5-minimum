@@ -3,7 +3,9 @@ import type { GlobeFrameAsset } from '../types/globe'
 
 export const CLOUD_MIN_VISIBLE_COVER = 0.03
 export const CLOUD_ALPHA_GAMMA = 1.15
-export const CLOUD_MAX_OPACITY = 0.82
+// TCC describes coverage, not an opaque satellite photograph. Keep continents
+// legible even where coverage reaches one.
+export const CLOUD_MAX_OPACITY = 0.6
 
 type CreateTccCloudTextureOptions = {
   frame: GlobeFrameAsset
