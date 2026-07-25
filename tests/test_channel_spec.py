@@ -10,14 +10,14 @@ def test_01_exact_channel_count():
 # 2. Строгий порядок
 def test_02_strict_order():
     expected_order = ["t2m", "mslp", "u10", "v10", "tp6h", "sst", "tcwv", "tcc"] + \
-                     [f"{var}{lvl}" for var in ["t", "u", "v", "z", "q"] for lvl in [1000, 925, 850, 700]]
+                     [f"{var}{lvl}" for var in ["T", "U", "V", "Z", "Q"] for lvl in [1000, 925, 850, 700]]
     actual_order = [c.name for c in CHANNEL_SPEC]
     assert actual_order == expected_order
 
 # 3. Правильные WeatherBench2 names
 @pytest.mark.parametrize("idx,wb2_name", [
     (0, "2m_temperature"), (1, "mean_sea_level_pressure"), (4, "total_precipitation_6hr"),
-    (8, "temperature_1000hPa"), (27, "specific_humidity_700hPa")
+    (8, "temperature"), (27, "specific_humidity")
 ])
 def test_03_wb2_names(idx, wb2_name):
     assert CHANNEL_SPEC[idx].wb2_name == wb2_name
@@ -60,6 +60,8 @@ def test_06_missing_level_raises():
     for ch in CHANNEL_SPEC:
         if ch.type == "surface":
             mock_ds[ch.wb2_name] = (["time", "latitude", "longitude"], np.random.rand(2, 4, 4))
+    for source_name in {ch.source_name for ch in CHANNEL_SPEC if ch.type == "pressure" and ch.source_name != "temperature"}:
+        mock_ds[source_name] = (["time", "level", "latitude", "longitude"], np.random.rand(2, 2, 4, 4))
 
     with pytest.raises(ValueError, match="[Mm]issing.*level"):
         validate_wb2_compatibility(mock_ds, CHANNEL_SPEC)
@@ -77,4 +79,4 @@ def test_08_units_correctness():
     assert units_map["t2m"] == "K"
     assert units_map["mslp"] == "Pa"
     assert units_map["tp6h"] == "m"
-    assert units_map["z1000"] == "m2 s-2"
+    assert units_map["Z1000"] == "m2 s-2"
