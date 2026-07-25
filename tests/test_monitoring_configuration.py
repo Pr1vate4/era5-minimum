@@ -152,6 +152,20 @@ def test_model_dashboard_queries_only_exported_metrics() -> None:
     )
 
 
+def test_model_dashboard_uses_grafana_12_color_modes() -> None:
+    dashboard = json.loads(
+        (ROOT / "monitoring/grafana/dashboards/era5-model-overview.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    color_modes = {
+        panel.get("fieldConfig", {}).get("defaults", {}).get("color", {}).get("mode")
+        for panel in dashboard["panels"]
+    }
+
+    assert "fixedColor" not in color_modes
+
+
 def test_frontend_compose_points_at_model_dashboard() -> None:
     compose = _read_yaml("compose.yaml")
 

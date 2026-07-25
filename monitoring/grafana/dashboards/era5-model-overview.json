@@ -136,7 +136,7 @@
           "unit": "none",
           "decimals": 0,
           "noValue": "No data",
-          "color": {"mode": "fixedColor", "fixedColor": "purple"}
+          "color": {"mode": "fixed", "fixedColor": "purple"}
         },
         "overrides": []
       },
@@ -209,7 +209,7 @@
           "unit": "bytes",
           "decimals": 2,
           "noValue": "No data",
-          "color": {"mode": "fixedColor", "fixedColor": "semi-dark-blue"}
+          "color": {"mode": "fixed", "fixedColor": "semi-dark-blue"}
         },
         "overrides": []
       },
@@ -241,7 +241,7 @@
           "unit": "short",
           "decimals": 0,
           "noValue": "No data",
-          "color": {"mode": "fixedColor", "fixedColor": "semi-dark-green"}
+          "color": {"mode": "fixed", "fixedColor": "semi-dark-green"}
         },
         "overrides": []
       },
@@ -533,7 +533,7 @@
           "unit": "suffix:hPa",
           "decimals": 2,
           "noValue": "No data",
-          "color": {"mode": "fixedColor", "fixedColor": "blue"}
+          "color": {"mode": "fixed", "fixedColor": "blue"}
         },
         "overrides": []
       },
@@ -564,7 +564,7 @@
           "unit": "suffix:mm/6h",
           "decimals": 2,
           "noValue": "No data",
-          "color": {"mode": "fixedColor", "fixedColor": "semi-dark-blue"}
+          "color": {"mode": "fixed", "fixedColor": "semi-dark-blue"}
         },
         "overrides": []
       },
@@ -594,7 +594,7 @@
           "unit": "velocityms",
           "decimals": 2,
           "noValue": "No data",
-          "color": {"mode": "fixedColor", "fixedColor": "cyan"}
+          "color": {"mode": "fixed", "fixedColor": "cyan"}
         },
         "overrides": []
       },
@@ -708,7 +708,7 @@
           "unit": "bits",
           "decimals": 3,
           "noValue": "No data",
-          "color": {"mode": "fixedColor", "fixedColor": "blue"}
+          "color": {"mode": "fixed", "fixedColor": "blue"}
         },
         "overrides": []
       },
