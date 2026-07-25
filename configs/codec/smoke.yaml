@@ -1,0 +1,47 @@
+seed: 7
+output_dir: outputs/codec_smoke
+
+data:
+  samples: 20
+  height: 8
+  width: 8
+  validation_samples: 4
+  test_samples: 4
+
+model:
+  latent_channels: 8
+  parameter_limit: 2000000
+
+codec:
+  version: ml-001
+  grid: smoke-8x8
+  quantization_step: 0.25
+  target_compression_ratio: 32
+
+entropy:
+  model_type: factorized_logistic
+  min_probability: 1.0e-9
+
+loss:
+  type: mse
+  latitude_weighting: true
+  surface_weight: 0.5
+  pressure_weight: 0.5
+  rate_lambda: 0.001
+
+training:
+  batch_size: 4
+  epochs: 2
+  learning_rate: 0.001
+  max_steps: 4
+
+inference:
+  mode: tiled
+  tile_height: 8
+  tile_width: 8
+  halo: 8
+  boundary_width: 1
+
+resources:
+  max_vram_gb: 24
+  max_gpu_hours: 48

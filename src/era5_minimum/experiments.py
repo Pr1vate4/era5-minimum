@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import hashlib
 import json
 from pathlib import Path
 from typing import Any
@@ -11,6 +12,7 @@ import torch
 import yaml
 from torch.utils.data import Subset
 
+from era5_minimum.codec import CodecConfig, CodecHarness, NormalizationSpec
 from era5_minimum.data.synthetic import SyntheticERA5Dataset, make_synthetic_era5
 from era5_minimum.metrics import latitude_weighted_rmse, mae, per_channel_rmse, rmse
 from era5_minimum.models import ConvAutoencoder, PCAAutoencoder
@@ -57,6 +59,24 @@ def _common_row(
     return row
 
 
+def _write_normalization_artifact(
+    output_dir: Path,
+    channels: list[str],
+    mean: np.ndarray,
+    std: np.ndarray,
+) -> tuple[Path, str]:
+    payload = {
+        "channel_order": channels,
+        "mean": mean.reshape(-1).astype(np.float32).tolist(),
+        "std": std.reshape(-1).astype(np.float32).tolist(),
+        "train_only": True,
+    }
+    encoded = json.dumps(payload, indent=2, sort_keys=True).encode("utf-8")
+    path = output_dir / "train_normalization.json"
+    path.write_bytes(encoded)
+    return path, hashlib.sha256(encoded).hexdigest()
+
+
 def run(config_path: str | Path) -> list[dict[str, Any]]:
     config = load_config(config_path)
     seed = int(config["seed"])
@@ -87,6 +107,19 @@ def run(config_path: str | Path) -> list[dict[str, Any]]:
     output_dir.mkdir(parents=True, exist_ok=True)
     with open(output_dir / "resolved_config.yaml", "w", encoding="utf-8") as file:
         yaml.safe_dump(config, file, allow_unicode=True, sort_keys=False)
+    _, normalization_sha256 = _write_normalization_artifact(
+        output_dir=output_dir,
+        channels=channels,
+        mean=train_dataset.mean,
+        std=train_dataset.std,
+    )
+    normalization_spec = NormalizationSpec(
+        channel_order=tuple(channels),
+        mean=train_dataset.mean.reshape(-1),
+        std=train_dataset.std.reshape(-1),
+        source_manifest_sha256=normalization_sha256,
+        train_only=True,
+    )
 
     rows: list[dict[str, Any]] = []
     model_type = str(model_config.get("type", "conv"))
@@ -99,7 +132,8 @@ def run(config_path: str | Path) -> list[dict[str, Any]]:
         if model_type == "pca":
             model = PCAAutoencoder(latent_dim=int(model_config["latent_dim"]))
             fit_result = model.fit(train_dataset.tensor[:train_size].numpy())
-            prediction_norm_np = model.reconstruct(validation_dataset.tensor.numpy())
+            validation_norm_np = validation_dataset.tensor.numpy()
+            prediction_norm_np = model.reconstruct(validation_norm_np)
             prediction_norm = torch.from_numpy(prediction_norm_np)
             target_norm = validation_dataset.tensor
             prediction = inverse_transform(prediction_norm, train_dataset.mean, train_dataset.std)
@@ -111,6 +145,37 @@ def run(config_path: str | Path) -> list[dict[str, Any]]:
                 "retained_variance_fraction": fit_result.retained_variance_fraction,
                 "runtime_seconds": fit_result.runtime_seconds,
             }
+            codec_config = model_config.get("codec")
+            if codec_config is not None:
+                latent = model.encode(validation_norm_np)
+                codec_result = CodecHarness(
+                    config=CodecConfig(
+                        version=str(codec_config.get("version", "ml-001")),
+                        channel_order=tuple(channels),
+                        grid=str(codec_config.get("grid", f"synthetic-{data_config['height']}x{data_config['width']}")),
+                        quantization_step=float(codec_config["quantization_step"]),
+                        seed=seed + train_size,
+                        git_commit=None,
+                    ),
+                    normalization=normalization_spec,
+                ).encode_latent(
+                    input_tensor=validation_raw,
+                    latent=latent,
+                    output_dir=output_dir / f"pca_train_{train_size}_codec",
+                )
+                if codec_result.decoded_latent is None:
+                    raise RuntimeError("codec result is missing decoded_latent")
+                prediction_norm = torch.from_numpy(model.decode(codec_result.decoded_latent))
+                prediction = inverse_transform(prediction_norm, train_dataset.mean, train_dataset.std)
+                row.update(
+                    {
+                        "latent_reduction_ratio": codec_result.tensor_ratio,
+                        "actual_compression_ratio": codec_result.serialized_ratio,
+                        "bitstream_bytes": codec_result.metadata["compression"]["bitstream_bytes"],
+                        "codec_roundtrip_exact": codec_result.roundtrip_ok,
+                        "codec_metadata_path": str(codec_result.metadata_path),
+                    }
+                )
             row.update(_common_row(prediction_norm, target_norm, prediction, target, channels, latitudes))
             np.savez_compressed(
                 output_dir / f"pca_train_{train_size}.npz",

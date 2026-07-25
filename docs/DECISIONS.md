@@ -229,3 +229,58 @@
 **Decision:** считать этот семидневный диапазон техническим multi-day pipeline pilot, а не окончательным исследовательским dataset.
 
 **Consequences:** пилот не подтверждает сезонную или погодную репрезентативность и не открывает temporal split, train-only normalization или model research. Итоговый объём и selection strategy определяются отдельно совместно с ML Lead до завершения DATA-002.
+
+## DEC-025 — First honest codec step uses scalar quantization plus canonical Huffman
+
+**Status:** accepted
+**Date:** 2026-07-24
+
+**Context:** проекту нужен реальный codec contour с сериализованным bitstream и exact symbol roundtrip до появления финальной 32x/64x модели. Latent reduction без entropy coding не считается codec-результатом, а сложный entropy model на первом шаге повышает implementation risk.
+
+**Decision:** первый ML-001 codec harness использует детерминированное per-channel scalar quantization и canonical Huffman coding с self-describing header.
+
+**Consequences:** проект сразу получает честный serialized payload, проверку exact roundtrip по квантованным символам и отдельный serialized ratio. Первый end-to-end integration path прогоняет через codec квантованный PCA latent и считает reconstruction metrics уже после quantize/dequantize. Tensor ratio и serialized ratio остаются разными метриками и не подменяют друг друга. Этот contour нужен для локальной проверки bitstream contract и rate accounting, а не как финальная конкурсная архитектура.
+
+## DEC-026 — Latent probe starts from frozen PCA latent
+
+**Status:** accepted
+**Date:** 2026-07-24
+
+**Context:** ML-001 требует отдельный +6h latent probe with persistence baseline, but the full learned codec is not ready yet.
+
+**Decision:** first latent probe uses frozen PCA latents, trains a compact predictor on consecutive latent pairs, and records improvement against persistence.
+
+**Consequences:** probe workflow becomes runnable now, stays reproducible, and keeps encoder/decoder frozen during probe training.
+
+## DEC-027 — Codec smoke uses synthetic 28-channel ConvAE baseline
+
+**Status:** accepted
+**Date:** 2026-07-24
+
+**Context:** ML-001 still needs a runnable smoke codec path before the full real-data 32x/64x training stack lands.
+
+**Decision:** smoke codec training uses a synthetic 28-channel tensor, a small ConvAE, masked SST on land, real canonical Huffman bitstreams, and separate validation/test bitstreams.
+
+**Consequences:** the repo now has a reproducible local codec contour with checkpoint, resource log, metrics, and exact symbol roundtrip, while remaining explicit that it is a smoke baseline rather than the final research model.
+
+## DEC-028 — Tiled codec reconstruction operates on decoded latents
+
+**Status:** accepted
+**Date:** 2026-07-25
+
+**Context:** decoder inference must work without the original weather tensor and must preserve the standalone bitstream plus checkpoint contract. Tiling the full autoencoder input is useful diagnostics, but it is not a valid implementation of standalone bitstream decoding.
+
+**Decision:** tiled codec reconstruction splits the entropy-decoded latent, applies latitude clamping and periodic longitude indexing in latent coordinates, decodes tiles with a configurable halo, and stitches them in output-grid coordinates. Tile dimensions and halo are expressed in output-grid pixels and must align with the decoder scale factor.
+
+**Consequences:** `decode_codec.py` can reconstruct either full-frame or tiled using only checkpoint, bitstream, and metadata. Smoke artifacts record the selected reconstruction mode and compare tiled output against full-frame decoding of the same quantized latent. The report separates internal tile seams from 0°/360° boundary-condition drift and excludes invalid values from both. The current ConvAE may have non-zero global-boundary drift, so the report measures it rather than claiming numerical equivalence.
+
+## DEC-029 — Factorized logistic entropy model is a training-only rate proxy
+
+**Status:** accepted
+**Date:** 2026-07-25
+
+**Context:** rate-distortion training needs an estimated-rate objective before the learned entropy model is integrated into the canonical codec path.
+
+**Decision:** the factorized logistic entropy model is a training-only estimated-rate proxy. The canonical Huffman serialized bitstream remains the source of actual compression ratio. Estimated rate and actual serialized rate must be reported separately. The smoke configuration remains synthetic until a real manifest is available.
+
+**Consequences:** rate-distortion experiments can optimize an explicit proxy without conflating it with serialized codec measurements; reports must preserve both metrics and identify smoke results as synthetic.

@@ -70,6 +70,13 @@ VALID_RECONSTRUCTION = {
     "is_demo": True,
 }
 
+PROCESS_METRICS = (
+    "process_cpu_seconds_total",
+    "process_resident_memory_bytes",
+    "process_open_fds",
+    "process_start_time_seconds",
+)
+
 
 def _metric_value(collector, name: str, **labels: str) -> float:
     """Return one labelled Prometheus sample, creating its zero value if needed."""
