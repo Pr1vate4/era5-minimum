@@ -204,8 +204,9 @@ conv-ae-weatherbench2-n128: ## Train the 32× real-data ConvAE after N=128 shard
 conv-ae-bitstream-n128: ## Measure an actual ConvAE bitstream after real N=128 training.
 	python scripts/evaluate_conv_ae_bitstream_zarr.py --checkpoint outputs/conv_ae_weatherbench2_05_n128/model.ckpt --dataset-dir data/weatherbench2_28ch_05_n128 --output-dir outputs/conv_ae_weatherbench2_05_n128_codec
 
-model-unpack: ## Unpack a shared N32 model ZIP from the repository root into ignored artifacts/model-n32/.
+model-unpack: ## Unpack the shared N128-equivalent model ZIP (legacy filename) into ignored artifacts/model-n32/.
 	@test -f "$(MODEL_ARCHIVE)" || { echo "Model archive not found: $(MODEL_ARCHIVE)" >&2; exit 2; }
+	@test ! -f "$(MODEL_ARCHIVE).sha256" || sha256sum -c "$(MODEL_ARCHIVE).sha256"
 	@test ! -e "$(MODEL_ARTIFACT_DIR)/model.ckpt" || { echo "Refusing to overwrite installed model: $(MODEL_ARTIFACT_DIR)/model.ckpt" >&2; exit 2; }
 	@mkdir -p "$(MODEL_ARTIFACT_DIR)"
 	@unzip -q "$(MODEL_ARCHIVE)" -d "$(MODEL_ARTIFACT_DIR)"

@@ -50,7 +50,7 @@ def get_repository() -> ArtifactRepository:
 
 @lru_cache(maxsize=1)
 def get_codec_service() -> CodecService:
-    """Return the process-local immutable N32 codec service."""
+    """Return the process-local immutable N128-equivalent codec service."""
     return CodecService()
 
 
@@ -71,7 +71,7 @@ def health() -> dict[str, str]:
 
 @router.get("/api/v1/codec/status", tags=["codec"])
 def codec_status(service: CodecService = Depends(get_codec_service)) -> dict:
-    """Expose N32 readiness for the interactive frontend without fake results."""
+    """Expose N128-equivalent readiness for the interactive frontend without fake results."""
     return service.status()
 
 

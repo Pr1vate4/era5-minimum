@@ -38,7 +38,9 @@ COPY --chown=era5:era5 configs ./configs
 COPY --chown=era5:era5 demo ./demo
 COPY --chown=era5:era5 scripts ./scripts
 COPY --chown=era5:era5 tests ./tests
-COPY --chown=era5:era5 docs/ARTIFACT_API_CONTRACT.md ./docs/ARTIFACT_API_CONTRACT.md
+# Documentation is copied as a directory so the image follows the current
+# retained documentation set and does not depend on a removed legacy file.
+COPY --chown=era5:era5 docs ./docs
 
 RUN mkdir -p data outputs checkpoints bitstreams artifacts submission \
     && chown -R era5:era5 /workspace

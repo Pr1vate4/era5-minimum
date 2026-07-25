@@ -19,7 +19,7 @@ class _CodecServiceStub:
         return {
             "ready": True,
             "checkpoint": "fixture-sha256",
-            "model_name": "fixture N32",
+            "model_name": "fixture N128-equivalent",
             "message": "ready",
             "supported_target_ratios": [32],
         }

@@ -29,8 +29,8 @@ services:
     ports:
       - "${API_PORT:-8000}:8000"
     volumes:
-      - ${ARTIFACTS_DIR:-./artifacts}:/workspace/artifacts:ro
-      - ${DATA_DIR:-./data}:/workspace/data:ro,Z
+      - ${ARTIFACTS_DIR:-./artifacts}:/workspace/artifacts:ro,z
+      - ${DATA_DIR:-./data}:/workspace/data:ro,z
     healthcheck:
       test:
         - CMD
@@ -54,7 +54,7 @@ services:
     ports:
       - "${VITE_PORT:-5173}:5173"
     volumes:
-      - .:/workspace:Z
+      - .:/workspace:z
       - frontend_node_modules:/workspace/node_modules
     depends_on:
       api:

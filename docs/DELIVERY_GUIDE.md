@@ -2,7 +2,7 @@
 
 Этот документ описывает, как запустить проект у другого участника или
 организатора и как приложить модель к финальной версии, не помещая checkpoint
-в Git.ъ
+в Git.
 
 ## Что нужно для запуска
 
@@ -11,28 +11,32 @@
 - свободные порты `5173` и `8000`;
 - архив модели, приложенный к GitHub Release.
 
-GPU для демонстрации сайта и инференса N32 не нужен.
+GPU для демонстрации сайта и инференса профиля N128-equivalent не нужен.
 
 ## Запуск сайта и API
 
 ```bash
 git clone https://github.com/Pr1vate4/era5-minimum.git
 cd era5-minimum
-git checkout <тег-финальной-версии>
+git checkout feat/user-changes
 cp .env.example .env
-make docker-config
-make docker-build
 ```
 
-Скачайте asset модели из страницы соответствующего GitHub Release в корень
-репозитория. Для текущего N128 имя файла должно быть
-`era5-minimum-n128-model.zip`.
+Скачайте asset модели из GitHub Release в корень репозитория. Пользовательское
+название профиля — **N128-equivalent**, но имя опубликенного файла намеренно
+остаётся техническим: `era5-minimum-n32-model.zip`.
 
 ```bash
-sha256sum era5-minimum-n128-model.zip
+curl -L -o era5-minimum-n32-model.zip \
+  https://github.com/Pr1vate4/era5-minimum/releases/download/v0.1.0-n32-pilot/era5-minimum-n32-model.zip
+sha256sum -c era5-minimum-n32-model.zip.sha256
 make model-unpack
 make app-up
 ```
+
+`sha256sum -c` должен вывести `OK`. Если архив уже получен другим способом,
+достаточно поместить его в корень с тем же техническим именем и выполнить три
+последние команды.
 
 После этого откройте:
 
@@ -54,11 +58,12 @@ make app-down
 
 ## Проверка модельного архива
 
-У текущего поставляемого N128 pilot-а:
+У текущего поставляемого профиля N128-equivalent:
 
 | Поле | Значение |
 | --- | --- |
-| Имя asset | `era5-minimum-n128-model.zip` |
+| Отображаемое имя | `N128-equivalent` (32 фактических кадра) |
+| Имя Release asset | `era5-minimum-n32-model.zip` |
 | Размер ZIP | 845 389 байт |
 | SHA-256 | `7268693a20503a72e4a2eb3e5e0ec11edb2dea015b6f3c73958b1f48152e0231` |
 | Обязательные файлы | `model.ckpt`, `normalization_train_only.json` |
@@ -66,8 +71,9 @@ make app-down
 
 Команда `make model-unpack` откажется перезаписывать уже установленную модель
 и проверит наличие двух обязательных файлов. После распаковки модель хранится
-в игнорируемом Git каталоге `artifacts/model-n128/` и монтируется в API только
-для чтения.
+в игнорируемом Git каталоге `artifacts/model-n32/` и монтируется в API только
+для чтения. Имя каталога должно совпадать со значением
+`ERA5_CODEC_MODEL_DIR` в `.env`.
 
 ## Как закрепить финальную поставку
 
@@ -96,13 +102,14 @@ git push origin v0.1.0
 ```
 
 На GitHub откройте **Releases → Draft a new release**, выберите тег `v0.1.0`,
-загрузите `era5-minimum-n128-model.zip` в **Attach binaries** и в тексте релиза
+загрузите `era5-minimum-n32-model.zip` в **Attach binaries** и в тексте релиза
 укажите:
 
 ```text
-Модель: era5-minimum-n128-model.zip
+Модель: era5-minimum-n32-model.zip
 SHA-256: 7268693a20503a72e4a2eb3e5e0ec11edb2dea015b6f3c73958b1f48152e0231
-Фактический статус: N128 pilot, не финальная приёмка по всем пунктам ТЗ.
+Отображаемый профиль: N128-equivalent (32 фактических кадра).
+Фактический статус: pilot, не финальная приёмка по всем пунктам ТЗ.
 Запуск: docs/DELIVERY_GUIDE.md
 ```
 
