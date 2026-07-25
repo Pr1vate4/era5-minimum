@@ -2,38 +2,80 @@ import {
   CartesianGrid,
   Line,
   LineChart,
-  ReferenceLine,
   ResponsiveContainer,
-  Tooltip,
   XAxis,
   YAxis,
 } from 'recharts'
-import type { RateDistortionPoint } from '../types'
+import { chartTheme } from '../data/chartTheme'
+import type { RateDistortionChartPoint } from '../data/resultsSelectors'
+import { ChartTooltip } from './ChartTooltip'
 
-export function RateDistortionChart({ data }: { data: RateDistortionPoint[] }) {
-  const threshold = 0.05
+export type RateDistortionMetric =
+  | 'overall_nrmse'
+  | 'surface_nrmse'
+  | 'pressure_nrmse'
+  | 'psnr'
 
+const metricLabels: Record<RateDistortionMetric, string> = {
+  overall_nrmse: 'Общий NRMSE',
+  surface_nrmse: 'Surface NRMSE',
+  pressure_nrmse: 'Pressure NRMSE',
+  psnr: 'PSNR',
+}
+
+export function RateDistortionChart({
+  data,
+  metric = 'overall_nrmse',
+  showReference = false,
+}: {
+  data: RateDistortionChartPoint[]
+  metric?: RateDistortionMetric
+  showReference?: boolean
+}) {
   return (
-    <section id="rate-distortion" className="rounded-2xl border border-slate-800 bg-slate-900/70 p-5 shadow-soft">
-      <div className="mb-4">
-        <p className="text-xs uppercase tracking-[0.24em] text-slate-400">Compression quality</p>
-        <h2 className="text-2xl font-semibold text-white">Rate–distortion</h2>
-      </div>
-      <div className="h-80">
-        <ResponsiveContainer width="100%" height="100%">
-          <LineChart data={data}>
-            <CartesianGrid vertical={false} stroke="#334155" strokeDasharray="3 3" />
-            <XAxis dataKey="compression_ratio" stroke="#94a3b8" />
-            <YAxis stroke="#94a3b8" domain={[0, 0.09]} />
-            <Tooltip
-              contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: 12 }}
-              formatter={(value: number) => [value.toFixed(3), 'overall_nrmse']}
+    <div className="h-[360px] min-h-[320px] w-full">
+      <ResponsiveContainer width="100%" height="100%">
+        <LineChart data={data} margin={{ top: 12, right: 18, bottom: 8, left: 4 }}>
+          <CartesianGrid vertical={false} stroke={chartTheme.grid} strokeDasharray="3 3" />
+          <XAxis
+            type="number"
+            dataKey="compression_ratio"
+            domain={['dataMin', 'dataMax']}
+            stroke={chartTheme.axis}
+            tick={{ fill: chartTheme.axis, fontSize: 11 }}
+            tickFormatter={(value: number) => `${value}×`}
+          />
+          <YAxis
+            domain={['auto', 'auto']}
+            stroke={chartTheme.axis}
+            tick={{ fill: chartTheme.axis, fontSize: 11 }}
+            tickFormatter={(value: number) => value.toFixed(metric === 'psnr' ? 1 : 3)}
+          />
+          <ChartTooltip />
+          {showReference && metric === 'overall_nrmse' ? (
+            <Line
+              type="monotone"
+              dataKey="reference_nrmse"
+              name="Референс"
+              connectNulls
+              stroke={chartTheme.reference}
+              strokeWidth={1.8}
+              strokeDasharray="6 4"
+              dot={{ r: 2.5, fill: chartTheme.reference }}
             />
-            <ReferenceLine y={threshold} stroke="#ef4444" strokeDasharray="5 5" label={{ value: 'admission threshold', position: 'insideTopRight' }} />
-            <Line type="monotone" dataKey="overall_nrmse" stroke="#60a5fa" strokeWidth={2.5} dot={{ r: 4 }} />
-          </LineChart>
-        </ResponsiveContainer>
-      </div>
-    </section>
+          ) : null}
+          <Line
+            type="monotone"
+            dataKey={metric}
+            name={metricLabels[metric]}
+            connectNulls
+            stroke={chartTheme.model}
+            strokeWidth={2.4}
+            dot={{ r: 4, fill: chartTheme.model }}
+            activeDot={{ r: 5 }}
+          />
+        </LineChart>
+      </ResponsiveContainer>
+    </div>
   )
 }

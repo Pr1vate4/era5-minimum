@@ -1,0 +1,31 @@
+groups:
+  - name: era5-api
+    rules:
+      - alert: Era5ApiDown
+        expr: up{job="era5-api"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: ERA5 Artifact API is unreachable by Prometheus.
+
+      - alert: Era5ApiHighErrorRate
+        expr: |
+          sum(rate(era5_api_http_requests_total{status_code=~"5.."}[5m]))
+          / clamp_min(sum(rate(era5_api_http_requests_total[5m])), 1e-9) > 0.05
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: ERA5 Artifact API 5xx rate exceeds 5 percent.
+
+      - alert: Era5ApiHighP95Latency
+        expr: |
+          histogram_quantile(0.95, sum by (le) (
+            rate(era5_api_http_request_duration_seconds_bucket[5m])
+          )) > 2
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: ERA5 Artifact API p95 response latency exceeds 2 seconds.

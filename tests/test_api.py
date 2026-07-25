@@ -17,8 +17,10 @@ from fastapi.testclient import TestClient
 
 from era5_minimum.api.app import app, create_app, get_repository
 from era5_minimum.api.monitoring import (
-    ARTIFACT_LOAD_ERRORS_TOTAL,
-    ARTIFACT_VALIDATION_ERRORS_TOTAL,
+    ARTIFACT_LOADED,
+    ARTIFACTS_LOADED,
+    ARTIFACT_LOAD_TOTAL,
+    ARTIFACT_VALIDATION_TOTAL,
     HTTP_REQUEST_DURATION_SECONDS,
     HTTP_REQUESTS_TOTAL,
 )
@@ -94,6 +96,15 @@ def _http_request_total() -> float:
         for sample in metric.samples
         if sample.name == "era5_api_http_requests_total"
     )
+
+
+def _unlabelled_metric_value(collector, name: str) -> float:
+    """Return a Prometheus sample from a collector without labels."""
+    for metric in collector.collect():
+        for sample in metric.samples:
+            if sample.name == name and not sample.labels:
+                return float(sample.value)
+    raise AssertionError(f"Prometheus sample not found: {name}")
 
 
 def _write_bundle(root: Path, **overrides) -> None:
@@ -180,12 +191,11 @@ def test_metrics_endpoint_uses_prometheus_exposition_format(
     assert "era5_api_http_requests_total" in response.text
     assert "era5_api_http_request_duration_seconds_bucket" in response.text
     assert "era5_api_http_requests_in_progress" in response.text
-    if Path("/proc").exists():
-        for metric_name in PROCESS_METRICS:
-            assert metric_name in response.text
-    else:
-        for metric_name in PROCESS_METRICS:
-            assert metric_name not in response.text
+    assert "era5_api_build_info" in response.text
+    assert "process_cpu_seconds_total" in response.text
+    assert "process_resident_memory_bytes" in response.text
+    assert "process_open_fds" in response.text
+    assert "process_start_time_seconds" in response.text
 
 
 def test_health_records_request_counter_and_duration(client: TestClient) -> None:
@@ -256,10 +266,10 @@ def test_metrics_scrape_is_excluded_from_user_request_counter(
 
 
 def test_missing_artifact_increments_load_error_counter(client_factory) -> None:
-    labels = {"artifact_type": "summary"}
+    labels = {"artifact_type": "summary", "status": "error"}
     before = _metric_value(
-        ARTIFACT_LOAD_ERRORS_TOTAL,
-        "era5_api_artifact_load_errors_total",
+        ARTIFACT_LOAD_TOTAL,
+        "era5_api_artifact_load_total",
         **labels,
     )
     client = client_factory()
@@ -269,19 +279,72 @@ def test_missing_artifact_increments_load_error_counter(client_factory) -> None:
     assert client.get("/api/v1/summary").status_code == 500
 
     assert _metric_value(
-        ARTIFACT_LOAD_ERRORS_TOTAL,
-        "era5_api_artifact_load_errors_total",
+        ARTIFACT_LOAD_TOTAL,
+        "era5_api_artifact_load_total",
         **labels,
     ) == before + 1
+    assert _metric_value(
+        ARTIFACT_LOADED,
+        "era5_api_artifact_loaded",
+        artifact_type="summary",
+    ) == 0
+
+
+def test_successful_artifact_load_records_success_valid_and_loaded(client) -> None:
+    load_labels = {"artifact_type": "summary", "status": "success"}
+    validation_labels = {"artifact_type": "summary", "status": "valid"}
+    before_load = _metric_value(
+        ARTIFACT_LOAD_TOTAL, "era5_api_artifact_load_total", **load_labels
+    )
+    before_validation = _metric_value(
+        ARTIFACT_VALIDATION_TOTAL,
+        "era5_api_artifact_validation_total",
+        **validation_labels,
+    )
+
+    assert client.get("/api/v1/summary").status_code == 200
+
+    assert _metric_value(
+        ARTIFACT_LOAD_TOTAL, "era5_api_artifact_load_total", **load_labels
+    ) == before_load + 1
+    assert _metric_value(
+        ARTIFACT_VALIDATION_TOTAL,
+        "era5_api_artifact_validation_total",
+        **validation_labels,
+    ) == before_validation + 1
+    assert _metric_value(
+        ARTIFACT_LOADED,
+        "era5_api_artifact_loaded",
+        artifact_type="summary",
+    ) == 1
+
+
+def test_loaded_artifact_count_changes_only_with_validated_state(client_factory) -> None:
+    client = client_factory()
+    bundle_root = client.app.dependency_overrides[get_repository]().root
+    (bundle_root / "summary.json").unlink()
+    assert client.get("/api/v1/summary").status_code == 500
+    count_after_error = _unlabelled_metric_value(
+        ARTIFACTS_LOADED, "era5_api_artifacts_loaded"
+    )
+
+    (bundle_root / "summary.json").write_text(
+        json.dumps(VALID_SUMMARY), encoding="utf-8"
+    )
+    assert client.get("/api/v1/summary").status_code == 200
+
+    assert _unlabelled_metric_value(
+        ARTIFACTS_LOADED, "era5_api_artifacts_loaded"
+    ) == count_after_error + 1
 
 
 def test_invalid_artifact_increments_validation_error_counter(
     client_factory,
 ) -> None:
-    labels = {"artifact_type": "experiments"}
+    labels = {"artifact_type": "experiments", "status": "invalid"}
     before = _metric_value(
-        ARTIFACT_VALIDATION_ERRORS_TOTAL,
-        "era5_api_artifact_validation_errors_total",
+        ARTIFACT_VALIDATION_TOTAL,
+        "era5_api_artifact_validation_total",
         **labels,
     )
     client = client_factory(experiments={"id": "demo-pca-001"})
@@ -289,8 +352,8 @@ def test_invalid_artifact_increments_validation_error_counter(
     assert client.get("/api/v1/experiments").status_code == 500
 
     assert _metric_value(
-        ARTIFACT_VALIDATION_ERRORS_TOTAL,
-        "era5_api_artifact_validation_errors_total",
+        ARTIFACT_VALIDATION_TOTAL,
+        "era5_api_artifact_validation_total",
         **labels,
     ) == before + 1
 

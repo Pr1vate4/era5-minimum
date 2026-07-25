@@ -1,0 +1,182 @@
+{
+  "uid": "era5-api-overview",
+  "title": "ERA5 API Overview",
+  "tags": ["era5", "api", "prometheus"],
+  "timezone": "browser",
+  "schemaVersion": 41,
+  "version": 4,
+  "refresh": "10s",
+  "time": {"from": "now-6h", "to": "now"},
+  "templating": {
+    "list": [
+      {
+        "name": "route",
+        "type": "query",
+        "label": "Route",
+        "datasource": {"type": "prometheus", "uid": "prometheus"},
+        "query": "label_values(era5_api_http_requests_total, route)",
+        "definition": "label_values(era5_api_http_requests_total, route)",
+        "includeAll": true,
+        "multi": true,
+        "allValue": ".*",
+        "current": {"text": "All", "value": "$__all"}
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "title": "API availability",
+      "type": "stat",
+      "gridPos": {"x": 0, "y": 0, "w": 6, "h": 5},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [{"expr": "up{job=\"era5-api\"}", "refId": "A"}],
+      "fieldConfig": {"defaults": {"mappings": [{"type": "value", "options": {"0": {"text": "DOWN", "color": "red"}, "1": {"text": "UP", "color": "green"}}}], "thresholds": {"mode": "absolute", "steps": [{"color": "red", "value": null}, {"color": "green", "value": 1}]}}, "overrides": []},
+      "options": {"reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "orientation": "auto", "colorMode": "value", "textMode": "auto"}
+    },
+    {
+      "id": 2,
+      "title": "User request rate",
+      "type": "stat",
+      "gridPos": {"x": 6, "y": 0, "w": 6, "h": 5},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [{"expr": "sum(rate(era5_api_http_requests_total{route!=\"/health\"}[$__rate_interval]))", "refId": "A"}],
+      "fieldConfig": {"defaults": {"unit": "reqps"}, "overrides": []},
+      "options": {"reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}}
+    },
+    {
+      "id": 3,
+      "title": "5xx error rate",
+      "type": "stat",
+      "gridPos": {"x": 12, "y": 0, "w": 6, "h": 5},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [{"expr": "(100 * sum(rate(era5_api_http_requests_total{status_code=~\"5..\"}[$__rate_interval])) / clamp_min(sum(rate(era5_api_http_requests_total[$__rate_interval])), 0.000001)) or vector(0)", "refId": "A"}],
+      "fieldConfig": {"defaults": {"unit": "percent", "decimals": 2, "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "yellow", "value": 1}, {"color": "red", "value": 5}]}}, "overrides": []},
+      "options": {"reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}}
+    },
+    {
+      "id": 4,
+      "title": "User P95 response latency",
+      "type": "stat",
+      "gridPos": {"x": 18, "y": 0, "w": 6, "h": 5},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [{"expr": "histogram_quantile(0.95, sum by (le) (rate(era5_api_http_request_duration_seconds_bucket{route!=\"/health\"}[$__rate_interval])))", "refId": "A"}],
+      "fieldConfig": {"defaults": {"unit": "s", "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "yellow", "value": 1}, {"color": "red", "value": 2}]}}, "overrides": []},
+      "options": {"reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}}
+    },
+    {
+      "id": 5,
+      "title": "Requests in progress",
+      "type": "timeseries",
+      "gridPos": {"x": 0, "y": 5, "w": 6, "h": 8},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [{"expr": "sum(era5_api_http_requests_in_progress)", "legendFormat": "in progress", "refId": "A"}],
+      "fieldConfig": {"defaults": {"unit": "short"}, "overrides": []}
+    },
+    {
+      "id": 6,
+      "title": "Request rate by route",
+      "type": "timeseries",
+      "gridPos": {"x": 6, "y": 5, "w": 9, "h": 8},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [{"expr": "sum by (route) (rate(era5_api_http_requests_total{route=~\"$route\"}[5m]))", "legendFormat": "{{route}}", "refId": "A"}],
+      "fieldConfig": {"defaults": {"unit": "reqps"}, "overrides": []}
+    },
+    {
+      "id": 7,
+      "title": "Request rate by status code",
+      "type": "timeseries",
+      "gridPos": {"x": 15, "y": 5, "w": 9, "h": 8},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [{"expr": "sum by (status_code) (rate(era5_api_http_requests_total[5m]))", "legendFormat": "{{status_code}}", "refId": "A"}],
+      "fieldConfig": {"defaults": {"unit": "reqps"}, "overrides": []}
+    },
+    {
+      "id": 8,
+      "title": "P95 latency by route",
+      "type": "timeseries",
+      "gridPos": {"x": 0, "y": 13, "w": 12, "h": 8},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [{"expr": "histogram_quantile(0.95, sum by (le, route) (rate(era5_api_http_request_duration_seconds_bucket{route=~\"$route\"}[5m])))", "legendFormat": "{{route}}", "refId": "A"}],
+      "fieldConfig": {"defaults": {"unit": "s"}, "overrides": []}
+    },
+    {
+      "id": 9,
+      "title": "Artifact load errors",
+      "type": "stat",
+      "gridPos": {"x": 12, "y": 13, "w": 6, "h": 8},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [{"expr": "sum by (artifact_type) (rate(era5_api_artifact_load_total{status=\"error\"}[$__rate_interval])) or vector(0)", "legendFormat": "{{artifact_type}}", "refId": "A"}],
+      "fieldConfig": {"defaults": {"unit": "short", "min": 0, "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "red", "value": 0.000001}]}}, "overrides": []},
+      "options": {"reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "orientation": "auto", "colorMode": "value"}
+    },
+    {
+      "id": 10,
+      "title": "Artifact validation failures",
+      "type": "stat",
+      "gridPos": {"x": 18, "y": 13, "w": 6, "h": 8},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [{"expr": "sum by (artifact_type) (rate(era5_api_artifact_validation_total{status=~\"invalid|error\"}[$__rate_interval])) or vector(0)", "legendFormat": "{{artifact_type}}", "refId": "A"}],
+      "fieldConfig": {"defaults": {"unit": "short", "min": 0, "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "red", "value": 0.000001}]}}, "overrides": []},
+      "options": {"reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "orientation": "auto", "colorMode": "value"}
+    },
+    {
+      "id": 11,
+      "title": "Loaded artifact types",
+      "type": "stat",
+      "gridPos": {"x": 0, "y": 21, "w": 6, "h": 6},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [{"expr": "sum(era5_api_artifacts_loaded) or vector(0)", "refId": "A"}],
+      "fieldConfig": {"defaults": {"unit": "short", "min": 0}, "overrides": []},
+      "options": {"reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "orientation": "auto"}
+    },
+    {
+      "id": 12,
+      "title": "Process resident memory",
+      "type": "timeseries",
+      "gridPos": {"x": 6, "y": 21, "w": 6, "h": 6},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [{"expr": "process_resident_memory_bytes", "legendFormat": "RSS", "refId": "A"}],
+      "fieldConfig": {"defaults": {"unit": "bytes"}, "overrides": []}
+    },
+    {
+      "id": 13,
+      "title": "Process CPU usage",
+      "type": "timeseries",
+      "gridPos": {"x": 12, "y": 21, "w": 6, "h": 6},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [{"expr": "rate(process_cpu_seconds_total[5m])", "legendFormat": "CPU seconds/sec", "refId": "A"}],
+      "fieldConfig": {"defaults": {"unit": "short"}, "overrides": []}
+    },
+    {
+      "id": 14,
+      "title": "Open file descriptors",
+      "type": "timeseries",
+      "gridPos": {"x": 18, "y": 21, "w": 6, "h": 6},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [{"expr": "process_open_fds", "legendFormat": "open", "refId": "A"}],
+      "fieldConfig": {"defaults": {"unit": "short"}, "overrides": []}
+    },
+    {
+      "id": 15,
+      "title": "Maximum file descriptors",
+      "type": "timeseries",
+      "gridPos": {"x": 0, "y": 27, "w": 12, "h": 6},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [{"expr": "process_max_fds", "legendFormat": "maximum", "refId": "A"}],
+      "fieldConfig": {"defaults": {"unit": "short"}, "overrides": []}
+    },
+    {
+      "id": 16,
+      "title": "Python garbage collection",
+      "type": "timeseries",
+      "gridPos": {"x": 12, "y": 27, "w": 12, "h": 6},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [
+        {"expr": "sum by (generation) (rate(python_gc_objects_collected_total[5m]))", "legendFormat": "collected gen {{generation}}", "refId": "A"},
+        {"expr": "sum by (generation) (rate(python_gc_objects_uncollectable_total[5m]))", "legendFormat": "uncollectable gen {{generation}}", "refId": "B"}
+      ],
+      "fieldConfig": {"defaults": {"unit": "ops"}, "overrides": []}
+    }
+  ]
+}

@@ -3,23 +3,44 @@
 @tailwind utilities;
 
 :root {
-  color: #e5e7eb;
-  background: #0b1220;
-  font-family: Inter, 'SF Pro Display', 'Segoe UI', sans-serif;
+  color: #0f172a;
+  background: #f8fafc;
+  font-family: Inter, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
 }
 
 html {
-  scroll-behavior: smooth;
+  background: #f8fafc;
 }
 
 body {
   margin: 0;
-  min-width: 1200px;
-  background:
-    radial-gradient(circle at top, rgba(96, 165, 250, 0.1), transparent 25%),
-    #0b1220;
+  min-width: 0;
+  overflow-x: hidden;
+  background: #f8fafc;
+  color: #0f172a;
+  font-family: Inter, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
 }
 
 * {
   box-sizing: border-box;
+}
+
+button,
+select,
+input,
+textarea {
+  font: inherit;
+}
+
+::selection {
+  background: rgba(59, 130, 246, 0.18);
+  color: #0f172a;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+:focus-visible {
+  scroll-margin: 12px;
 }

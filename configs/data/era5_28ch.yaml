@@ -1,0 +1,13 @@
+dataset:
+  name: "era5-minimum-28ch"
+  source: "gs://weatherbench2/datasets/era5/1959-2023_01_10-wb13-6h-1440x721_with_derived_variables.zarr"
+  grid:
+    target_lat: 360
+    target_lon: 720
+    remap_method: "conservative"
+  channels: 28
+  chunk_shape: [1, 28, 180, 180]
+splits:
+  train: ["2014-01-01", "2019-12-31"]
+  val: ["2020-01-01", "2020-12-31"]
+  test: ["2021-01-01", "2021-12-31"]

@@ -8,11 +8,18 @@ version = "0.1.0"
 description = "Sample-efficient ERA5 autoencoder research framework"
 requires-python = ">=3.12"
 dependencies = [
-  "numpy>=2.0",
+  "numpy>=2.0,<3.0",
   "PyYAML>=6.0",
   "torch>=2.2",
-  "xarray>=2024.1",
+  "xarray>=2024.1,<2027.0",
   "netCDF4>=1.6",
+  "zarr>=2.18,<3.0",
+  "numcodecs>=0.12,<0.16",
+  "dask[array]>=2024.1,<2027.0",
+  "gcsfs>=2024.1,<2027.0",
+  "click>=8.1",
+  "pandas>=2.2",
+  "scipy>=1.13",
   "fastapi>=0.111,<1.0",
   "pydantic>=2.7,<3.0",
   "scikit-learn",

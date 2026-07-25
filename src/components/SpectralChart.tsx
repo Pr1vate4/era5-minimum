@@ -3,34 +3,56 @@ import {
   Line,
   LineChart,
   ResponsiveContainer,
-  Tooltip,
   XAxis,
   YAxis,
 } from 'recharts'
-import type { SpectralPoint } from '../types'
+import { chartTheme } from '../data/chartTheme'
+import type { SpectralChartPoint } from '../data/resultsSelectors'
+import { ChartTooltip } from './ChartTooltip'
 
-export function SpectralChart({ data }: { data: SpectralPoint[] }) {
+export function SpectralChart({ data }: { data: SpectralChartPoint[] }) {
   return (
-    <section id="spectral" className="rounded-2xl border border-slate-800 bg-slate-900/70 p-5 shadow-soft">
-      <div className="mb-4">
-        <p className="text-xs uppercase tracking-[0.24em] text-slate-400">Frequency analysis</p>
-        <h2 className="text-2xl font-semibold text-white">Spectral error</h2>
-      </div>
-      <div className="h-80">
-        <ResponsiveContainer width="100%" height="100%">
-          <LineChart data={data}>
-            <CartesianGrid vertical={false} stroke="#334155" strokeDasharray="3 3" />
-            <XAxis dataKey="wavenumber" type="number" stroke="#94a3b8" scale="log" />
-            <YAxis stroke="#94a3b8" scale="log" />
-            <Tooltip
-              contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: 12 }}
-              formatter={(value: number) => [value.toFixed(3), 'energy']}
-            />
-            <Line type="monotone" dataKey="reference_energy" stroke="#94a3b8" strokeWidth={1.8} dot={{ r: 3 }} />
-            <Line type="monotone" dataKey="model_energy" stroke="#60a5fa" strokeWidth={2.5} dot={{ r: 3 }} />
-          </LineChart>
-        </ResponsiveContainer>
-      </div>
-    </section>
+    <div className="h-[360px] min-h-[320px] w-full">
+      <ResponsiveContainer width="100%" height="100%">
+        <LineChart data={data} margin={{ top: 12, right: 18, bottom: 8, left: 4 }}>
+          <CartesianGrid vertical={false} stroke={chartTheme.grid} strokeDasharray="3 3" />
+          <XAxis
+            dataKey="wavenumber"
+            type="number"
+            scale="log"
+            domain={['dataMin', 'dataMax']}
+            allowDataOverflow
+            stroke={chartTheme.axis}
+            tick={{ fill: chartTheme.axis, fontSize: 11 }}
+          />
+          <YAxis
+            type="number"
+            scale="log"
+            domain={['dataMin', 'dataMax']}
+            allowDataOverflow
+            stroke={chartTheme.axis}
+            tick={{ fill: chartTheme.axis, fontSize: 11 }}
+          />
+          <ChartTooltip />
+          <Line
+            type="monotone"
+            dataKey="reference_energy"
+            name="Эталон"
+            stroke={chartTheme.reference}
+            strokeWidth={1.8}
+            strokeDasharray="6 4"
+            dot={{ r: 2.5, fill: chartTheme.reference }}
+          />
+          <Line
+            type="monotone"
+            dataKey="model_energy"
+            name="Модель"
+            stroke={chartTheme.model}
+            strokeWidth={2.4}
+            dot={{ r: 2.5, fill: chartTheme.model }}
+          />
+        </LineChart>
+      </ResponsiveContainer>
+    </div>
   )
 }

@@ -1,47 +1,59 @@
 import type { Criterion } from '../types'
+import { EmptyState } from './EmptyState'
+import { StatusChip } from './StatusChip'
+import { DataTable } from './common/ContentCard'
 
-function statusTone(pass: boolean) {
-  return pass
-    ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-300'
-    : 'border-rose-500/40 bg-rose-500/10 text-rose-300'
+function renderValue(item: Criterion) {
+  if (/exact roundtrip/i.test(item.name) || typeof item.value === 'boolean') {
+    return item.pass ? 'Подтверждён' : 'Не подтверждён'
+  }
+
+  if (item.value === undefined) return 'Нет данных'
+
+  const numericValue = typeof item.value === 'number' ? item.value : Number(item.value)
+  const value = Number.isFinite(numericValue) ? numericValue.toFixed(2) : String(item.value)
+
+  return `${value}${item.unit && item.unit !== 'bool' ? ` ${item.unit}` : ''}`
 }
 
 export function CriteriaPanel({ criteria }: { criteria: Criterion[] }) {
+  if (criteria.length === 0) {
+    return (
+      <EmptyState
+        title="Критерии отсутствуют"
+        message="В results.json нет массива criteria для выбранного режима сжатия."
+      />
+    )
+  }
+
   return (
-    <section id="criteria" className="space-y-4 rounded-2xl border border-slate-800 bg-slate-900/70 p-5 shadow-soft">
-      <div className="flex items-center justify-between">
-        <div>
-          <p className="text-xs uppercase tracking-[0.24em] text-slate-400">Admission criteria</p>
-          <h2 className="text-2xl font-semibold text-white">Pass / Fail</h2>
-        </div>
-        <div className="rounded-full border border-slate-700 px-3 py-1 text-xs text-slate-300">
-          {criteria.filter((entry) => entry.pass).length}/{criteria.length} passed
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 gap-3 xl:grid-cols-3">
-        {criteria.map((item) => (
-          <article
-            key={item.name}
-            className={`rounded-xl border p-4 ${statusTone(item.pass)}`}
-          >
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <p className="text-xs uppercase tracking-[0.2em] text-slate-300">{item.target}</p>
-                <h3 className="mt-2 text-lg font-semibold text-white">{item.name}</h3>
-              </div>
-              <span className="rounded-full border border-current px-2.5 py-1 text-xs font-semibold uppercase">
-                {item.pass ? 'PASS' : 'FAIL'}
-              </span>
-            </div>
-
-            <p className="mt-4 text-3xl font-semibold text-white">
-              {typeof item.value === 'number' ? item.value.toFixed(2) : 'required'}
-              <span className="ml-1 text-sm text-slate-300">{item.unit}</span>
-            </p>
-          </article>
-        ))}
-      </div>
-    </section>
+    <DataTable>
+      <table className="min-w-full text-[12px]">
+        <thead className="bg-slate-50 text-slate-500">
+          <tr>
+            <th className="px-3 py-2.5 text-left font-semibold">Критерий</th>
+            <th className="px-3 py-2.5 text-left font-semibold">Допустимое значение</th>
+            <th className="px-3 py-2.5 text-left font-semibold">Фактическое значение</th>
+            <th className="px-3 py-2.5 text-left font-semibold">Статус</th>
+          </tr>
+        </thead>
+        <tbody>
+          {criteria.map((item) => (
+            <tr key={item.name} className="border-t border-slate-200 bg-white hover:bg-slate-50/80">
+              <td className="px-3 py-3 font-medium text-slate-900">{item.name}</td>
+              <td className="px-3 py-3 text-slate-500">{item.target ?? 'Не указан'}</td>
+              <td className="px-3 py-3 text-slate-900">{renderValue(item)}</td>
+              <td className="px-3 py-3">
+                {item.pass === undefined ? (
+                  <span className="text-slate-400">Нет данных</span>
+                ) : (
+                  <StatusChip ok={item.pass} />
+                )}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </DataTable>
   )
 }

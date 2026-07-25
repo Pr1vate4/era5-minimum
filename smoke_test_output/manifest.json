@@ -1,0 +1,170 @@
+{
+  "channel_spec": [
+    {
+      "index": 0,
+      "name": "t2m",
+      "units": "K"
+    },
+    {
+      "index": 1,
+      "name": "mslp",
+      "units": "Pa"
+    },
+    {
+      "index": 2,
+      "name": "u10",
+      "units": "m s-1"
+    },
+    {
+      "index": 3,
+      "name": "v10",
+      "units": "m s-1"
+    },
+    {
+      "index": 4,
+      "name": "tp6h",
+      "units": "m"
+    },
+    {
+      "index": 5,
+      "name": "sst",
+      "units": "K"
+    },
+    {
+      "index": 6,
+      "name": "tcwv",
+      "units": "kg m-2"
+    },
+    {
+      "index": 7,
+      "name": "tcc",
+      "units": "0-1"
+    },
+    {
+      "index": 8,
+      "name": "T1000",
+      "units": "K"
+    },
+    {
+      "index": 9,
+      "name": "T925",
+      "units": "K"
+    },
+    {
+      "index": 10,
+      "name": "T850",
+      "units": "K"
+    },
+    {
+      "index": 11,
+      "name": "T700",
+      "units": "K"
+    },
+    {
+      "index": 12,
+      "name": "U1000",
+      "units": "m s-1"
+    },
+    {
+      "index": 13,
+      "name": "U925",
+      "units": "m s-1"
+    },
+    {
+      "index": 14,
+      "name": "U850",
+      "units": "m s-1"
+    },
+    {
+      "index": 15,
+      "name": "U700",
+      "units": "m s-1"
+    },
+    {
+      "index": 16,
+      "name": "V1000",
+      "units": "m s-1"
+    },
+    {
+      "index": 17,
+      "name": "V925",
+      "units": "m s-1"
+    },
+    {
+      "index": 18,
+      "name": "V850",
+      "units": "m s-1"
+    },
+    {
+      "index": 19,
+      "name": "V700",
+      "units": "m s-1"
+    },
+    {
+      "index": 20,
+      "name": "Z1000",
+      "units": "m2 s-2"
+    },
+    {
+      "index": 21,
+      "name": "Z925",
+      "units": "m2 s-2"
+    },
+    {
+      "index": 22,
+      "name": "Z850",
+      "units": "m2 s-2"
+    },
+    {
+      "index": 23,
+      "name": "Z700",
+      "units": "m2 s-2"
+    },
+    {
+      "index": 24,
+      "name": "Q1000",
+      "units": "kg kg-1"
+    },
+    {
+      "index": 25,
+      "name": "Q925",
+      "units": "kg kg-1"
+    },
+    {
+      "index": 26,
+      "name": "Q850",
+      "units": "kg kg-1"
+    },
+    {
+      "index": 27,
+      "name": "Q700",
+      "units": "kg kg-1"
+    }
+  ],
+  "dataset_id": "era5-minimum-28ch-real",
+  "integrity": {
+    "manifest_sha256": "ff31c1058bde0041e7faf32c901d0e61bc68dc96481285494d46924d24d9e26a",
+    "storage_compression_is_not_codec_result": true
+  },
+  "nested_subsets": {
+    "16": {
+      "count": 16,
+      "sha256": "9c354b33b2e8177a667aa2501712d500f4e4aedd359ae4d7b39e178b5289f6a4"
+    },
+    "4": {
+      "count": 4,
+      "sha256": "d36698a58dc85dd047e64ab7ca7dfe2db2922c6f4625b5cafbb70456d7a5ea15"
+    },
+    "8": {
+      "count": 8,
+      "sha256": "34b65b2e965a94617b55a7e8e07f5a35e5e06c32092a0bef181972136f27fc64"
+    }
+  },
+  "schema_version": "1.0.0",
+  "splits": {
+    "test": "2021",
+    "train": "2014-2019",
+    "val": "2020"
+  },
+  "statistics": {}
+}
