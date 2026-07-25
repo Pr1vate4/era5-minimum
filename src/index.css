@@ -324,13 +324,6 @@ textarea {
   line-height: 22px;
 }
 
-.codec-ratio span {
-  margin-top: 2px;
-  color: var(--text-muted);
-  font-size: 10px;
-  font-weight: 700;
-}
-
 .codec-ratio--active {
   border-color: var(--accent);
   background: var(--accent-soft);

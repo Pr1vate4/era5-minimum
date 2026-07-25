@@ -74,8 +74,7 @@ export default function CodecPage() {
                       workspace.targetRatio === ratio ? 'codec-ratio--active' : ''
                     }`}
                   >
-                    <strong>Tensor {ratio}×</strong>
-                    <span>{ratio === 32 ? 'Больше качества' : 'Меньше размер'}</span>
+                    <strong>{ratio}×</strong>
                   </button>
                 ))}
               </div>
