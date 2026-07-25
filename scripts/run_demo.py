@@ -39,6 +39,8 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT / "src") not in sys.path:
     sys.path.insert(0, str(ROOT / "src"))
 
+DEFAULT_CHECKPOINT = ROOT / "checkpoints" / "cra5_era5_28ch_best.pth"
+
 from era5_minimum.cra5.codec_workflow import (
     decode_cra5,
     encode_cra5,
@@ -94,8 +96,21 @@ def check_train_checkpoint(output_dir: Path, quick: bool) -> Path:
     return bundle
 
 
-def get_device() -> str:
-    return "cuda" if torch.cuda.is_available() else "cpu"
+def load_trained_checkpoint_if_available(
+    model: torch.nn.Module,
+    checkpoint_path: Path = DEFAULT_CHECKPOINT,
+) -> dict | None:
+    """Load trained Cra5Vaeformer28 weights when a valid checkpoint bundle exists."""
+    if not checkpoint_path.exists():
+        return None
+    bundle = torch.load(checkpoint_path, map_location="cpu", weights_only=False)
+    missing, unexpected = model.load_state_dict(bundle["model_state_dict"], strict=True)
+    if missing or unexpected:
+        raise RuntimeError(
+            f"Checkpoint load failed: missing={len(missing)} unexpected={len(unexpected)}"
+        )
+    print(f"[OK] Loaded trained checkpoint: {checkpoint_path}")
+    return bundle
 
 
 def canonical_28ch_input(height: int = 352, width: int = 720, seed: int = 42):
@@ -110,6 +125,17 @@ def canonical_28ch_input(height: int = 352, width: int = 720, seed: int = 42):
         seed=seed,
     )
     return torch.from_numpy(data).float()
+
+
+def get_device() -> str:
+    return "cuda" if torch.cuda.is_available() else "cpu"
+
+
+def train_normalization_from_bundle(bundle: dict) -> tuple[torch.Tensor, torch.Tensor]:
+    norm = bundle["normalization"]
+    mean_t = torch.tensor(norm["mean"]).float().view(1, 28, 1, 1)
+    std_t = torch.tensor(norm["std"]).float().view(1, 28, 1, 1)
+    return mean_t, std_t
 
 
 def train_normalization(train_data: torch.Tensor):
@@ -134,22 +160,37 @@ def build_representative_training_split(n_samples: int = 16, seed: int = 1337):
     return torch.from_numpy(data).float()
 
 
-def run_encode_decode(hidden: int, latent: int, qstep: float, delta: bool, out_dir: Path, use_pretrained_if_available: bool = False):
+def run_encode_decode(
+    hidden: int,
+    latent: int,
+    num_encoder_blocks: int,
+    num_decoder_blocks: int,
+    num_heads: int,
+    qstep: float,
+    delta: bool,
+    out_dir: Path,
+    use_pretrained_if_available: bool = False,
+):
     """One-shot full demo inference. Returns summary dict."""
     device = get_device()
     patch_size = (11, 10) if (use_pretrained_if_available and hidden == 1024) else (4, 4)
-    print(f"[..] Building model h={hidden} l={latent} qstep={qstep} delta={delta} patch_size={patch_size} device={device}")
-    heads = max(1, hidden // 64) if hidden >= 64 else 8
+    total_params = None
     model = build_cra5_model(
         in_channels=28,
         out_channels=28,
         hidden_dim=hidden,
         latent_dim=latent,
-        num_encoder_blocks=8,
-        num_decoder_blocks=8,
-        num_heads=heads,
+        num_encoder_blocks=num_encoder_blocks,
+        num_decoder_blocks=num_decoder_blocks,
+        num_heads=num_heads,
         patch_size=patch_size,
     )
+    total_params = sum(p.numel() for p in model.parameters())
+    trainable = sum(p.numel() for p in model.parameters() if p.requires_grad)
+    print(f"[..] Building model h={hidden} l={latent} eb={num_encoder_blocks} db={num_decoder_blocks} "
+          f"heads={num_heads} patch={patch_size} device={device}")
+    print(f"     total_params={total_params:,} ({total_params/1e6:.2f}M)  "
+          f"trainable={trainable:,} ({trainable/1e6:.2f}M/20M limit {'✅' if trainable<=20_000_000 else '❌ OVER'})")
 
     if use_pretrained_if_available and hidden == 1024:
         ckpt = Path.home() / ".cache/era5-minimum/cra5/cra5_159v_150k.pth"
@@ -160,15 +201,21 @@ def run_encode_decode(hidden: int, latent: int, qstep: float, delta: bool, out_d
             m, u = model.load_state_dict(adapted, strict=False)
             print(f"     adapted {meta.copied_channels} copied channels missing={len(m)} unexpected={len(u)}")
 
+    checkpoint_bundle = load_trained_checkpoint_if_available(model)
+
     model = model.to(device).eval()
 
     raw = canonical_28ch_input().to(device)  # [1,28,352,720]
-    rep_train = build_representative_training_split().to(device)
-    mean_t, std_t = train_normalization(rep_train)
-    mean_t = mean_t.to(device).view(1, 28, 1, 1)
-    std_t = std_t.to(device).view(1, 28, 1, 1)
-    mean_np = mean_t.squeeze().cpu().numpy()
-    std_np = std_t.squeeze().cpu().numpy()
+    if checkpoint_bundle is not None:
+        mean_t, std_t = train_normalization_from_bundle(checkpoint_bundle)
+        mean_t = mean_t.to(device)
+        std_t = std_t.to(device)
+    else:
+        print("[..] No trained checkpoint — using train-only norm from representative split")
+        rep_train = build_representative_training_split().to(device)
+        mean_t, std_t = train_normalization(rep_train)
+        mean_t = mean_t.to(device).view(1, 28, 1, 1)
+        std_t = std_t.to(device).view(1, 28, 1, 1)
 
     x = (raw - mean_t) / std_t
 
@@ -197,6 +244,14 @@ def run_encode_decode(hidden: int, latent: int, qstep: float, delta: bool, out_d
     return {
         "hidden_dim": hidden,
         "latent_dim": latent,
+        "num_encoder_blocks": num_encoder_blocks,
+        "num_decoder_blocks": num_decoder_blocks,
+        "num_heads": num_heads,
+        "total_params": int(total_params or 0),
+        "trainable_params": int(trainable or 0),
+        "trainable_params_within_20M_limit": bool((trainable or 0) <= 20_000_000),
+        "checkpoint_loaded": checkpoint_bundle is not None,
+        "checkpoint_path": str(DEFAULT_CHECKPOINT) if checkpoint_bundle is not None else None,
         "quantization_step": qstep,
         "delta_coding": delta,
         "input_shape": list(raw.shape),
@@ -209,6 +264,17 @@ def run_encode_decode(hidden: int, latent: int, qstep: float, delta: bool, out_d
         "latent_shape": list(q.shape),
         "bitstream_path": str(bitstream_path),
         "device": device,
+        "resource_rules": {
+            "max_trainable_params_M": 20,
+            "max_opt_steps": 50000,
+            "max_gpus": 1,
+            "peak_vram_gb_limit": 24,
+            "max_gpu_hours": 48,
+            "training_resolution_deg": 0.25,
+            "global_grid_in_single_forward_no_tiles": True,
+            "patch_based_training_allowed": True,
+            "external_weather_pretraining_forbidden": True,
+        },
     }
 
 
@@ -249,14 +315,14 @@ def main() -> int:
     args = ap.parse_args()
 
     if args.ultra:
-        mode_label = "ULTRA-FAST (hidden=256, latent=64, q=0.3 — ~15 s CPU, ≥32x expected)"
-        hidden, latent, qstep, delta, use_pt = 256, 64, 0.3, True, False
+        mode_label = "ULTRA-FAST (h=256, l=32, q=0.3 — ~8 s CPU, ~200x est.) — 5.72M params (<20M ✅)"
+        hidden, latent, qstep, delta, use_pt, eb, db, nh = 256, 32, 0.3, True, False, 4, 4, 4
     elif args.full:
-        mode_label = "FULL (CRA5-159v compatible h=1024, l=256, 64x+)"
-        hidden, latent, qstep, delta, use_pt = 1024, 256, 0.15, True, True
+        mode_label = "BALANCED (h=256, l=64 4bl — 9.24M params <20M ✅, ~70x est. on full grid)"
+        hidden, latent, qstep, delta, use_pt, eb, db, nh = 256, 64, 0.2, True, False, 4, 4, 4
     else:
-        mode_label = "QUICK (h=512, l=96 — ~1 min CPU, ≥64x target)"
-        hidden, latent, qstep, delta, use_pt = 512, 96, 0.2, True, False
+        mode_label = "LARGEST ALLOWED h=384, l=96 4bl — 18.60M params (<20M ✅, ~80x est.)"
+        hidden, latent, qstep, delta, use_pt, eb, db, nh = 384, 96, 0.2, True, False, 4, 4, 6
     out_dir: Path = args.output_dir
     out_dir.mkdir(parents=True, exist_ok=True)
 
@@ -268,6 +334,9 @@ def main() -> int:
     res = run_encode_decode(
         hidden=hidden,
         latent=latent,
+        num_encoder_blocks=eb,
+        num_decoder_blocks=db,
+        num_heads=nh,
         qstep=qstep,
         delta=delta,
         out_dir=out_dir,

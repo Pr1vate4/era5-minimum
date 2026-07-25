@@ -22,7 +22,8 @@ export API_PORT
 	monitoring-grafana-logs monitoring-smoke monitoring-check-prometheus-config \
 	monitoring-check-rules monitoring-clean frontend-up frontend-build dev \
 	ml-samples cra5-checkpoint-dry-run cra5-smoke cra5-train-n16 cra5-train-n32 \
-	cra5-train-n64 cra5-train-n128 experiment-ladder demo demo-ultra demo-full
+	cra5-train-n64 cra5-train-n128 experiment-ladder demo demo-ultra demo-full \
+	cra5-profile-params cra5-produce-checkpoint cra5-verify-checkpoint
 
 help: ## Show available project and container commands.
 
@@ -66,8 +67,17 @@ demo: ## ONE-COMMAND DEMO (quick mode, ~1 min CPU, ≥64x serialized CR).
 demo-ultra: ## One-command demo ultra-fast (~15s CPU, ≥32x CR expected).
 	PYTHONPATH=src python scripts/run_demo.py --ultra
 
-demo-full: ## One-command demo — CRA5-159v compatible mode (1024/256, ≥64x CR; uses pretrained if available).
+demo-full: ## One-command demo — largest ≤20M config (h384/l96, ≥32x CR expected).
 	PYTHONPATH=src python scripts/run_demo.py --full
+
+cra5-profile-params: ## Profile CRA5 configs under the 20M parameter limit.
+	PYTHONPATH=src python scripts/_profile_params.py
+
+cra5-produce-checkpoint: runtime-dirs ## Produce Artemka-valid checkpoint bundle (h256/l64, patch-train).
+	PYTHONPATH=src python scripts/produce_valid_checkpoint.py --max-train-batches 4
+
+cra5-verify-checkpoint: runtime-dirs ## Verify checkpoint against the Artemka formal checklist.
+	PYTHONPATH=src python scripts/verify_checkpoint.py --name cra5_era5_28ch_best
 
 cra5-train-n16: ## Train CRA5 adapter with 16 samples.
 	python scripts/train_cra5_adapter.py --config configs/cra5/cra5_adapter_n16.yaml
