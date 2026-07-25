@@ -19,6 +19,13 @@ from .channel_mapping import (
     Cra5ChannelMapping,
     validate_cra5_channel_mapping,
 )
+from .codec_workflow import (
+    Cra5CodecMetadata,
+    decode_cra5,
+    encode_and_serialize_cra5,
+    encode_cra5,
+    serialize_cra5_bitstream,
+)
 from .model import (
     Cra5Vaeformer28,
     build_cra5_model,
@@ -53,12 +60,17 @@ __all__ = [
     "Cra5BridgeError",
     "Cra5BridgeRequest",
     "Cra5BridgeResponse",
+    "Cra5CodecMetadata",
     "Cra5Vaeformer28",
     "Cra5ChannelMapping",
     "adapt_cra5_checkpoint",
     "build_cra5_model",
     "checkpoint_cache_path",
+    "decode_cra5",
+    "encode_and_serialize_cra5",
+    "encode_cra5",
     "fetch_checkpoint",
+    "serialize_cra5_bitstream",
     "validate_checkpoint_file",
     "validate_cra5_channel_mapping",
     "run_cra5_bridge",
