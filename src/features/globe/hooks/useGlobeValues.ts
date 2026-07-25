@@ -1,41 +1,22 @@
 import { useEffect, useState } from 'react'
-import { resolvePublicAssetUrl } from '../utils/resolvePublicAssetUrl'
-
-const valuesCache = new Map<string, Float32Array>()
-const littleEndianHost = new Uint8Array(new Uint16Array([1]).buffer)[0] === 1
-
-function decodeFloat32LittleEndian(buffer: ArrayBuffer) {
-  if (buffer.byteLength % Float32Array.BYTES_PER_ELEMENT !== 0) {
-    throw new Error('Размер values.bin не кратен четырём байтам.')
-  }
-
-  if (littleEndianHost) return new Float32Array(buffer)
-
-  const view = new DataView(buffer)
-  const values = new Float32Array(buffer.byteLength / Float32Array.BYTES_PER_ELEMENT)
-  for (let index = 0; index < values.length; index += 1) {
-    values[index] = view.getFloat32(index * Float32Array.BYTES_PER_ELEMENT, true)
-  }
-  return values
-}
+import { getCachedGlobeValues, loadGlobeValues } from '../data/globeValues'
 
 export function useGlobeValues(valuesPath: string | undefined, expectedLength: number | undefined) {
-  const valuesUrl = valuesPath ? resolvePublicAssetUrl(valuesPath) : undefined
   const [values, setValues] = useState<Float32Array | null>(
-    valuesUrl ? (valuesCache.get(valuesUrl) ?? null) : null,
+    getCachedGlobeValues(valuesPath),
   )
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    if (!valuesUrl) {
+    if (!valuesPath) {
       setValues(null)
       setLoading(false)
       setError(null)
       return
     }
 
-    const cached = valuesCache.get(valuesUrl)
+    const cached = getCachedGlobeValues(valuesPath)
     if (cached) {
       setValues(cached)
       setLoading(false)
@@ -48,20 +29,9 @@ export function useGlobeValues(valuesPath: string | undefined, expectedLength: n
     setLoading(true)
     setError(null)
 
-    fetch(valuesUrl, { signal: controller.signal })
-      .then((response) => {
-        if (!response.ok) throw new Error(`HTTP ${response.status}`)
-        return response.arrayBuffer()
-      })
-      .then((buffer) => {
-        const decoded = decodeFloat32LittleEndian(buffer)
-        if (expectedLength !== undefined && decoded.length !== expectedLength) {
-          throw new Error(
-            `values.bin содержит ${decoded.length} значений, ожидалось ${expectedLength}.`,
-          )
-        }
-        valuesCache.set(valuesUrl, decoded)
-        setValues(decoded)
+    void loadGlobeValues(valuesPath, expectedLength, controller.signal)
+      .then((loadedValues) => {
+        setValues(loadedValues)
         setLoading(false)
       })
       .catch((caughtError: unknown) => {
@@ -75,7 +45,7 @@ export function useGlobeValues(valuesPath: string | undefined, expectedLength: n
       })
 
     return () => controller.abort()
-  }, [expectedLength, valuesUrl])
+  }, [expectedLength, valuesPath])
 
   return { values, loading, error }
 }

@@ -1,5 +1,9 @@
 export type GlobeMode = 'original' | 'reconstruction' | 'absolute-error'
 
+export type GlobeDisplayMode = 'earth' | 'data'
+
+export const NO_PARAMETER_VALUE = '__no_parameter__' as const
+
 export type GlobeGrid = '0p25' | '0p5'
 
 export type SurfaceChannel =

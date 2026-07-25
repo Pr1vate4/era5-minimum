@@ -1,6 +1,25 @@
 import { defineConfig, loadEnv } from 'vite'
 import react from '@vitejs/plugin-react'
 
+const ignoredWatchDirectories: string[] = [
+  '.venv',
+  'venv',
+  'data',
+  'outputs',
+  'checkpoints',
+  'bitstreams',
+  'artifacts',
+  'submission',
+]
+
+function shouldIgnoreWatchedPath(path: string) {
+  const segments = path.replace(/\\/g, '/').split('/').filter(Boolean)
+  const isPublicData = segments.some(
+    (segment, index) => segment === 'data' && segments[index - 1] === 'public',
+  )
+  return !isPublicData && segments.some((segment) => ignoredWatchDirectories.indexOf(segment) >= 0)
+}
+
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, '.', '')
 
@@ -11,17 +30,8 @@ export default defineConfig(({ mode }) => {
       port: Number(env.VITE_PORT || 5173),
       watch: {
         // Python environments and experiment artifacts can contain millions of
-        // files. They are not frontend sources and exhaust Linux inotify limits.
-        ignored: [
-          '**/.venv/**',
-          '**/venv/**',
-          '**/data/**',
-          '**/outputs/**',
-          '**/checkpoints/**',
-          '**/bitstreams/**',
-          '**/artifacts/**',
-          '**/submission/**',
-        ],
+        // files. Keep public/data observable because it contains globe assets.
+        ignored: shouldIgnoreWatchedPath,
       },
     },
     preview: {

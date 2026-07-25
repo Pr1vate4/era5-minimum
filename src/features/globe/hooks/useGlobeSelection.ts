@@ -1,14 +1,16 @@
-import { useMemo } from 'react'
+import { useEffect, useMemo } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { globeParameterConfigs, isPressureChannel } from '../data/globeParameterConfig'
 import { uniqueValues } from '../data/globeSelectors'
-import type {
-  GlobeChannel,
-  GlobeFrameAsset,
-  GlobeGrid,
-  GlobeMode,
-  GlobeResearchDefaults,
-  PressureLevel,
+import {
+  NO_PARAMETER_VALUE,
+  type GlobeChannel,
+  type GlobeDisplayMode,
+  type GlobeFrameAsset,
+  type GlobeGrid,
+  type GlobeMode,
+  type GlobeResearchDefaults,
+  type PressureLevel,
 } from '../types/globe'
 
 type SelectionDefaults = GlobeResearchDefaults & {
@@ -19,6 +21,15 @@ type SelectionDefaults = GlobeResearchDefaults & {
 
 const gridOrder: GlobeGrid[] = ['0p25', '0p5']
 const pressureLevelOrder: PressureLevel[] = [1000, 925, 850, 700]
+const scientificUrlKeys = [
+  'channel',
+  'level',
+  'mode',
+  'runId',
+  'trainFrames',
+  'compressionRatio',
+  'checkpoint',
+] as const
 
 function firstMatching<T>(requested: string | null, options: T[], stringify: (value: T) => string) {
   return options.find((option) => stringify(option) === requested) ?? options[0]
@@ -36,6 +47,7 @@ export function useGlobeSelection(
   defaults: SelectionDefaults,
 ) {
   const [searchParams, setSearchParams] = useSearchParams()
+  const searchParamsKey = searchParams.toString()
   const requestedMode = searchParams.get('mode') as GlobeMode | null
   const mode =
     requestedMode && availableModes.includes(requestedMode)
@@ -52,11 +64,7 @@ export function useGlobeSelection(
   const runId =
     mode === 'original'
       ? undefined
-      : firstMatching(
-          requestedRunId ?? defaults.runId ?? null,
-          runIds,
-          String,
-        )
+      : firstMatching(requestedRunId ?? defaults.runId ?? null, runIds, String)
 
   const runFrames = modeFrames.filter(
     (frame) => mode === 'original' || !runId || frame.runId === runId,
@@ -113,21 +121,31 @@ export function useGlobeSelection(
   const enabledChannels = channelOptions
     .filter((option) => option.available)
     .map((option) => option.channel)
-  const requestedChannel = searchParams.get('channel') ?? defaults.channel
+  const urlChannel = searchParams.get('channel')
+  const requestedChannel = urlChannel ?? defaults.channel
   const channel =
     enabledChannels.find((candidate) => candidate === requestedChannel) ??
     enabledChannels[0] ??
     't2m'
-  const channelFrames = researchFrames.filter((frame) => frame.channel === channel)
+  const hasValidUrlChannel = enabledChannels.some((candidate) => candidate === urlChannel)
+  const requestedView = searchParams.get('view')
+  const displayMode: GlobeDisplayMode =
+    requestedView !== 'earth' && hasValidUrlChannel ? 'data' : 'earth'
 
+  const channelFrames = researchFrames.filter((frame) => frame.channel === channel)
   const availableGrids = new Set(channelFrames.map((frame) => frame.grid))
-  const gridOptions = gridOrder.map((value) => ({ value, available: availableGrids.has(value) }))
-  const enabledGrids = gridOptions.filter((option) => option.available).map((option) => option.value)
+  const dataGridOptions = gridOrder.map((value) => ({
+    value,
+    available: availableGrids.has(value),
+  }))
+  const enabledGrids = dataGridOptions
+    .filter((option) => option.available)
+    .map((option) => option.value)
   const requestedGrid = normalizeGrid(searchParams.get('grid') ?? defaults.grid)
-  const grid = enabledGrids.includes(requestedGrid as GlobeGrid)
+  const dataGrid = enabledGrids.includes(requestedGrid as GlobeGrid)
     ? (requestedGrid as GlobeGrid)
     : (enabledGrids[0] ?? '0p25')
-  const gridFrames = channelFrames.filter((frame) => frame.grid === grid)
+  const gridFrames = channelFrames.filter((frame) => frame.grid === dataGrid)
 
   const levelOptions = isPressureChannel(channel)
     ? pressureLevelOrder.filter((level) => gridFrames.some((frame) => frame.level === level))
@@ -144,13 +162,73 @@ export function useGlobeSelection(
     (frame) => !isPressureChannel(channel) || frame.level === level,
   )
 
-  const timestampOptions = uniqueValues(levelFrames.map((frame) => frame.timestamp)).sort()
+  const dataTimestampOptions = uniqueValues(levelFrames.map((frame) => frame.timestamp)).sort()
   const requestedTimestamp = searchParams.get('timestamp') ?? defaults.timestamp
-  const timestamp =
-    timestampOptions.find((candidate) => candidate === requestedTimestamp) ??
-    timestampOptions[0] ??
+  const dataTimestamp =
+    dataTimestampOptions.find((candidate) => candidate === requestedTimestamp) ??
+    dataTimestampOptions[0] ??
     ''
-  const frame = levelFrames.find((candidate) => candidate.timestamp === timestamp)
+  const dataFrame = levelFrames.find((candidate) => candidate.timestamp === dataTimestamp)
+
+  const allOriginalTccFrames = useMemo(
+    () => frames.filter((frame) => frame.mode === 'original' && frame.channel === 'tcc'),
+    [frames],
+  )
+  const era5TccFrames = allOriginalTccFrames.filter((frame) => frame.source === 'ERA5')
+  const tccFrames = era5TccFrames.length > 0 ? era5TccFrames : allOriginalTccFrames
+  const exactTimestampFrames = requestedTimestamp
+    ? tccFrames.filter((frame) => frame.timestamp === requestedTimestamp)
+    : []
+  const earthGridCandidates =
+    exactTimestampFrames.length > 0 ? exactTimestampFrames : tccFrames
+  const earthAvailableGrids = new Set(earthGridCandidates.map((frame) => frame.grid))
+  const earthGrid =
+    gridOrder.find(
+      (candidate) =>
+        candidate === requestedGrid && earthAvailableGrids.has(candidate),
+    ) ??
+    gridOrder.find((candidate) => earthAvailableGrids.has(candidate)) ??
+    earthGridCandidates[0]?.grid ??
+    '0p25'
+  const earthGridFrames = tccFrames.filter((frame) => frame.grid === earthGrid)
+  const earthTimestampOptions = uniqueValues(
+    earthGridFrames.map((frame) => frame.timestamp),
+  ).sort()
+  const earthTimestamp = findNearestTimestamp(
+    requestedTimestamp,
+    earthTimestampOptions,
+  )
+  const cloudFrame = earthGridFrames.find(
+    (candidate) => candidate.timestamp === earthTimestamp,
+  )
+  const framesAtEarthTimestamp = tccFrames.filter(
+    (frame) => frame.timestamp === earthTimestamp,
+  )
+  const gridsAtEarthTimestamp = new Set(
+    framesAtEarthTimestamp.map((frame) => frame.grid),
+  )
+  const earthGridOptions = gridOrder.map((value) => ({
+    value,
+    available: gridsAtEarthTimestamp.has(value),
+  }))
+
+  useEffect(() => {
+    const next = new URLSearchParams(searchParamsKey)
+    if (displayMode === 'earth') {
+      next.set('view', 'earth')
+      scientificUrlKeys.forEach((key) => next.delete(key))
+      if (cloudFrame) {
+        next.set('timestamp', cloudFrame.timestamp)
+        next.set('grid', cloudFrame.grid)
+      }
+    } else {
+      next.set('view', 'data')
+    }
+
+    if (next.toString() !== searchParamsKey) {
+      setSearchParams(next, { replace: true })
+    }
+  }, [cloudFrame, displayMode, searchParamsKey, setSearchParams])
 
   const updateParam = (key: string, value: string | number | undefined) => {
     setSearchParams(
@@ -164,10 +242,44 @@ export function useGlobeSelection(
     )
   }
 
+  const setDisplayMode = (value: GlobeDisplayMode) => {
+    setSearchParams(
+      (current) => {
+        const next = new URLSearchParams(current)
+        next.set('view', value)
+        if (value === 'earth') {
+          scientificUrlKeys.forEach((key) => next.delete(key))
+          if (cloudFrame) {
+            next.set('timestamp', cloudFrame.timestamp)
+            next.set('grid', cloudFrame.grid)
+          }
+        } else {
+          next.set('channel', channel)
+          next.set('mode', mode)
+        }
+        return next
+      },
+      { replace: true },
+    )
+  }
+
+  const setChannel = (value: GlobeChannel) => {
+    setSearchParams(
+      (current) => {
+        const next = new URLSearchParams(current)
+        next.set('view', 'data')
+        next.set('channel', value)
+        return next
+      },
+      { replace: true },
+    )
+  }
+
   const selectFrame = (candidate: GlobeFrameAsset) => {
     setSearchParams(
       (current) => {
         const next = new URLSearchParams(current)
+        next.set('view', 'data')
         next.set('mode', candidate.mode)
         next.set('channel', candidate.channel)
         next.set('timestamp', candidate.timestamp)
@@ -184,16 +296,19 @@ export function useGlobeSelection(
   }
 
   return {
+    displayMode,
     mode,
     channel: channel as GlobeChannel,
-    grid,
-    level,
-    timestamp,
-    frame,
+    grid: displayMode === 'earth' ? earthGrid : dataGrid,
+    level: displayMode === 'earth' ? undefined : level,
+    timestamp: displayMode === 'earth' ? earthTimestamp : dataTimestamp,
+    frame: displayMode === 'data' ? dataFrame : undefined,
+    cloudFrame,
     channelOptions,
-    gridOptions,
+    gridOptions: displayMode === 'earth' ? earthGridOptions : dataGridOptions,
     levelOptions,
-    timestampOptions,
+    timestampOptions:
+      displayMode === 'earth' ? earthTimestampOptions : dataTimestampOptions,
     researchOptions: {
       runIds,
       trainFrames: trainFrameOptions,
@@ -201,8 +316,19 @@ export function useGlobeSelection(
       checkpoints: checkpointOptions,
     },
     research: { runId, trainFrames, compressionRatio, checkpoint },
-    setMode: (value: GlobeMode) => updateParam('mode', value),
-    setChannel: (value: GlobeChannel) => updateParam('channel', value),
+    setDisplayMode,
+    setMode: (value: GlobeMode) =>
+      setSearchParams(
+        (current) => {
+          const next = new URLSearchParams(current)
+          next.set('view', 'data')
+          next.set('channel', channel)
+          next.set('mode', value)
+          return next
+        },
+        { replace: true },
+      ),
+    setChannel,
     setGrid: (value: GlobeGrid) => updateParam('grid', value),
     setLevel: (value: PressureLevel) => updateParam('level', value),
     setTimestamp: (value: string) => updateParam('timestamp', value),
@@ -211,6 +337,7 @@ export function useGlobeSelection(
     setCompressionRatio: (value: number) => updateParam('compressionRatio', value),
     setCheckpoint: (value: string) => updateParam('checkpoint', value),
     selectFrame,
+    noParameterValue: NO_PARAMETER_VALUE,
   }
 }
 
@@ -219,6 +346,22 @@ function normalizeGrid(value: string | undefined | null) {
   if (value === '0.25deg' || value === '0.25°') return '0p25'
   if (value === '0.5deg' || value === '0.5°') return '0p5'
   return value
+}
+
+function findNearestTimestamp(
+  requested: string | undefined,
+  options: string[],
+) {
+  if (options.length === 0) return ''
+  if (requested && options.includes(requested)) return requested
+  if (!requested || Number.isNaN(Date.parse(requested))) return options[0]
+
+  const requestedTime = Date.parse(requested)
+  return options.reduce((nearest, candidate) => {
+    const nearestDistance = Math.abs(Date.parse(nearest) - requestedTime)
+    const candidateDistance = Math.abs(Date.parse(candidate) - requestedTime)
+    return candidateDistance < nearestDistance ? candidate : nearest
+  }, options[0])
 }
 
 function setOptionalParam(
