@@ -57,9 +57,10 @@ optimizer:
   weight_decay: 1e-6
 
 scheduler:
-  type: cosine_annealing
-  T_max: 50
-  eta_min: 1e-6
+  type: one_cycle
+  pct_start: 0.3
+  div_factor: 25.0
+  final_div_factor: 10000.0
 
 logging:
   wandb_project: era5-minimum-cra5

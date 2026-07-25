@@ -52,9 +52,7 @@ optimizer:
   weight_decay: 1e-6
 
 scheduler:
-  type: constant
-  
-logging:
-  wandb_project: null  # No wandb for smoke test
-  log_frequency: 1
-  save_checkpoint_frequency: 999  # Effectively disabled
+  type: one_cycle
+  pct_start: 0.3
+  div_factor: 25.0
+  final_div_factor: 10000.0
