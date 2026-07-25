@@ -1,6 +1,7 @@
 """Codec primitives for ERA5-Minimum."""
 
 from .bitstream import BitstreamError, CanonicalHuffmanCoder
+from .acceptance import AcceptanceError, WeatherCodec, compression_metrics, evaluate_physical_reconstruction
 from .harness import CodecHarness
 from .normalization import NormalizationSpec, denormalize_reconstruction, normalize_physical_tensor
 from .rate_distortion import (
@@ -17,6 +18,7 @@ from .workflow import SMOKE_CHANNELS, build_smoke_tensor, run_codec_smoke
 
 __all__ = [
     "BitstreamError",
+    "AcceptanceError",
     "CanonicalHuffmanCoder",
     "CodecConfig",
     "CodecHarness",
@@ -27,9 +29,11 @@ __all__ = [
     "build_resource_usage_record",
     "build_smoke_tensor",
     "compute_tile_seam_error",
+    "compression_metrics",
     "denormalize_reconstruction",
     "decode_latent_tiled",
     "grouped_latitude_distortion",
+    "evaluate_physical_reconstruction",
     "NormalizationSpec",
     "measure_runtime_resources",
     "normalize_physical_tensor",
@@ -38,4 +42,5 @@ __all__ = [
     "run_codec_smoke",
     "ScalarQuantizer",
     "write_resource_usage",
+    "WeatherCodec",
 ]
