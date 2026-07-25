@@ -133,7 +133,7 @@ export default function RateDistortionPage() {
       ) : (
         <ChartCard
           title="Кривая rate–distortion"
-          description="Синий — модель. Бирюзовый референс отображается только при наличии reference_nrmse."
+          description="Синий — модель. Янтарный референс отображается только при наличии reference_nrmse."
         >
           <RateDistortionChart data={points} metric={metric} showReference={showReference} />
         </ChartCard>

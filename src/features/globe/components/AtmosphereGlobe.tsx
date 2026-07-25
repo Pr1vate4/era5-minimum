@@ -1,5 +1,6 @@
 import { Expand, Globe2, Minimize2, RotateCcw } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { useAppSettings } from '../../../hooks/useAppSettings'
 import { locateGlobeGridPoint } from '../data/globeCoordinateUtils'
 import { useGlobeControls } from '../hooks/useGlobeControls'
 import { useGlobeManifest } from '../hooks/useGlobeManifest'
@@ -43,9 +44,10 @@ export default function AtmosphereGlobe({
   researchDefaults = {},
 }: AtmosphereGlobeProps) {
   const cardRef = useRef<HTMLElement>(null)
+  const { settings } = useAppSettings()
   const { manifest, loading: manifestLoading, error: manifestError, reload } =
     useGlobeManifest(manifestUrl)
-  const weatherApiEnabled = import.meta.env.VITE_WEATHER_API_ENABLED !== 'false'
+  const weatherApiEnabled = settings.api.enabled
   const weatherCatalog = useWeatherGlobeCatalog(weatherApiEnabled)
   const activeModes: GlobeMode[] = weatherApiEnabled ? ['original'] : availableModes
   const demoEnabled = import.meta.env.VITE_ENABLE_GLOBE_DEMO === 'true'
@@ -188,7 +190,7 @@ export default function AtmosphereGlobe({
                 Глобальное состояние атмосферы ERA5
               </h2>
               {weatherApiEnabled && !isEarthMode ? (
-                <span className="rounded-md border border-emerald-200 bg-emerald-50 px-2 py-1 text-[11px] font-semibold text-emerald-700">
+                <span className="rounded-md border border-blue-200 bg-blue-50 px-2 py-1 text-[11px] font-semibold text-blue-700">
                   ERA5 Zarr · реальные данные
                 </span>
               ) : statusFrame?.source === 'demo' ? (
@@ -226,6 +228,10 @@ export default function AtmosphereGlobe({
         autoRotate={autoRotate}
         onAutoRotateChange={setAutoRotate}
       />
+
+      {selection.displayMode === 'data' && frame ? (
+        <GlobeColorLegend frame={frame} mode={selection.mode} />
+      ) : null}
 
       <div className="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-4 p-3 sm:p-5 lg:gap-6 lg:p-6 xl:grid-cols-[minmax(0,1fr)_320px]">
         <div className="relative min-h-[420px] min-w-0 overflow-hidden rounded-2xl border border-[#E4E7EC] bg-[radial-gradient(circle_at_50%_45%,#FFFFFF_0%,#F8FAFC_58%,#F2F4F7_100%)] sm:min-h-[500px] lg:min-h-[520px] xl:min-h-[580px]">
@@ -347,9 +353,6 @@ export default function AtmosphereGlobe({
         <p className="sr-only">
           Автовращение отключено в соответствии с настройкой уменьшения движения.
         </p>
-      ) : null}
-      {selection.displayMode === 'data' && frame ? (
-        <GlobeColorLegend frame={frame} mode={selection.mode} />
       ) : null}
     </section>
   )

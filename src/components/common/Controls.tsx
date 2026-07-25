@@ -1,4 +1,4 @@
-import { RotateCcw, Search } from 'lucide-react'
+import { ChevronDown, RotateCcw, Search } from 'lucide-react'
 import type { ReactNode } from 'react'
 
 export function FilterBar({ children }: { children: ReactNode }) {
@@ -25,20 +25,26 @@ type SelectFieldProps = {
 
 export function SelectField({ label, value, options, onChange, disabled }: SelectFieldProps) {
   return (
-    <label className="grid min-w-[150px] gap-1 text-[11px] font-semibold text-slate-500">
+    <label className="grid min-w-[150px] gap-1.5 text-[11px] font-semibold text-slate-500">
       <span>{label}</span>
-      <select
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        disabled={disabled}
-        className="h-9 rounded-lg border border-slate-300 bg-white px-2.5 text-[13px] font-medium text-slate-700 outline-none transition-colors focus:border-blue-400 focus:ring-2 focus:ring-blue-100 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400"
-      >
-        {options.map((option) => (
-          <option key={option.value} value={option.value} disabled={option.disabled}>
-            {option.label}
-          </option>
-        ))}
-      </select>
+      <span className="relative">
+        <select
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+          disabled={disabled}
+          className="h-10 w-full appearance-none rounded-xl border border-slate-200 bg-white/90 px-3 pr-9 text-[13px] font-medium text-slate-700 outline-none transition-colors hover:border-slate-300 hover:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400"
+        >
+          {options.map((option) => (
+            <option key={option.value} value={option.value} disabled={option.disabled}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+        <ChevronDown
+          className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"
+          aria-hidden="true"
+        />
+      </span>
     </label>
   )
 }

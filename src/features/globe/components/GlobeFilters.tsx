@@ -1,4 +1,5 @@
 import {
+  ChevronDown,
   CloudRain,
   Droplets,
   Gauge,
@@ -131,7 +132,7 @@ export function GlobeFilters({
                 selection.setChannel(value as GlobeChannel)
               }}
               aria-label="Параметр отображения глобуса"
-              className={`${selectClassName} w-full pl-10`}
+              className={`${selectClassName} w-full pl-10 pr-10`}
             >
               <option value={NO_PARAMETER_VALUE}>
                 Без параметров — обычная Земля
@@ -151,6 +152,10 @@ export function GlobeFilters({
                 ))}
               </optgroup>
             </select>
+            <ChevronDown
+              className="pointer-events-none absolute right-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#667085]"
+              aria-hidden="true"
+            />
           </span>
         </label>
 
@@ -253,28 +258,34 @@ type SelectControlProps = {
 }
 
 const selectClassName =
-  'h-11 min-w-0 rounded-xl border border-[#D0D5DD] bg-white px-3.5 text-[14px] font-medium text-[#101828] shadow-[0_1px_2px_rgba(16,24,40,0.04)] outline-none transition hover:border-[#98A2B3] focus:border-blue-500 focus:ring-4 focus:ring-blue-100 disabled:cursor-not-allowed disabled:bg-[#F2F4F7] disabled:text-[#98A2B3]'
+  'h-11 min-w-0 appearance-none rounded-xl border border-[#D8DEE8] bg-white/90 px-3.5 pr-10 text-[14px] font-medium text-[#101828] outline-none transition-colors hover:border-[#98A2B3] hover:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:cursor-not-allowed disabled:bg-[#F2F4F7] disabled:text-[#98A2B3]'
 
 function SelectControl({ label, value, options, onChange }: SelectControlProps) {
   return (
     <label className="grid min-w-0 gap-2">
       <span className="text-[12px] font-semibold leading-4 text-[#344054]">{label}</span>
-      <select
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        disabled={options.length <= 1}
-        className={`${selectClassName} w-full`}
-      >
-        {options.length ? (
-          options.map((option) => (
-            <option key={option.value} value={option.value}>
-              {option.label}
-            </option>
-          ))
+      <span className="relative">
+        <select
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+          disabled={options.length <= 1}
+          className={`${selectClassName} w-full`}
+        >
+          {options.length ? (
+            options.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))
         ) : (
           <option value="">Нет данных</option>
         )}
-      </select>
+        </select>
+        <ChevronDown
+          className="pointer-events-none absolute right-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#667085]"
+          aria-hidden="true"
+        />
+      </span>
     </label>
   )
 }

@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useState, type ReactNode } from 'react'
+import { resolveResultsUrl } from '../app/settings'
+import { useAppSettings } from '../hooks/useAppSettings'
 import { ResultsContext } from '../hooks/useResults'
 import type { DashboardResults } from '../types'
 
@@ -34,14 +36,23 @@ function normalizeResults(input: Partial<DashboardResults> | null | undefined): 
 }
 
 export function ResultsProvider({ children }: { children: ReactNode }) {
+  const { settings } = useAppSettings()
   const [data, setData] = useState<DashboardResults | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [requestVersion, setRequestVersion] = useState(0)
+  const { resultsUrl, cacheMode, refreshMinutes } = settings.data
 
   const reload = useCallback(() => {
     setRequestVersion((version) => version + 1)
   }, [])
+
+  useEffect(() => {
+    if (refreshMinutes <= 0) return
+
+    const intervalId = window.setInterval(reload, refreshMinutes * 60_000)
+    return () => window.clearInterval(intervalId)
+  }, [refreshMinutes, reload])
 
   useEffect(() => {
     const controller = new AbortController()
@@ -49,7 +60,10 @@ export function ResultsProvider({ children }: { children: ReactNode }) {
     setLoading(true)
     setError(null)
 
-    fetch(`${import.meta.env.BASE_URL}data/results.json`, { signal: controller.signal })
+    fetch(resolveResultsUrl(resultsUrl), {
+      signal: controller.signal,
+      cache: cacheMode,
+    })
       .then((response) => {
         if (!response.ok) {
           throw new Error(`Не удалось загрузить results.json: HTTP ${response.status}`)
@@ -71,7 +85,7 @@ export function ResultsProvider({ children }: { children: ReactNode }) {
       })
 
     return () => controller.abort()
-  }, [requestVersion])
+  }, [cacheMode, requestVersion, resultsUrl])
 
   return (
     <ResultsContext.Provider value={{ data, loading, error, reload }}>

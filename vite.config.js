@@ -1,6 +1,6 @@
 import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
-var ignoredWatchDirectories = [
+var ignoredRootDirectories = [
     '.venv',
     'venv',
     'data',
@@ -12,8 +12,11 @@ var ignoredWatchDirectories = [
 ];
 function shouldIgnoreWatchedPath(path) {
     var segments = path.replace(/\\/g, '/').split('/').filter(Boolean);
-    var isPublicData = segments.some(function (segment, index) { return segment === 'data' && segments[index - 1] === 'public'; });
-    return !isPublicData && segments.some(function (segment) { return ignoredWatchDirectories.indexOf(segment) >= 0; });
+    var isApplicationSource = segments.indexOf('src') >= 0;
+    var isPublicAsset = segments.indexOf('public') >= 0;
+    return (!isApplicationSource &&
+        !isPublicAsset &&
+        segments.some(function (segment) { return ignoredRootDirectories.indexOf(segment) >= 0; }));
 }
 export default defineConfig(function (_a) {
     var mode = _a.mode;
@@ -31,7 +34,8 @@ export default defineConfig(function (_a) {
             },
             watch: {
                 // Python environments and experiment artifacts can contain millions of
-                // files. Keep public/data observable because it contains globe assets.
+                // files. Ignore only root artifact directories so source folders named
+                // "data" still trigger HMR.
                 ignored: shouldIgnoreWatchedPath,
             },
         },
