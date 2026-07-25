@@ -267,7 +267,7 @@ function SortableHeader({
       <button
         type="button"
         onClick={() => onSort(sortKey)}
-        className="inline-flex items-center gap-1 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+        className="ui-focus-ring inline-flex items-center gap-1 rounded"
       >
         {label}
         {active ? (

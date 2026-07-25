@@ -42,14 +42,14 @@ export function GlobeParameterPanel({
 
   if (displayMode === 'earth') {
     return (
-      <aside className="min-w-0 max-w-full overflow-hidden rounded-2xl border border-[#E4E7EC] bg-white p-5 shadow-[0_1px_2px_rgba(16,24,40,0.03)] xl:min-h-[580px]">
-        <p className="text-[12px] font-semibold uppercase tracking-[0.04em] text-[#667085]">
+      <aside className="ui-surface-raised min-w-0 max-w-full overflow-hidden rounded-2xl border p-5 xl:min-h-[580px]">
+        <p className="text-[12px] font-semibold uppercase tracking-[0.04em] text-[var(--accent)]">
           Режим просмотра
         </p>
-        <h3 className="mt-3 text-[19px] font-semibold leading-6 tracking-[-0.01em] text-[#101828]">
+        <h3 className="mt-3 text-[19px] font-semibold leading-6 tracking-[-0.01em] text-[var(--text-primary)]">
           Обычная Земля с облачностью
         </h3>
-        <p className="mt-3 text-[14px] leading-6 text-[#667085]">
+        <p className="mt-3 text-[14px] leading-6 text-[var(--text-muted)]">
           Естественная поверхность планеты. Белый облачный слой построен из общей
           облачности TCC для выбранного момента времени.
         </p>
@@ -73,7 +73,7 @@ export function GlobeParameterPanel({
 
         {cloudLoading ? (
           <p
-            className="mt-5 rounded-xl border border-blue-200 bg-blue-50 px-3.5 py-3 text-[12px] leading-5 text-blue-800"
+            className="ui-accent-badge mt-5 rounded-xl px-3.5 py-3 text-[12px] leading-5"
             aria-live="polite"
           >
             Загрузка облачности для выбранного времени…
@@ -98,7 +98,7 @@ export function GlobeParameterPanel({
           </div>
         ) : null}
 
-        <p className="mt-5 rounded-xl border border-[#E4E7EC] bg-[#F8FAFC] px-3.5 py-3 text-[12px] leading-5 text-[#475467]">
+        <p className="mt-5 rounded-xl border border-[var(--border)] bg-[var(--surface-active)] px-3.5 py-3 text-[12px] leading-5 text-[var(--text-secondary)]">
           Облачный слой показывает степень покрытия облаками по данным TCC. Это не
           спутниковая фотография и не прогноз в реальном времени.
         </p>
@@ -107,9 +107,9 @@ export function GlobeParameterPanel({
   }
 
   return (
-    <aside className="min-w-0 max-w-full overflow-hidden rounded-2xl border border-[#E4E7EC] bg-white p-5 shadow-[0_1px_2px_rgba(16,24,40,0.03)] xl:min-h-[580px]">
+    <aside className="ui-surface-raised min-w-0 max-w-full overflow-hidden rounded-2xl border p-5 xl:min-h-[580px]">
       <div
-        className="flex rounded-xl border border-[#E4E7EC] bg-[#F2F4F7] p-1"
+        className="flex rounded-xl border border-[var(--border)] bg-[var(--background-subtle)] p-1"
         role="tablist"
         aria-label="Инспектор глобуса"
       >
@@ -124,19 +124,19 @@ export function GlobeParameterPanel({
       <div className="mt-5">
         {tab === 'parameter' ? (
           <div>
-            <p className="text-[12px] font-semibold uppercase tracking-[0.04em] text-[#667085]">
+            <p className="text-[12px] font-semibold uppercase tracking-[0.04em] text-[var(--accent)]">
               Выбранный параметр
             </p>
             <div className="mt-3 flex items-start justify-between gap-3">
-              <h3 className="text-[19px] font-semibold leading-6 tracking-[-0.01em] text-[#101828]">
+              <h3 className="text-[19px] font-semibold leading-6 tracking-[-0.01em] text-[var(--text-primary)]">
                 {configuration.shortName}
                 {frame?.level ? ` · ${frame.level} hPa` : ''}
               </h3>
-              <span className="inline-flex shrink-0 items-center rounded-md border border-blue-200 bg-blue-50 px-2 py-1 text-[12px] font-semibold text-blue-700">
+              <span className="ui-accent-badge inline-flex shrink-0 items-center rounded-md px-2 py-1 text-[12px] font-semibold">
                 {frame?.channel ?? configuration.channel}
               </span>
             </div>
-            <p className="mt-3 text-[14px] font-normal leading-6 text-[#667085]">
+            <p className="mt-3 text-[14px] font-normal leading-6 text-[var(--text-muted)]">
               {frame?.mode === 'absolute-error'
                 ? 'Абсолютная разница между ERA5 и восстановлением модели.'
                 : configuration.description}
@@ -193,10 +193,10 @@ function TabButton({
       role="tab"
       aria-selected={active}
       onClick={onClick}
-      className={`min-h-10 min-w-0 flex-1 rounded-lg px-2.5 text-[13px] font-semibold transition-colors focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-100 ${
+      className={`ui-focus-ring min-h-10 min-w-0 flex-1 rounded-lg border px-2.5 text-[13px] font-semibold transition-colors ${
         active
-          ? 'bg-white text-blue-700 shadow-sm'
-          : 'text-[#667085] hover:bg-white/60 hover:text-[#344054]'
+          ? 'ui-selected'
+          : 'border-transparent text-[var(--text-muted)] hover:bg-[var(--surface-hover)] hover:text-[var(--text-secondary)]'
       }`}
     >
       {children}
@@ -206,9 +206,9 @@ function TabButton({
 
 function InfoRow({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex min-h-11 items-center justify-between gap-3 border-t border-[#EAECF0] py-3 first:border-t-0">
-      <dt className="text-[13px] font-medium text-[#667085]">{label}</dt>
-      <dd className="text-right text-[15px] font-semibold tabular-nums text-[#101828]">{value}</dd>
+    <div className="flex min-h-11 items-center justify-between gap-3 border-t border-[var(--border)] py-3 first:border-t-0">
+      <dt className="text-[13px] font-medium text-[var(--text-muted)]">{label}</dt>
+      <dd className="text-right text-[15px] font-semibold tabular-nums text-[var(--text-primary)]">{value}</dd>
     </div>
   )
 }

@@ -20,7 +20,7 @@ export API_PORT
 	submission-validate clean-containers monitoring-config monitoring-up monitoring-down \
 	monitoring-restart monitoring-logs monitoring-ps monitoring-prometheus-logs \
 	monitoring-grafana-logs monitoring-smoke monitoring-check-prometheus-config \
-	monitoring-check-rules monitoring-clean frontend-up frontend-build \
+	monitoring-check-rules monitoring-clean frontend-up frontend-build dev \
 	ml-samples cra5-checkpoint-dry-run cra5-smoke cra5-train-n16 cra5-train-n32 \
 	cra5-train-n64 cra5-train-n128 experiment-ladder demo demo-ultra demo-full \
 	cra5-profile-params cra5-produce-checkpoint cra5-verify-checkpoint \
@@ -111,8 +111,8 @@ docker-config: ## Render and validate the CPU Compose configuration.
 docker-gpu-config: ## Render and validate the CPU plus GPU Compose configuration.
 	$(DOCKER_COMPOSE) -f $(COMPOSE_FILE) -f $(GPU_COMPOSE_FILE) config
 
-app-up: runtime-dirs ## Start the API in the background with one Uvicorn worker.
-	$(DOCKER_COMPOSE) -f $(COMPOSE_FILE) up -d --build $(API_SERVICE)
+app-up: runtime-dirs ## Start the API and Vite frontend together in Docker.
+	$(DOCKER_COMPOSE) -f $(COMPOSE_FILE) up -d --build $(API_SERVICE) frontend
 
 app-down: ## Stop the Compose stack without deleting bind-mounted artifacts.
 	$(DOCKER_COMPOSE) -f $(COMPOSE_FILE) down
@@ -131,6 +131,16 @@ app-health: ## Check the API health endpoint from the host.
 
 frontend-up: ## Start the Vite frontend dev server on VITE_PORT (default: 5173).
 	npm run dev
+
+dev: ## Start the local API if needed, then run the Vite frontend.
+	@if curl -fsS http://$(LOCAL_API_HOST):$(API_PORT)/health >/dev/null 2>&1; then \
+		echo "API is already running at http://$(LOCAL_API_HOST):$(API_PORT)"; \
+	else \
+		test -x .venv/bin/python || { echo "Missing .venv/bin/python; create the project virtual environment first." >&2; exit 1; }; \
+		.venv/bin/python -m uvicorn era5_minimum.api.app:app --host $(LOCAL_API_HOST) --port $(API_PORT) --workers 1 --log-level info > /tmp/era5-minimum-api.log 2>&1 & \
+		echo "API started at http://$(LOCAL_API_HOST):$(API_PORT) (log: /tmp/era5-minimum-api.log)"; \
+	fi
+	npm run dev -- --host $(VITE_HOST)
 
 frontend-build: ## Build the frontend for static hosting.
 	npm run build

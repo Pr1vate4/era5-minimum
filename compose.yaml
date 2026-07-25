@@ -41,6 +41,23 @@ services:
       retries: 5
       start_period: 10s
 
+  frontend:
+    image: node:22-alpine
+    working_dir: /workspace
+    command: sh -c "npm ci && npm run dev -- --host 0.0.0.0"
+    environment:
+      VITE_WEATHER_API_TARGET: http://api:8000
+      VITE_HOST: 0.0.0.0
+      VITE_PORT: "5173"
+    ports:
+      - "${VITE_PORT:-5173}:5173"
+    volumes:
+      - .:/workspace:Z
+      - frontend_node_modules:/workspace/node_modules
+    depends_on:
+      api:
+        condition: service_healthy
+
   tools:
     profiles: [tools]
     build:
@@ -78,3 +95,6 @@ services:
       - ${BITSTREAMS_DIR:-./bitstreams}:/workspace/bitstreams
       - ${ARTIFACTS_DIR:-./artifacts}:/workspace/artifacts
       - ${SUBMISSION_DIR:-./submission}:/workspace/submission
+
+volumes:
+  frontend_node_modules:

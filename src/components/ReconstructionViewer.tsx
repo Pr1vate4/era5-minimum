@@ -203,7 +203,7 @@ export function ReconstructionViewer({
           <button
             type="button"
             onClick={openFullscreen}
-            className="inline-flex h-9 items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 text-[12px] font-semibold text-slate-600 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+            className="ui-button-ghost ui-focus-ring inline-flex h-9 items-center gap-2 rounded-lg px-3 text-[12px] font-semibold"
           >
             <Expand className="h-4 w-4" aria-hidden="true" />
             Полный экран
@@ -244,7 +244,8 @@ export function ReconstructionViewer({
                 max="100"
                 value={slide}
                 onChange={(event) => setSlide(Number(event.target.value))}
-                className="mt-2 block w-full accent-blue-600"
+                className="mt-2 block w-full"
+                style={{ accentColor: 'var(--accent-active)' }}
               />
             </label>
           </div>

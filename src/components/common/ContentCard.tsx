@@ -10,12 +10,12 @@ type ContentCardProps = {
 
 export function ContentCard({ title, description, actions, children, className = '' }: ContentCardProps) {
   return (
-    <section className={`rounded-2xl border border-slate-200 bg-white p-4 ${className}`}>
+    <section className={`ui-surface rounded-[22px] border p-5 shadow-[var(--shadow-raised)] ${className}`}>
       {title || description || actions ? (
         <div className="mb-4 flex items-start justify-between gap-4">
           <div>
-            {title ? <h2 className="text-[16px] font-semibold text-slate-900">{title}</h2> : null}
-            {description ? <p className="mt-1 text-[12px] leading-5 text-slate-500">{description}</p> : null}
+            {title ? <h2 className="text-[17px] font-bold tracking-[-0.015em] text-[var(--text-primary)]">{title}</h2> : null}
+            {description ? <p className="mt-1 text-[12px] leading-5 text-[var(--text-muted)]">{description}</p> : null}
           </div>
           {actions ? <div className="shrink-0">{actions}</div> : null}
         </div>
@@ -28,5 +28,5 @@ export function ContentCard({ title, description, actions, children, className =
 export const ChartCard = ContentCard
 
 export function DataTable({ children }: { children: ReactNode }) {
-  return <div className="overflow-auto rounded-xl border border-slate-200">{children}</div>
+  return <div className="overflow-auto rounded-xl border border-[var(--border)]">{children}</div>
 }

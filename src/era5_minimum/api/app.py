@@ -6,6 +6,8 @@ import os
 from pathlib import Path
 from typing import Optional
 
+from functools import lru_cache
+
 from fastapi import APIRouter, Depends, FastAPI, HTTPException, Query, Request
 from fastapi.responses import JSONResponse, Response
 from fastapi.middleware.cors import CORSMiddleware
@@ -33,6 +35,7 @@ from era5_minimum.api.schemas import (
     SampleEfficiencyArtifact,
     SummaryArtifact,
 )
+from era5_minimum.api.weather_data_service import WeatherDataService
 
 DEFAULT_ARTIFACTS_ROOT = Path(
     os.getenv("ERA5_ARTIFACTS_ROOT", "demo/mock")
@@ -46,6 +49,11 @@ def get_repository() -> ArtifactRepository:
 
 router = APIRouter()
 metrics_asgi_app = make_asgi_app()
+
+
+@lru_cache(maxsize=1)
+def get_weather_data_service() -> WeatherDataService:
+    return WeatherDataService(get_weather_provider())
 
 
 @router.get("/health", tags=["health"])
@@ -156,18 +164,34 @@ def weather_timestamps(provider: WeatherDataProvider = Depends(get_weather_provi
 def weather_layer(
     variable: str,
     timestamp: str,
+    response: Response,
     mode: str = Query("original", pattern="^(original|reconstructed|error)$"),
     level: int | None = None,
     target_width: int = Query(360, ge=1, le=1440),
     target_height: int = Query(180, ge=1, le=721),
-    provider: WeatherDataProvider = Depends(get_weather_provider),
+    service: WeatherDataService = Depends(get_weather_data_service),
 ) -> dict:
     if mode != "original":
-        raise HTTPException(status_code=501, detail="model reconstruction is not connected to the real Zarr provider")
-    try:
-        return provider.layer(variable, timestamp, level, target_width, target_height)
-    except WeatherProviderError as exc:
-        raise HTTPException(status_code=422, detail=str(exc)) from exc
+        raise HTTPException(
+            status_code=501,
+            detail="model reconstruction is not connected to the real Zarr provider",
+        )
+
+    payload, cache_status = service.get_layer_with_status(
+        variable=variable,
+        timestamp=timestamp,
+        level=level,
+        mode=mode,
+        target_width=target_width,
+        target_height=target_height,
+        stride=1,
+        response_format="json",
+    )
+
+    if service.settings.enabled:
+        response.headers["X-ERA5-Cache"] = cache_status.upper()
+
+    return payload
 
 
 async def handle_experiment_not_found(

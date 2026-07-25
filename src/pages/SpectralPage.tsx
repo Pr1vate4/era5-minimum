@@ -145,7 +145,7 @@ export default function SpectralPage() {
         <>
           <ChartCard
             title="Спектральная энергия"
-            description="Обе оси логарифмические. Синий — модель, бирюзовый — эталон."
+            description="Обе оси логарифмические. Синий — модель, янтарный — эталон."
             actions={
               spectralCriterion?.pass === undefined ? null : (
                 <StatusBadge

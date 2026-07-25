@@ -1,4 +1,5 @@
 import {
+  ChevronDown,
   CloudRain,
   Droplets,
   Gauge,
@@ -45,23 +46,23 @@ export function GlobeFilters({
     : 'xl:grid-cols-[minmax(240px,1.4fr)_minmax(220px,1.1fr)_160px_180px]'
 
   return (
-    <div className="border-b border-[#E4E7EC] bg-[#F8FAFC] px-5 py-4 lg:px-6 lg:py-5">
+    <div className="ui-filter-surface border-b px-5 py-4 lg:px-6 lg:py-5">
       {!isEarthMode && availableModes.length > 1 ? (
         <fieldset className="mb-4">
-          <legend className="mb-2 text-[12px] font-semibold leading-4 text-[#344054]">
+          <legend className="mb-2 text-[12px] font-semibold leading-4 text-[var(--text-secondary)]">
             Режим слоя
           </legend>
-          <div className="inline-grid min-h-11 max-w-full grid-flow-col rounded-xl border border-[#D0D5DD] bg-white p-1 shadow-[0_1px_2px_rgba(16,24,40,0.04)]">
+          <div className="inline-grid min-h-11 max-w-full grid-flow-col rounded-xl border border-[var(--border)] bg-[var(--background-subtle)] p-1 shadow-[var(--shadow-soft)]">
             {availableModes.map((mode) => (
               <button
                 key={mode}
                 type="button"
                 onClick={() => selection.setMode(mode)}
                 aria-pressed={selection.mode === mode}
-                className={`min-h-9 rounded-lg px-3 text-[13px] font-semibold transition-colors focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-100 sm:px-4 ${
+                className={`ui-focus-ring min-h-9 rounded-lg border px-3 text-[13px] font-semibold transition-colors sm:px-4 ${
                   selection.mode === mode
-                    ? 'bg-blue-600 text-white shadow-sm'
-                    : 'text-[#667085] hover:bg-[#F2F4F7] hover:text-[#344054]'
+                    ? 'ui-selected'
+                    : 'border-transparent text-[var(--text-muted)] hover:bg-[var(--surface-hover)] hover:text-[var(--text-secondary)]'
                 }`}
               >
                 {modeLabels[mode]}
@@ -72,7 +73,7 @@ export function GlobeFilters({
       ) : null}
 
       {showResearchFilters ? (
-        <div className="mb-5 grid grid-cols-[minmax(0,1fr)] gap-4 border-b border-[#E4E7EC] pb-5 md:grid-cols-2 xl:grid-cols-4">
+        <div className="mb-5 grid grid-cols-[minmax(0,1fr)] gap-4 border-b border-[var(--border)] pb-5 md:grid-cols-2 xl:grid-cols-4">
           <SelectControl
             label="Запуск"
             value={selection.research.runId ?? ''}
@@ -114,10 +115,10 @@ export function GlobeFilters({
 
       <div className={`grid grid-cols-[minmax(0,1fr)] items-end gap-4 md:grid-cols-2 ${primaryGridClass}`}>
         <label className="grid min-w-0 gap-2">
-          <span className="text-[12px] font-semibold leading-4 text-[#344054]">Параметр</span>
+          <span className="text-[12px] font-semibold leading-4 text-[var(--text-secondary)]">Параметр</span>
           <span className="relative">
             <SelectedIcon
-              className="pointer-events-none absolute left-3.5 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-blue-600"
+              className="pointer-events-none absolute left-3.5 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-[var(--accent)]"
               aria-hidden="true"
             />
             <select
@@ -131,7 +132,7 @@ export function GlobeFilters({
                 selection.setChannel(value as GlobeChannel)
               }}
               aria-label="Параметр отображения глобуса"
-              className={`${selectClassName} w-full pl-10`}
+              className={`${selectClassName} w-full pl-10 pr-10`}
             >
               <option value={NO_PARAMETER_VALUE}>
                 Без параметров — обычная Земля
@@ -151,6 +152,10 @@ export function GlobeFilters({
                 ))}
               </optgroup>
             </select>
+            <ChevronDown
+              className="pointer-events-none absolute right-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--text-muted)]"
+              aria-hidden="true"
+            />
           </span>
         </label>
 
@@ -172,10 +177,10 @@ export function GlobeFilters({
               : undefined
           }
         >
-          <legend className="text-[12px] font-semibold leading-4 text-[#344054]">
+          <legend className="text-[12px] font-semibold leading-4 text-[var(--text-secondary)]">
             {isEarthMode ? 'Сетка облачности' : 'Сетка'}
           </legend>
-          <div className="grid h-11 grid-cols-2 rounded-xl border border-[#D0D5DD] bg-white p-1 shadow-[0_1px_2px_rgba(16,24,40,0.04)]">
+          <div className="grid h-11 grid-cols-2 rounded-xl border border-[var(--border)] bg-[var(--background-subtle)] p-1 shadow-[var(--shadow-soft)]">
             {selection.gridOptions.map((option) => (
               <button
                 key={option.value}
@@ -184,10 +189,10 @@ export function GlobeFilters({
                 title={option.available ? undefined : 'Данные не подготовлены'}
                 onClick={() => selection.setGrid(option.value)}
                 aria-pressed={option.available && selection.grid === option.value}
-                className={`rounded-lg px-2.5 text-[14px] font-semibold transition-colors focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-100 ${
+                className={`ui-focus-ring rounded-lg border px-2.5 text-[14px] font-semibold transition-colors ${
                   option.available && selection.grid === option.value
-                    ? 'bg-blue-600 text-white shadow-sm'
-                    : 'text-[#667085] hover:bg-[#F2F4F7] hover:text-[#344054] disabled:cursor-not-allowed disabled:opacity-40'
+                    ? 'ui-selected shadow-[0_2px_8px_rgba(14,165,233,0.08)]'
+                    : 'border-transparent text-[var(--text-muted)] hover:bg-[var(--surface-hover)] hover:text-[var(--text-secondary)] disabled:cursor-not-allowed disabled:opacity-40'
                 }`}
               >
                 {option.value === '0p25' ? '0.25°' : '0.5°'}
@@ -209,7 +214,7 @@ export function GlobeFilters({
         ) : null}
 
         <div className="grid min-w-0 gap-2">
-          <span className="text-[12px] font-semibold leading-4 text-[#344054]">Автовращение</span>
+          <span className="text-[12px] font-semibold leading-4 text-[var(--text-secondary)]">Автовращение</span>
           <button
             type="button"
             role="switch"
@@ -217,26 +222,13 @@ export function GlobeFilters({
             aria-label="Медленно вращать глобус автоматически"
             title="Медленно вращать глобус автоматически"
             onClick={() => onAutoRotateChange(!autoRotate)}
-            className={`flex h-11 w-full items-center justify-between rounded-xl border px-3.5 text-[14px] font-semibold shadow-[0_1px_2px_rgba(16,24,40,0.04)] transition focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-100 ${
-              autoRotate
-                ? 'border-blue-600 bg-blue-600 text-white shadow-[0_2px_6px_rgba(37,99,235,0.22)]'
-                : 'border-[#D0D5DD] bg-white text-[#475467] hover:border-[#98A2B3] hover:bg-[#F9FAFB]'
+            className={`ui-switch ui-focus-ring flex h-11 w-full items-center justify-between rounded-xl px-3.5 text-[14px] font-semibold ${
+              autoRotate ? 'ui-switch--on' : ''
             }`}
           >
             <span>{autoRotate ? 'Включено' : 'Выключено'}</span>
-            <span
-              className={`relative inline-flex h-[22px] w-10 shrink-0 rounded-full transition-colors ${
-                autoRotate ? 'bg-white/25' : 'bg-[#D0D5DD]'
-              }`}
-              aria-hidden="true"
-            >
-              <span
-                className={`absolute top-0.5 h-[18px] w-[18px] rounded-full shadow-sm transition-transform ${
-                  autoRotate
-                    ? 'translate-x-5 bg-white'
-                    : 'translate-x-0.5 bg-[#98A2B3]'
-                }`}
-              />
+            <span className="ui-switch__track" aria-hidden="true">
+              <span className="ui-switch__thumb" />
             </span>
           </button>
         </div>
@@ -253,28 +245,34 @@ type SelectControlProps = {
 }
 
 const selectClassName =
-  'h-11 min-w-0 rounded-xl border border-[#D0D5DD] bg-white px-3.5 text-[14px] font-medium text-[#101828] shadow-[0_1px_2px_rgba(16,24,40,0.04)] outline-none transition hover:border-[#98A2B3] focus:border-blue-500 focus:ring-4 focus:ring-blue-100 disabled:cursor-not-allowed disabled:bg-[#F2F4F7] disabled:text-[#98A2B3]'
+  'ui-field h-11 min-w-0 appearance-none rounded-xl px-3.5 pr-10 text-[14px] font-medium'
 
 function SelectControl({ label, value, options, onChange }: SelectControlProps) {
   return (
     <label className="grid min-w-0 gap-2">
-      <span className="text-[12px] font-semibold leading-4 text-[#344054]">{label}</span>
-      <select
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        disabled={options.length <= 1}
-        className={`${selectClassName} w-full`}
-      >
-        {options.length ? (
-          options.map((option) => (
-            <option key={option.value} value={option.value}>
-              {option.label}
-            </option>
-          ))
+      <span className="text-[12px] font-semibold leading-4 text-[var(--text-secondary)]">{label}</span>
+      <span className="relative">
+        <select
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+          disabled={options.length <= 1}
+          className={`${selectClassName} w-full`}
+        >
+          {options.length ? (
+            options.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))
         ) : (
           <option value="">Нет данных</option>
         )}
-      </select>
+        </select>
+        <ChevronDown
+          className="pointer-events-none absolute right-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--text-muted)]"
+          aria-hidden="true"
+        />
+      </span>
     </label>
   )
 }

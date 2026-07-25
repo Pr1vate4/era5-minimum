@@ -1,4 +1,6 @@
-import { Download } from 'lucide-react'
+import { Activity, Download, ExternalLink } from 'lucide-react'
+import { NavLink } from 'react-router-dom'
+import { useAppSettings } from '../hooks/useAppSettings'
 import { useResults } from '../hooks/useResults'
 
 function formatGeneratedDate(value: string | undefined) {
@@ -17,6 +19,7 @@ function formatGeneratedDate(value: string | undefined) {
 
 export function TopHeader() {
   const { data } = useResults()
+  const { settings } = useAppSettings()
 
   const exportReport = () => {
     if (!data) return
@@ -34,37 +37,45 @@ export function TopHeader() {
   }
 
   return (
-    <header className="fixed inset-x-0 top-0 z-50 flex h-14 items-center justify-between gap-4 border-b border-[#E4E7EC] bg-white px-4 sm:px-5">
+    <header className="fixed inset-x-0 top-0 z-50 flex h-16 items-center justify-between gap-4 border-b border-[var(--border)] bg-[var(--chrome)]/95 px-4 shadow-[var(--shadow-soft)] backdrop-blur-xl sm:px-5">
       <div className="flex min-w-0 items-center gap-2.5">
-        <div className="h-8 w-8 shrink-0 overflow-hidden rounded-full border border-slate-300 bg-white shadow-sm">
+        <div className="h-9 w-9 shrink-0 overflow-hidden rounded-[13px] border border-[var(--border-strong)] bg-[var(--surface)] shadow-[var(--shadow-soft)]">
           <img
             src={`${import.meta.env.BASE_URL}data/images/logo.png`}
             alt="Логотип МетеоКода"
             className="h-full w-full object-cover"
           />
         </div>
-        <span className="hidden whitespace-nowrap text-[15px] font-semibold text-black sm:block">
+        <span className="hidden whitespace-nowrap text-[15px] font-semibold text-[var(--text-primary)] sm:block">
           МетеоКод
         </span>
       </div>
-
-      <div className="flex shrink-0 items-center gap-3">
-        <time
-          dateTime={data?.meta.generated_at}
-          className="hidden whitespace-nowrap text-[13px] font-medium text-slate-500 lg:block"
+      <div className="flex items-center gap-2">
+        {data ? (
+          <button
+            type="button"
+            onClick={exportReport}
+            className="ui-button-ghost ui-focus-ring hidden h-10 items-center gap-2 rounded-xl px-3 text-[12px] font-bold lg:inline-flex"
+          >
+            <Download className="h-4 w-4" />
+            Отчёт
+          </button>
+        ) : null}
+        <a
+          href={settings.services.grafanaUrl}
+          target="_blank"
+          rel="noreferrer"
+          className="ui-action ui-action-secondary !min-h-10 !px-3"
+          aria-label="Открыть Grafana в новой вкладке"
         >
-          {formatGeneratedDate(data?.meta.generated_at)}
-        </time>
-        <button
-          type="button"
-          onClick={exportReport}
-          disabled={!data}
-          className="inline-flex h-9 items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-3 text-[13px] font-semibold text-slate-700 shadow-sm transition-colors duration-150 hover:border-slate-400 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          <Download className="h-4 w-4" aria-hidden="true" />
-          <span className="hidden md:inline">Экспорт отчёта</span>
-          <span className="sr-only md:hidden">Экспорт отчёта</span>
-        </button>
+          <Activity className="h-4 w-4" />
+          <span className="hidden sm:inline">Grafana</span>
+          <ExternalLink className="h-3.5 w-3.5 opacity-60" />
+        </a>
+        <NavLink to="/codec" className="ui-action ui-action-primary !min-h-10 !px-3">
+          <span className="hidden sm:inline">Сжать ERA5</span>
+          <span className="sm:hidden">Сжать</span>
+        </NavLink>
       </div>
     </header>
   )

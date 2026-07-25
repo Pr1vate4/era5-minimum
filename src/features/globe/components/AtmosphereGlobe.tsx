@@ -1,5 +1,6 @@
 import { Expand, Globe2, Minimize2, RotateCcw } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { useAppSettings } from '../../../hooks/useAppSettings'
 import { locateGlobeGridPoint } from '../data/globeCoordinateUtils'
 import { useGlobeControls } from '../hooks/useGlobeControls'
 import { useGlobeManifest } from '../hooks/useGlobeManifest'
@@ -43,9 +44,10 @@ export default function AtmosphereGlobe({
   researchDefaults = {},
 }: AtmosphereGlobeProps) {
   const cardRef = useRef<HTMLElement>(null)
+  const { settings } = useAppSettings()
   const { manifest, loading: manifestLoading, error: manifestError, reload } =
     useGlobeManifest(manifestUrl)
-  const weatherApiEnabled = import.meta.env.VITE_WEATHER_API_ENABLED !== 'false'
+  const weatherApiEnabled = settings.api.enabled
   const weatherCatalog = useWeatherGlobeCatalog(weatherApiEnabled)
   const activeModes: GlobeMode[] = weatherApiEnabled ? ['original'] : availableModes
   const demoEnabled = import.meta.env.VITE_ENABLE_GLOBE_DEMO === 'true'
@@ -171,24 +173,24 @@ export default function AtmosphereGlobe({
   return (
     <section
       ref={cardRef}
-      className={`min-w-0 max-w-full overflow-hidden border border-[#E4E7EC] bg-white font-sans shadow-[0_2px_8px_rgba(16,24,40,0.04)] ${
+      className={`ui-surface min-w-0 max-w-full overflow-hidden border font-sans ${
         isFullscreen
-          ? 'fixed inset-0 z-[100] overflow-auto rounded-none border-0 bg-[#F7F8FA] p-4'
+          ? 'fixed inset-0 z-[100] overflow-auto rounded-none border-0 bg-[var(--background)] p-4'
           : 'rounded-[20px]'
       }`}
     >
-      <div className="flex flex-col gap-4 border-b border-[#E4E7EC] px-5 py-5 sm:flex-row sm:items-start sm:justify-between lg:px-6">
+      <div className="flex flex-col gap-4 border-b border-[var(--border)] px-5 py-5 sm:flex-row sm:items-start sm:justify-between lg:px-6">
         <div className="flex min-w-0 items-start gap-3.5">
-          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-blue-100 bg-blue-50 text-blue-600">
+          <span className="ui-accent-icon flex h-10 w-10 shrink-0 items-center justify-center rounded-xl">
             <Globe2 className="h-[18px] w-[18px]" aria-hidden="true" />
           </span>
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2.5">
-              <h2 className="text-[19px] font-semibold leading-[1.25] tracking-[-0.015em] text-[#101828] sm:text-[21px]">
+              <h2 className="text-[19px] font-bold leading-[1.25] tracking-[-0.025em] text-[var(--text-primary)] sm:text-[22px]">
                 Глобальное состояние атмосферы ERA5
               </h2>
               {weatherApiEnabled && !isEarthMode ? (
-                <span className="rounded-md border border-emerald-200 bg-emerald-50 px-2 py-1 text-[11px] font-semibold text-emerald-700">
+                <span className="ui-accent-badge rounded-md px-2 py-1 text-[11px] font-semibold">
                   ERA5 Zarr · реальные данные
                 </span>
               ) : statusFrame?.source === 'demo' ? (
@@ -227,8 +229,12 @@ export default function AtmosphereGlobe({
         onAutoRotateChange={setAutoRotate}
       />
 
+      {selection.displayMode === 'data' && frame ? (
+        <GlobeColorLegend frame={frame} mode={selection.mode} />
+      ) : null}
+
       <div className="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-4 p-3 sm:p-5 lg:gap-6 lg:p-6 xl:grid-cols-[minmax(0,1fr)_320px]">
-        <div className="relative min-h-[420px] min-w-0 overflow-hidden rounded-2xl border border-[#E4E7EC] bg-[radial-gradient(circle_at_50%_45%,#FFFFFF_0%,#F8FAFC_58%,#F2F4F7_100%)] sm:min-h-[500px] lg:min-h-[520px] xl:min-h-[580px]">
+        <div className="globe-stage relative min-h-[420px] min-w-0 overflow-hidden rounded-2xl border sm:min-h-[500px] lg:min-h-[520px] xl:min-h-[580px]">
           <GlobeCanvas
             displayMode={selection.displayMode}
             textureUrl={textureUrl}
@@ -348,9 +354,6 @@ export default function AtmosphereGlobe({
           Автовращение отключено в соответствии с настройкой уменьшения движения.
         </p>
       ) : null}
-      {selection.displayMode === 'data' && frame ? (
-        <GlobeColorLegend frame={frame} mode={selection.mode} />
-      ) : null}
     </section>
   )
 }
@@ -391,7 +394,7 @@ function EarthCloudStatus({
   if (manifestLoading || cloudLoading) {
     return (
       <div
-        className="absolute left-3 top-3 z-20 rounded-xl border border-blue-200 bg-white/95 px-3.5 py-2.5 text-[12px] font-medium text-blue-900 shadow-sm backdrop-blur-sm"
+        className="ui-accent-badge absolute left-3 top-3 z-20 rounded-xl px-3.5 py-2.5 text-[12px] font-medium shadow-[var(--shadow-soft)]"
         aria-live="polite"
       >
         {manifestLoading
@@ -412,7 +415,7 @@ function EarthCloudStatus({
 
   return (
     <div
-      className="absolute left-3 top-3 z-20 max-w-[calc(100%-1.5rem)] rounded-xl border border-amber-200 bg-white/95 px-3.5 py-2.5 text-[12px] leading-5 text-amber-950 shadow-sm backdrop-blur-sm"
+      className="absolute left-3 top-3 z-20 max-w-[calc(100%-1.5rem)] rounded-xl border border-amber-200 bg-[var(--surface)] px-3.5 py-2.5 text-[12px] leading-5 text-amber-950 shadow-[var(--shadow-soft)]"
       role="status"
       aria-live="polite"
     >
@@ -447,7 +450,7 @@ function IconButton({
       aria-label={label}
       title={title}
       onClick={onClick}
-      className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-[#D0D5DD] bg-white text-[#475467] shadow-[0_1px_2px_rgba(16,24,40,0.04)] transition-colors hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-100"
+      className="ui-button-ghost ui-focus-ring inline-flex h-10 w-10 items-center justify-center rounded-xl"
     >
       {children}
     </button>

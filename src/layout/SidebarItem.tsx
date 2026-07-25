@@ -37,14 +37,14 @@ export function SidebarItem({ item }: { item: NavigationItem }) {
         onFocus={showTooltip}
         onBlur={() => setTooltipPosition(null)}
         className={({ isActive }) =>
-          `group relative flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 ${
+          `ui-focus-ring group relative flex h-11 w-11 shrink-0 items-center justify-center rounded-[14px] border transition-all duration-150 ${
             isActive
-              ? 'border-blue-200 bg-blue-100 text-blue-700'
-              : 'border-transparent text-slate-500 hover:border-blue-100 hover:bg-blue-50 hover:text-blue-600'
+              ? 'translate-x-0.5 border-[var(--accent-border)] bg-[var(--accent)] text-white shadow-[0_7px_16px_rgba(23,92,199,0.2)]'
+              : 'border-transparent text-[var(--text-muted)] hover:-translate-y-0.5 hover:border-[var(--border)] hover:bg-[var(--surface-hover)] hover:text-[var(--text-secondary)]'
           }`
         }
       >
-        <Icon className="h-[18px] w-[18px]" aria-hidden="true" />
+        <Icon className="h-[19px] w-[19px]" aria-hidden="true" />
       </NavLink>
 
       {tooltipPosition
@@ -52,7 +52,7 @@ export function SidebarItem({ item }: { item: NavigationItem }) {
             <div
               id={tooltipId}
               role="tooltip"
-              className="pointer-events-none fixed z-[70] -translate-y-1/2 whitespace-nowrap rounded-md border border-slate-200 bg-slate-900 px-2.5 py-1.5 text-[12px] font-medium text-white shadow-sm"
+              className="pointer-events-none fixed z-[70] -translate-y-1/2 whitespace-nowrap rounded-md border border-[var(--border-strong)] bg-[var(--surface-raised)] px-2.5 py-1.5 text-[12px] font-medium text-[var(--text-primary)] shadow-[var(--shadow-raised)]"
               style={tooltipPosition}
             >
               {item.title}

@@ -13,7 +13,7 @@ export function GlobeColorLegend({
 
   return (
     <div
-      className="border-t border-[#E4E7EC] bg-white px-5 py-5 lg:px-6"
+      className="border-b border-[#E4E7EC] bg-white px-5 py-4 lg:px-6"
       aria-label={`Шкала значений от ${formatLegendValue(scale.min)} до ${formatLegendValue(scale.max)} ${scale.unit}`}
     >
       <div className="mb-3 flex items-center justify-between gap-3">

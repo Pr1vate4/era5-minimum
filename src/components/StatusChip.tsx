@@ -9,7 +9,7 @@ export function StatusChip({ ok, trueLabel = 'Пройдено', falseLabel = '�
     <span
       className={`inline-flex items-center rounded-full border px-2.5 py-1 text-[11px] font-medium ${
         ok
-          ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+          ? 'ui-accent-badge'
           : 'border-rose-200 bg-rose-50 text-rose-700'
       }`}
     >

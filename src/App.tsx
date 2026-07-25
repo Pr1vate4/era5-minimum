@@ -11,6 +11,8 @@ const ReconstructionsPage = lazy(() => import('./pages/ReconstructionsPage'))
 const SpectralPage = lazy(() => import('./pages/SpectralPage'))
 const ProbePage = lazy(() => import('./pages/ProbePage'))
 const ResourcesPage = lazy(() => import('./pages/ResourcesPage'))
+const SettingsPage = lazy(() => import('./pages/SettingsPage'))
+const CodecPage = lazy(() => import('./pages/CodecPage'))
 const NotFoundPage = lazy(() => import('./pages/NotFoundPage'))
 
 function App() {
@@ -28,6 +30,8 @@ function App() {
           <Route path="/spectral" element={<SpectralPage />} />
           <Route path="/probe" element={<ProbePage />} />
           <Route path="/resources" element={<ResourcesPage />} />
+          <Route path="/settings" element={<SettingsPage />} />
+          <Route path="/codec" element={<CodecPage />} />
           <Route path="*" element={<NotFoundPage />} />
         </Route>
       </Routes>
