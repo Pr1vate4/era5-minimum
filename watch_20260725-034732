@@ -1,0 +1,16 @@
+=== PROCESS ===                                                                                                                                      
+    PID     ELAPSED STAT %CPU %MEM WCHAN                                                                                                             
+ 597864       06:49 Sl+   3.7  8.7 futex_do_wait                                                                                                     
+                                                                                                                                                     
+=== PROCESS IO ===                                                                                                                                   
+rchar: 63315378                                                                                                                                      
+wchar: 148975                                                                                                                                        
+read_bytes: 37072896                                                                                                                                 
+write_bytes: 548864                                                                                                                                  
+cancelled_write_bytes: 286720                                                                                                                        
+                                                                                                                                                     
+=== OUTPUT ===                                                                                                                                       
+168K    data/era5_28ch_demo                                                                                                                          
+41                                                                                                                                                   
+                                                                                                                                                     
+                                                                                                                                                     

@@ -1,0 +1,16 @@
+=== PROCESS ===                                        
+597864 python scripts/data/prepare_era5_28ch.py downloa
+ra5_28ch_demo                                          
+606862 watch -n 2  echo "=== PROCESS ===" pgrep -af "pr
+/era5_28ch_demo 2>/dev/null || echo "Каталог пока не со
+606966 watch -n 2  echo "=== PROCESS ===" pgrep -af "pr
+/era5_28ch_demo 2>/dev/null || echo "Каталог пока не со
+606967 sh -c --  echo "=== PROCESS ===" pgrep -af "prep
+ra5_28ch_demo 2>/dev/null || echo "Каталог пока не созд
+                                                       
+=== SIZE ===                                           
+168K    data/era5_28ch_demo                            
+                                                       
+=== FILE COUNT ===                                     
+41                                                     
+                                                       
