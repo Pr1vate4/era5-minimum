@@ -53,7 +53,9 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
   },
   services: {
     codecBaseUrl: (import.meta.env.VITE_CODEC_API_BASE_URL ?? '').replace(/\/$/, ''),
-    grafanaUrl: import.meta.env.VITE_GRAFANA_URL ?? 'http://localhost:3000',
+    grafanaUrl:
+      import.meta.env.VITE_GRAFANA_URL ??
+      'http://localhost:3000/d/era5-model-overview/era5-model-compression-quality',
   },
 }
 

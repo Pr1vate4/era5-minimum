@@ -47,6 +47,7 @@ services:
     command: sh -c "npm ci && npm run dev -- --host 0.0.0.0"
     environment:
       VITE_WEATHER_API_TARGET: http://api:8000
+      VITE_GRAFANA_URL: ${VITE_GRAFANA_URL:-http://localhost:3000/d/era5-model-overview/era5-model-compression-quality}
       VITE_HOST: 0.0.0.0
       VITE_PORT: "5173"
     ports:

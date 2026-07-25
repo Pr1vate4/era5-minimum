@@ -150,3 +150,23 @@ def test_model_dashboard_queries_only_exported_metrics() -> None:
         term in content
         for term in ("vaeformer", "confidence interval", "spectral", "extreme", "probe")
     )
+
+
+def test_frontend_compose_points_at_model_dashboard() -> None:
+    compose = _read_yaml("compose.yaml")
+
+    assert (
+        compose["services"]["frontend"]["environment"]["VITE_GRAFANA_URL"]
+        == "${VITE_GRAFANA_URL:-http://localhost:3000/d/era5-model-overview/"
+        "era5-model-compression-quality}"
+    )
+
+
+def test_monitoring_smoke_covers_exporter_target_and_dashboard() -> None:
+    source = (ROOT / "scripts/smoke_monitoring.py").read_text(encoding="utf-8")
+
+    assert "--ml-exporter-url" in source
+    assert "era5-codec-artifacts" in source
+    assert "era5_codec_artifact_ready" in source
+    assert "era5-model-overview" in source
+    assert "/d/era5-model-overview/era5-model-compression-quality" in source
