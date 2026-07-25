@@ -22,7 +22,7 @@ export API_PORT
 	monitoring-grafana-logs monitoring-smoke monitoring-check-prometheus-config \
 	monitoring-check-rules monitoring-clean frontend-up frontend-build dev \
 	ml-samples cra5-checkpoint-dry-run cra5-smoke cra5-train-n16 cra5-train-n32 \
-	cra5-train-n64 cra5-train-n128 experiment-ladder
+	cra5-train-n64 cra5-train-n128 experiment-ladder demo demo-ultra demo-full
 
 help: ## Show available project and container commands.
 
@@ -59,6 +59,15 @@ cra5-checkpoint-dry-run: ## Show CRA5-159 checkpoint provenance without download
 
 cra5-smoke: ## Run CRA5 runtime smoke test with synthetic data.
 	python scripts/smoke_cra5_runtime.py
+
+demo: ## ONE-COMMAND DEMO (quick mode, ~1 min CPU, ≥64x serialized CR).
+	PYTHONPATH=src python scripts/run_demo.py
+
+demo-ultra: ## One-command demo ultra-fast (~15s CPU, ≥32x CR expected).
+	PYTHONPATH=src python scripts/run_demo.py --ultra
+
+demo-full: ## One-command demo — CRA5-159v compatible mode (1024/256, ≥64x CR; uses pretrained if available).
+	PYTHONPATH=src python scripts/run_demo.py --full
 
 cra5-train-n16: ## Train CRA5 adapter with 16 samples.
 	python scripts/train_cra5_adapter.py --config configs/cra5/cra5_adapter_n16.yaml

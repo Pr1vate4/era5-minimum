@@ -1,0 +1,46 @@
+experiment:
+  name: cra5_demo_64x
+  output_dir: outputs/cra5_demo
+  seed: 1337
+
+data:
+  subset_size: 16
+  channels: 28
+  synthetic_shape: [28, 352, 720]
+
+model:
+  in_channels: 28
+  out_channels: 28
+  hidden_dim: 1024
+  latent_dim: 256
+  num_encoder_blocks: 8
+  num_decoder_blocks: 8
+  num_heads: 16
+  patch_size: [4, 4]
+  freeze_backbone: false
+  use_pretrained: false
+
+optimizer:
+  lr: 2.5e-4
+  betas: [0.9, 0.999]
+  weight_decay: 0.05
+
+scheduler:
+  type: one_cycle
+  pct_start: 0.3
+  div_factor: 25.0
+  final_div_factor: 10000.0
+
+training:
+  epochs: 3
+  batch_size: 2
+  val_frequency: 1
+  grad_clip: 1.0
+  min_delta: 0.0
+  patience: 1000000
+  save_best: true
+
+codec:
+  test_codec: true
+  quantization_step: 0.15
+  delta_coding: true
