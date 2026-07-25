@@ -4,12 +4,14 @@ import json
 from pathlib import Path
 
 import pytest
+from prometheus_client import CollectorRegistry, generate_latest
 
 from era5_minimum.data.channel_spec import CHANNEL_NAMES
 from era5_minimum.monitoring.ml_artifacts import (
     MlArtifactContractError,
     load_ml_artifact_snapshot,
 )
+from era5_minimum.monitoring.ml_exporter import MlArtifactCollector
 
 
 def _write_valid_bundle(
@@ -140,3 +142,39 @@ def test_optional_resource_metrics_are_omitted_not_zero_filled(
 
     assert "peak_vram_bytes" not in snapshot.values
     assert "gpu_hours" not in snapshot.values
+
+
+def test_collector_exposes_real_codec_metrics(tmp_path: Path) -> None:
+    registry = CollectorRegistry()
+    registry.register(MlArtifactCollector(_write_valid_bundle(tmp_path / "model")))
+
+    exposition = generate_latest(registry).decode()
+
+    assert "era5_codec_artifact_ready 1.0" in exposition
+    assert "era5_codec_actual_compression_ratio" in exposition
+    assert "era5_codec_tensor_compression_ratio" in exposition
+    assert 'era5_codec_channel_nrmse{channel="t2m"}' in exposition
+    assert 'era5_codec_channel_psnr_db{channel="t2m"}' in exposition
+
+
+def test_invalid_bundle_exposes_readiness_only(tmp_path: Path) -> None:
+    registry = CollectorRegistry()
+    registry.register(MlArtifactCollector(tmp_path / "missing"))
+
+    exposition = generate_latest(registry).decode()
+
+    assert "era5_codec_artifact_ready 0.0" in exposition
+    assert "era5_codec_artifact_validation_failures_total 1.0" in exposition
+    assert "era5_codec_actual_compression_ratio" not in exposition
+
+
+def test_collector_does_not_zero_fill_missing_resource_metrics(
+    tmp_path: Path,
+) -> None:
+    registry = CollectorRegistry()
+    registry.register(MlArtifactCollector(_write_valid_bundle(tmp_path / "model")))
+
+    exposition = generate_latest(registry).decode()
+
+    assert "era5_codec_peak_vram_bytes" not in exposition
+    assert "era5_codec_gpu_hours" not in exposition
