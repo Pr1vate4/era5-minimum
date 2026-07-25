@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { parseCodecJob, parseCodecStatus } from './api'
+import { shouldPollCodecJob } from './useCodecWorkspace'
 
 describe('codec API contract', () => {
   it('rejects a ready status without checkpoint provenance', () => {
@@ -57,5 +58,20 @@ describe('codec API contract', () => {
         },
       }),
     ).toThrow(/serialized/i)
+  })
+
+  it('polls only real queued or running backend jobs', () => {
+    expect(shouldPollCodecJob(null)).toBe(false)
+    expect(
+      shouldPollCodecJob({
+        id: 'job-3',
+        status: 'queued',
+        progress: 0,
+        message: null,
+        error: null,
+        metrics: null,
+        downloads: null,
+      }),
+    ).toBe(true)
   })
 })

@@ -19,6 +19,7 @@ export function useCodecWorkspace() {
   const [serviceLoading, setServiceLoading] = useState(true)
   const [serviceError, setServiceError] = useState<string | null>(null)
   const [job, setJob] = useState<CodecJob | null>(null)
+  const [submitting, setSubmitting] = useState(false)
   const [runError, setRunError] = useState<string | null>(null)
   const [statusRevision, setStatusRevision] = useState(0)
 
@@ -50,11 +51,12 @@ export function useCodecWorkspace() {
   }, [client, statusRevision])
 
   useEffect(() => {
-    if (!job || (job.status !== 'queued' && job.status !== 'running')) return
+    if (!shouldPollCodecJob(job)) return
+    const jobId = job.id
     const controller = new AbortController()
     const timeoutId = window.setTimeout(() => {
       client
-        .getJob(job.id, controller.signal)
+        .getJob(jobId, controller.signal)
         .then((nextJob) => {
           setJob(nextJob)
           if (nextJob.status === 'failed') {
@@ -95,20 +97,15 @@ export function useCodecWorkspace() {
       return
     }
     setRunError(null)
-    setJob({
-      id: 'upload',
-      status: 'queued',
-      progress: 0,
-      message: 'Загрузка ERA5-файла…',
-      error: null,
-      metrics: null,
-      downloads: null,
-    })
+    setJob(null)
+    setSubmitting(true)
     try {
       setJob(await client.createJob(file, targetRatio))
     } catch (error) {
       setJob(null)
       setRunError(toMessage(error, 'Не удалось запустить сжатие.'))
+    } finally {
+      setSubmitting(false)
     }
   }, [client, file, service, targetRatio])
 
@@ -125,8 +122,14 @@ export function useCodecWorkspace() {
     job,
     runError,
     submit,
-    processing: job?.status === 'queued' || job?.status === 'running',
+    processing: submitting || shouldPollCodecJob(job),
   }
+}
+
+export function shouldPollCodecJob(
+  job: CodecJob | null,
+): job is CodecJob & { status: 'queued' | 'running' } {
+  return job?.status === 'queued' || job?.status === 'running'
 }
 
 function toMessage(error: unknown, fallback: string) {
