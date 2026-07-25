@@ -1,7 +1,19 @@
 # Monitoring
 
-The local monitoring path is FastAPI `/metrics` → Prometheus → Grafana. It is
-available without ERA5 files, a neural codec, a GPU, or model checkpoints.
+The local stack has two validated monitoring paths:
+
+```text
+FastAPI /metrics ───────────────┐
+                               ├─→ Prometheus → Grafana
+artifacts/model-n32/*.json      │
+  → ML artifact exporter ──────┘
+```
+
+API telemetry is available without ERA5 files or a GPU. Scientific model
+panels require a real `metrics.json` plus `report.json` under the selected
+artifact root. If that bundle is missing or invalid, the exporter stays alive,
+reports readiness `0`, and omits scientific series instead of fabricating
+zeros.
 
 ## Start and verify
 
@@ -18,15 +30,22 @@ Default local addresses are:
 | Service | Address |
 | --- | --- |
 | API | `http://localhost:${API_PORT}` |
-| Metrics | `http://localhost:${API_PORT}/metrics` |
+| API metrics | `http://localhost:${API_PORT}/metrics` |
+| ML artifact metrics | `http://localhost:${ML_EXPORTER_PORT}/metrics` |
 | Prometheus | `http://localhost:${PROMETHEUS_PORT}` |
-| Grafana | `http://localhost:${GRAFANA_PORT}` |
+| Grafana model dashboard | `http://localhost:${GRAFANA_PORT}/d/era5-model-overview/era5-model-compression-quality` |
 
-Grafana uses `GRAFANA_ADMIN_USER` and `GRAFANA_ADMIN_PASSWORD` from `.env`
-(the example defaults are `admin` / `change-me`). Never commit `.env` or a real
-password. The Prometheus datasource (UID `prometheus`) and the **ERA5 API
-Overview** dashboard (UID `era5-api-overview`) are provisioned at startup; no
-manual UI import is required.
+The frontend Grafana button opens the model dashboard directly. Anonymous
+access is enabled only as `Viewer`, sign-up is disabled, and Grafana,
+Prometheus, and the exporter bind to `127.0.0.1` by default. Grafana admin
+credentials remain configurable through `.env`; never commit `.env` or a real
+password.
+
+The Prometheus datasource (UID `prometheus`) and two dashboards are provisioned
+at startup, with no manual import:
+
+- **ERA5 Model — Compression & Quality** (`era5-model-overview`);
+- **ERA5 API Overview** (`era5-api-overview`).
 
 Run `make monitoring-check-prometheus-config` and
 `make monitoring-check-rules` to use `promtool` from the configured official
@@ -83,6 +102,30 @@ The bundled rules expose `Era5ApiDown`, `Era5ApiHighErrorRate`, and
 `Era5ApiHighP95Latency` in Prometheus. There is no Alertmanager in this task,
 so these rules do not send notifications yet.
 
+## Validated ML artifact metrics
+
+The `ml-metrics-exporter` reads `${ARTIFACTS_DIR}/model-n32` through a read-only
+mount. It accepts the bundle only when the channel order is the canonical 28,
+the metrics are in physical space, latitude weighting is enabled,
+normalization is train-only, serialized compression fields are measured, and
+the codec roundtrip flag is a real boolean.
+
+The dashboard keeps these two quantities separate:
+
+- `era5_codec_actual_compression_ratio` — measured raw tensor bytes divided by
+  serialized bitstream bytes;
+- `era5_codec_tensor_compression_ratio` — tensor element count ratio.
+
+It also exposes bounded per-channel NRMSE/PSNR, grouped quality scores,
+physical MSLP/TP6H/wind diagnostics, codec timings, split sizes, parameter and
+training metadata. Optional VRAM and GPU-hour series are absent when not
+measured, so Grafana shows `No data`.
+
+The selected artifact does not contain a VAEformer non-inferiority confidence
+interval, spectral degradation, extreme-precipitation evaluation, or latent
+probe evidence. The dashboard states this limitation and does not manufacture
+pass/fail cards for those criteria.
+
 ## Cardinality and runtime limits
 
 `route` always uses a FastAPI route template (for example,
@@ -100,11 +143,9 @@ multiprocess setup, including `PROMETHEUS_MULTIPROC_DIR` lifecycle handling.
 directly to the public internet; place it behind suitable network controls and
 authentication in a deployed environment.
 
-## ML metrics are deferred
+## Scope
 
-No neural codec metric, training result, compression ratio, or GPU statistic is
-fabricated by this stack. Prometheus is not a replacement for
-`resource_usage.json`, `run_summary.json`, or detailed results JSON. The future
-contract and two supported integration approaches (Pushgateway or a JSON
-exporter) are documented in [ML_METRICS_CONTRACT.md](ML_METRICS_CONTRACT.md).
-Pushgateway is intentionally not a service in the current Compose stack.
+Prometheus is a bounded presentation layer, not an experiment archive. The
+source JSON artifacts remain authoritative for detailed reproducibility. The
+exporter never publishes checkpoint paths, filenames, run IDs, timestamps, or
+exception text as labels. Pushgateway is not part of this stack.

@@ -209,7 +209,7 @@ camera и autorotation с поддержкой системного `prefers-red
 | Artifact API | Реализован | По умолчанию обслуживает проверяемый `demo/mock`. |
 | Live weather API | Реализован для `original` | `reconstructed` и `error` отвечают `501`, пока реальный codec не подключён. |
 | React dashboard и глобус | Реализованы | Bundled результаты и часть globe assets демонстрационные. |
-| Prometheus/Grafana | Реализованы для локального API | ML run metrics намеренно не экспортируются без подтверждённых артефактов. |
+| Prometheus/Grafana | Реализованы для API и подтверждённого N=32 artifact bundle | Отсутствующие CI/spectral/extreme/probe и GPU metrics показываются как `No data`, а не подменяются нулями. |
 
 ## Данные
 
@@ -602,6 +602,7 @@ contract. Decoder проверяет checksum, shapes и quantization metadata.
 | `VITE_WEATHER_API_TARGET` | Target для Vite `/api` proxy | `http://localhost:8000` |
 | `VITE_WEATHER_API_ENABLED` | Использовать live weather API в frontend | `true` |
 | `VITE_ENABLE_GLOBE_DEMO` | Разрешить явно маркированные globe demo layers | `false` для production build |
+| `ML_EXPORTER_PORT` | Порт read-only ML artifact exporter | `9101` |
 | `PROMETHEUS_PORT` | Порт Prometheus | `9090` |
 | `GRAFANA_PORT` | Порт Grafana | `3000` |
 
@@ -638,39 +639,44 @@ NVIDIA-устройство для экспериментального проф
 
 ## Наблюдаемость
 
-Локальный путь наблюдаемости:
+Локальные пути наблюдаемости:
 
 ```text
-FastAPI /metrics → Prometheus → provisioned Grafana dashboard
+FastAPI /metrics ───────────────┐
+                               ├─→ Prometheus → Grafana
+artifacts/model-n32/*.json
+  → ML artifact exporter ──────┘
 ```
 
 Запуск:
 
 ```bash
-docker compose \
-  -f compose.yaml \
-  -f compose.monitoring.yaml \
-  up -d --build
-
-python scripts/smoke_monitoring.py
+make monitoring-up
+make monitoring-ps
+make monitoring-smoke
 ```
 
 | Service | URL |
 | --- | --- |
 | API | `http://localhost:8000` |
-| Metrics | `http://localhost:8000/metrics` |
+| API metrics | `http://localhost:8000/metrics` |
+| ML artifact metrics | `http://localhost:9101/metrics` |
 | Prometheus | `http://localhost:9090` |
-| Grafana | `http://localhost:3000` |
+| Grafana model dashboard | `http://localhost:3000/d/era5-model-overview/era5-model-compression-quality` |
 
-Grafana dashboard `ERA5 API Overview` и Prometheus datasource provisioned при
-старте. Default Grafana credentials `admin/change-me` допустимы только
-локально; пароль необходимо изменить перед любым сетевым доступом.
+Кнопка Grafana во frontend открывает provisioned dashboard
+`ERA5 Model — Compression & Quality`; operational dashboard
+`ERA5 API Overview` остаётся доступен внутри Grafana. Anonymous-доступ имеет
+только роль Viewer, регистрация отключена, а monitoring ports по умолчанию
+привязаны к `127.0.0.1`.
 
-Собираются HTTP latency/count/in-progress, process metrics, artifact
-load/validation status и build info. Training loss, GPU usage и compression
-ratio не публикуются в Prometheus: подробные ML-результаты остаются в
-воспроизводимых JSON artifacts. Alert rules присутствуют, но Alertmanager не
-подключён.
+Помимо HTTP/process telemetry exporter проверяет реальный
+`artifacts/model-n32/{metrics,report}.json` и публикует измеренный serialized
+compression ratio отдельно от tensor-element ratio, exact roundtrip,
+latitude-weighted physical-space quality по 28 каналам, физические diagnostics
+и runtime metadata. Отсутствующие GPU, VAEformer CI, spectral,
+extreme-precipitation и latent-probe evidence не выдумываются. Alert rules
+присутствуют, но Alertmanager не подключён.
 
 Подробнее: [docs/MONITORING.md](docs/MONITORING.md).
 
