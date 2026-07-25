@@ -195,6 +195,7 @@ def test_codec_smoke_writes_full_artifact_bundle(tmp_path: Path) -> None:
     expected = [
         "resolved_config.yaml",
         "checkpoint_metadata.json",
+        "local_evaluation.json",
         "metrics_validation.json",
         "metrics_per_channel.json",
         "metrics_per_time.json",
@@ -219,6 +220,72 @@ def test_codec_smoke_writes_full_artifact_bundle(tmp_path: Path) -> None:
     resource_usage = json.loads((output_dir / "resource_usage.json").read_text(encoding="utf-8"))
     assert resource_usage["operation"] == "train_codec"
     assert resource_usage["visible_gpu_count"] >= 0
+
+
+def test_codec_smoke_writes_scientific_local_evaluation_artifact(tmp_path: Path) -> None:
+    output_dir = tmp_path / "codec_smoke_local_evaluation"
+    summary = run_codec_smoke(_smoke_config(output_dir))
+
+    local_evaluation_path = output_dir / "local_evaluation.json"
+    assert local_evaluation_path.exists()
+    local_evaluation = json.loads(local_evaluation_path.read_text(encoding="utf-8"))
+    assert local_evaluation["evaluator_version"].startswith("local-scientific-")
+    assert local_evaluation["train_only"] is True
+    assert local_evaluation["channel_order"] == list(SMOKE_CHANNELS)
+    assert len(local_evaluation["per_channel"]) == 28
+    assert all(
+        {
+            "rmse_physical",
+            "nrmse",
+            "psnr_db",
+            "psnr_status",
+        }
+        <= row.keys()
+        for row in local_evaluation["per_channel"]
+    )
+    assert local_evaluation["groups"]["surface"]["channel_count"] == 8
+    assert local_evaluation["groups"]["pressure"]["channel_count"] == 20
+    assert local_evaluation["overall_score"] == pytest.approx(
+        0.5 * local_evaluation["surface_score"]
+        + 0.5 * local_evaluation["pressure_score"]
+    )
+    assert local_evaluation["physical_diagnostics"]["mslp"]["rmse_hpa"] >= 0.0
+    assert local_evaluation["physical_diagnostics"]["tp6h"]["rmse_mm_per_6h"] >= 0.0
+    assert local_evaluation["physical_diagnostics"]["wind_speed"]["rmse_m_s"] >= 0.0
+    assert local_evaluation["physical_diagnostics"]["geopotential"]["Z1000"][
+        "rmse_height_m"
+    ] >= 0.0
+
+    train_statistics = local_evaluation["train_statistics"]
+    assert train_statistics["train_only"] is True
+    assert len(train_statistics["std"]) == 28
+    assert len(train_statistics["ranges"]) == 28
+    assert len(train_statistics["checksum"]) == 64
+    assert local_evaluation["compression"]["actual_serialized_compression_ratio"] > 0.0
+    assert local_evaluation["compression"]["tensor_compression_ratio"] > 0.0
+    assert local_evaluation["exact_roundtrip"] is True
+    assert local_evaluation["timings"]["encode_seconds"] >= 0.0
+    assert local_evaluation["timings"]["decode_seconds"] >= 0.0
+    assert local_evaluation["provenance"]["run_id"] == summary["run_id"]
+    assert local_evaluation["provenance"]["seed"] == 31
+    assert local_evaluation["provenance"]["git_commit"]
+
+    legacy_validation = json.loads(
+        (output_dir / "metrics_validation.json").read_text(encoding="utf-8")
+    )
+    legacy_per_channel = json.loads(
+        (output_dir / "metrics_per_channel.json").read_text(encoding="utf-8")
+    )
+    assert legacy_validation["overall_score"] == local_evaluation["overall_score"]
+    assert legacy_per_channel == local_evaluation["per_channel"]
+
+    checkpoint = torch.load(output_dir / "checkpoints" / "model.ckpt", weights_only=False)
+    checkpoint_metadata = json.loads(
+        (output_dir / "checkpoint_metadata.json").read_text(encoding="utf-8")
+    )
+    assert checkpoint["train_statistics"]["checksum"] == train_statistics["checksum"]
+    assert checkpoint_metadata["train_statistics"]["checksum"] == train_statistics["checksum"]
+    assert summary["local_evaluation_path"] == str(local_evaluation_path)
 
 
 def test_codec_smoke_fits_sst_normalization_on_train_ocean_only(

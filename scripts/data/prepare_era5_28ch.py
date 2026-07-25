@@ -48,7 +48,7 @@ def smoke() -> None:
         "channel": list(CHANNEL_NAMES), "latitude": [-90.0, -30.0, 30.0, 90.0], "longitude": [0.0, 90.0, 180.0, 270.0],
     })
     ds.to_zarr(root / "data.zarr", mode="w")
-    generate_manifest(str(root), {}, generate_nested_subsets(n_list=[4, 8, 16], seed=42))
+    generate_manifest(str(root), {}, generate_nested_subsets(n_list=[16, 32, 48], seed=42))
     click.echo(f"Offline smoke fixture written to {root}")
 
 

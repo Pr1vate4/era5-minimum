@@ -18,7 +18,8 @@ export API_PORT
 	submission-validate clean-containers monitoring-config monitoring-up monitoring-down \
 	monitoring-restart monitoring-logs monitoring-ps monitoring-prometheus-logs \
 	monitoring-grafana-logs monitoring-smoke monitoring-check-prometheus-config \
-	monitoring-check-rules monitoring-clean frontend-up frontend-build
+	monitoring-check-rules monitoring-clean frontend-up frontend-build \
+	ml-samples cra5-checkpoint-dry-run
 
 help: ## Show available project and container commands.
 
@@ -46,6 +47,12 @@ download-dry-run: ## Validate one ERA5 download request offline.
 
 download-range-dry-run: ## Validate a sequential ERA5 range request offline.
 	python scripts/download_era5_range.py --start-date 2024-01-01 --end-date 2024-01-03 --output-root /tmp/era5-minimum-range-dry-run --dry-run
+
+ml-samples: ## Generate nested leakage-safe training sample manifests (16/32/64/128).
+	python scripts/prepare_ml_sample_manifest.py --output /tmp/era5-minimum-samples.json
+
+cra5-checkpoint-dry-run: ## Show CRA5-159 checkpoint provenance without downloading.
+	python scripts/fetch_cra5_checkpoint.py
 
 clean: ## Remove only generated MVP outputs and local caches.
 	rm -rf outputs/mvp .pytest_cache .mypy_cache .ruff_cache build dist

@@ -148,7 +148,35 @@ make clean
 
 Команда не удаляет raw data.
 
-## 19. Before creating a Pull Request
+## 19. ML workflow: training sample manifests and CRA5 checkpoint
+
+Для адаптации претренированного CRA5-159 на 28-канальную ERA5 используется leakage-safe workflow с детерминированными манифестами.
+
+### Generate nested training sample manifests
+
+```bash
+make ml-samples
+```
+
+Создаёт манифест с размерами 16/32/64/128 для обучения, используя train pool 2014–2019-12-24T18:00 с seven-day embargo перед validation 2020. Выходной файл: `/tmp/era5-minimum-samples.json`.
+
+### Show CRA5-159 checkpoint provenance (dry-run)
+
+```bash
+make cra5-checkpoint-dry-run
+```
+
+Показывает upstream commit, SHA-256, размер и cache path для CRA5-159v checkpoint без скачивания.
+
+### Fetch CRA5-159 checkpoint
+
+```bash
+python scripts/fetch_cra5_checkpoint.py --download
+```
+
+Скачивает checkpoint в `~/.cache/era5-minimum/cra5/` с проверкой hash/size. Файл никогда не копируется в репозиторий.
+
+## 20. Before creating a Pull Request
 
 ```bash
 make verify
