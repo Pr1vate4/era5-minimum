@@ -1,6 +1,5 @@
 import {
   AlertTriangle,
-  Box,
   CheckCircle2,
   LoaderCircle,
   RefreshCw,
@@ -32,7 +31,6 @@ export default function CodecPage() {
     <div className="space-y-5">
       <PageHeader
         title={page.title}
-        description={page.description}
         actions={
           <ServiceBadge
             loading={workspace.serviceLoading}
@@ -47,25 +45,6 @@ export default function CodecPage() {
           />
         }
       />
-
-      <section className="codec-hero">
-        <div className="relative z-10 max-w-2xl">
-          <span className="codec-hero__eyebrow">
-            <Sparkles className="h-4 w-4" aria-hidden="true" />
-            Neural weather codec
-          </span>
-          <h2 className="mt-5 text-[32px] font-black leading-[1.04] tracking-[-0.04em] text-white sm:text-[42px]">
-            Сожмите состояние атмосферы в 32–64 раза
-          </h2>
-          <p className="mt-4 max-w-xl text-[14px] leading-6 text-blue-100/90">
-            Загрузите 28-канальный ERA5-кадр. Сервис создаст настоящий bitstream,
-            проверит exact roundtrip и вернёт восстановленное поле.
-          </p>
-        </div>
-        <div className="codec-hero__orb" aria-hidden="true">
-          <Box className="h-12 w-12" />
-        </div>
-      </section>
 
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1.45fr)_minmax(320px,0.55fr)]">
         <ContentCard

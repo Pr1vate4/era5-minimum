@@ -249,63 +249,6 @@ textarea {
   box-shadow: 0 5px 12px rgba(31, 38, 49, 0.06);
 }
 
-.codec-hero {
-  position: relative;
-  min-height: 270px;
-  overflow: hidden;
-  border: 1px solid rgba(13, 55, 121, 0.75);
-  border-radius: 28px;
-  padding: clamp(24px, 4vw, 44px);
-  background:
-    radial-gradient(circle at 82% 10%, rgba(105, 173, 255, 0.48), transparent 22rem),
-    linear-gradient(125deg, #0d3e8e 0%, #175fcf 52%, #0c438f 100%);
-  box-shadow: 0 22px 50px rgba(16, 70, 151, 0.23);
-}
-
-.codec-hero::after {
-  position: absolute;
-  inset: 0;
-  background-image: linear-gradient(135deg, rgba(255, 255, 255, 0.04) 25%, transparent 25%);
-  background-size: 28px 28px;
-  content: '';
-  mask-image: linear-gradient(to left, black, transparent 75%);
-}
-
-.codec-hero__eyebrow {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  border: 1px solid rgba(255, 255, 255, 0.24);
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.12);
-  padding: 8px 12px;
-  color: #fff;
-  font-size: 11px;
-  font-weight: 800;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-}
-
-.codec-hero__orb {
-  position: absolute;
-  right: clamp(32px, 9vw, 140px);
-  top: 50%;
-  z-index: 1;
-  display: none;
-  height: 136px;
-  width: 136px;
-  transform: translateY(-50%) rotate(-8deg);
-  align-items: center;
-  justify-content: center;
-  border: 1px solid rgba(255, 255, 255, 0.25);
-  border-bottom-width: 8px;
-  border-radius: 36px;
-  background: rgba(255, 255, 255, 0.14);
-  color: #fff;
-  box-shadow: 0 24px 50px rgba(5, 28, 66, 0.28);
-  backdrop-filter: blur(12px);
-}
-
 .codec-dropzone {
   display: flex;
   min-height: 170px;
@@ -738,12 +681,6 @@ html[data-ui-font-size] .text-\[24px\] {
 @media (min-width: 640px) {
   html[data-ui-font-size] .sm\:text-\[21px\] {
     font-size: var(--ui-text-21) !important;
-  }
-}
-
-@media (min-width: 900px) {
-  .codec-hero__orb {
-    display: flex;
   }
 }
 
