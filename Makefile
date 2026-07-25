@@ -7,6 +7,8 @@ TOOLS_SERVICE ?= tools
 DATA_SERVICE ?= data-tools
 GPU_SERVICE ?= gpu-tools
 API_PORT ?= 8000
+LOCAL_API_HOST ?= 127.0.0.1
+VITE_HOST ?= 127.0.0.1
 
 export API_PORT
 
@@ -18,7 +20,7 @@ export API_PORT
 	submission-validate clean-containers monitoring-config monitoring-up monitoring-down \
 	monitoring-restart monitoring-logs monitoring-ps monitoring-prometheus-logs \
 	monitoring-grafana-logs monitoring-smoke monitoring-check-prometheus-config \
-	monitoring-check-rules monitoring-clean frontend-up frontend-build \
+	monitoring-check-rules monitoring-clean frontend-up frontend-build dev \
 	ml-samples cra5-checkpoint-dry-run cra5-smoke cra5-train-n16 cra5-train-n32 \
 	cra5-train-n64 cra5-train-n128 experiment-ladder
 
@@ -108,6 +110,16 @@ app-health: ## Check the API health endpoint from the host.
 
 frontend-up: ## Start the Vite frontend dev server on VITE_PORT (default: 5173).
 	npm run dev
+
+dev: ## Start the local API if needed, then run the Vite frontend.
+	@if curl -fsS http://$(LOCAL_API_HOST):$(API_PORT)/health >/dev/null 2>&1; then \
+		echo "API is already running at http://$(LOCAL_API_HOST):$(API_PORT)"; \
+	else \
+		test -x .venv/bin/python || { echo "Missing .venv/bin/python; create the project virtual environment first." >&2; exit 1; }; \
+		.venv/bin/python -m uvicorn era5_minimum.api.app:app --host $(LOCAL_API_HOST) --port $(API_PORT) --workers 1 --log-level info > /tmp/era5-minimum-api.log 2>&1 & \
+		echo "API started at http://$(LOCAL_API_HOST):$(API_PORT) (log: /tmp/era5-minimum-api.log)"; \
+	fi
+	npm run dev -- --host $(VITE_HOST)
 
 frontend-build: ## Build the frontend for static hosting.
 	npm run build
