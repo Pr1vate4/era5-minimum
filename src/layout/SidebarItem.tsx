@@ -37,14 +37,14 @@ export function SidebarItem({ item }: { item: NavigationItem }) {
         onFocus={showTooltip}
         onBlur={() => setTooltipPosition(null)}
         className={({ isActive }) =>
-          `ui-focus-ring group relative flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border transition-colors duration-150 ${
+          `ui-focus-ring group relative flex h-11 w-11 shrink-0 items-center justify-center rounded-[14px] border transition-all duration-150 ${
             isActive
-              ? 'border-[var(--accent-border)] bg-[var(--accent-soft)] text-[var(--accent)] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.015),0_4px_14px_rgba(14,165,233,0.06)]'
-              : 'border-transparent text-[var(--text-muted)] hover:bg-[var(--surface-hover)] hover:text-[var(--text-secondary)]'
+              ? 'translate-x-0.5 border-[var(--accent-border)] bg-[var(--accent)] text-white shadow-[0_7px_16px_rgba(23,92,199,0.2)]'
+              : 'border-transparent text-[var(--text-muted)] hover:-translate-y-0.5 hover:border-[var(--border)] hover:bg-[var(--surface-hover)] hover:text-[var(--text-secondary)]'
           }`
         }
       >
-        <Icon className="h-[18px] w-[18px]" aria-hidden="true" />
+        <Icon className="h-[19px] w-[19px]" aria-hidden="true" />
       </NavLink>
 
       {tooltipPosition

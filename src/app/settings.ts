@@ -21,10 +21,16 @@ export type ApiSettings = {
   timeoutMs: number
 }
 
+export type ServiceSettings = {
+  codecBaseUrl: string
+  grafanaUrl: string
+}
+
 export type AppSettings = {
   interface: InterfaceSettings
   data: DataSettings
   api: ApiSettings
+  services: ServiceSettings
 }
 
 export const SETTINGS_STORAGE_KEY = 'era5-minimum:settings:v1'
@@ -44,6 +50,10 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
     enabled: import.meta.env.VITE_WEATHER_API_ENABLED !== 'false',
     baseUrl: (import.meta.env.VITE_WEATHER_API_BASE_URL ?? '').replace(/\/$/, ''),
     timeoutMs: 15_000,
+  },
+  services: {
+    codecBaseUrl: (import.meta.env.VITE_CODEC_API_BASE_URL ?? '').replace(/\/$/, ''),
+    grafanaUrl: import.meta.env.VITE_GRAFANA_URL ?? 'http://localhost:3000',
   },
 }
 
@@ -68,10 +78,12 @@ export function normalizeStoredSettings(input: unknown): AppSettings {
     interface: Partial<InterfaceSettings>
     data: Partial<DataSettings>
     api: Partial<ApiSettings>
+    services: Partial<ServiceSettings>
   }>
   const storedInterface = stored.interface
   const storedData = stored.data
   const storedApi = stored.api
+  const storedServices = stored.services
   const refreshMinutes = storedData?.refreshMinutes
   const timeoutMs = storedApi?.timeoutMs
 
@@ -108,6 +120,16 @@ export function normalizeStoredSettings(input: unknown): AppSettings {
         typeof timeoutMs === 'number' && [5_000, 15_000, 30_000, 60_000].includes(timeoutMs)
           ? timeoutMs
           : DEFAULT_APP_SETTINGS.api.timeoutMs,
+    },
+    services: {
+      codecBaseUrl:
+        typeof storedServices?.codecBaseUrl === 'string'
+          ? storedServices.codecBaseUrl.trim().replace(/\/$/, '')
+          : DEFAULT_APP_SETTINGS.services.codecBaseUrl,
+      grafanaUrl:
+        typeof storedServices?.grafanaUrl === 'string' && storedServices.grafanaUrl.trim()
+          ? storedServices.grafanaUrl.trim()
+          : DEFAULT_APP_SETTINGS.services.grafanaUrl,
     },
   }
 }

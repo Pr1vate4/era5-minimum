@@ -9,13 +9,13 @@ type MetricCardProps = {
 
 export function MetricCard({ title, value, caption, icon }: MetricCardProps) {
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-4">
-      <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">
+    <div className="ui-panel min-h-[150px] p-5">
+      <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.16em] text-[var(--text-muted)]">
         {icon ? <span className="text-[var(--accent)]">{icon}</span> : null}
         {title}
       </div>
-      <div className="mt-3 text-[22px] font-semibold text-slate-900">{value}</div>
-      {caption ? <div className="mt-1 text-[12px] text-slate-500">{caption}</div> : null}
+      <div className="mt-5 text-[25px] font-black tracking-[-0.03em] text-[var(--text-primary)]">{value}</div>
+      {caption ? <div className="mt-2 text-[12px] leading-5 text-[var(--text-muted)]">{caption}</div> : null}
     </div>
   )
 }
