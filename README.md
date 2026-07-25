@@ -168,6 +168,7 @@ monitoring/              Prometheus/Grafana для API
 - [Pipeline подготовки ERA5](docs/ERA5_28CH_DATA_PIPELINE.md)
 - [Runbook финальной приёмки модели](docs/ERA5_MODEL_ACCEPTANCE_RUNBOOK.md)
 - [Запуск Docker и мониторинга](docs/DOCKER.md)
+- [Prometheus и Grafana: метрики API и модели](docs/MONITORING.md)
 - [Краткое описание проекта](docs/PITCH.md)
 
 ## Безопасность Git

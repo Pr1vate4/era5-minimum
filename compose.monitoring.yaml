@@ -1,4 +1,30 @@
 services:
+  ml-metrics-exporter:
+    image: era5-minimum:cpu
+    command:
+      - python
+      - -m
+      - era5_minimum.monitoring.ml_exporter
+    environment:
+      ERA5_ML_METRICS_ROOT: /workspace/artifacts/model-n32
+      ERA5_ML_EXPORTER_HOST: 0.0.0.0
+      ERA5_ML_EXPORTER_PORT: "9101"
+    ports:
+      - "${ML_EXPORTER_BIND_ADDRESS:-127.0.0.1}:${ML_EXPORTER_PORT:-9101}:9101"
+    volumes:
+      - ${ARTIFACTS_DIR:-./artifacts}:/workspace/artifacts:ro,Z
+    restart: unless-stopped
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:9101/metrics', timeout=2)"
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+
   prometheus:
     image: ${PROMETHEUS_IMAGE:-prom/prometheus:v3.5.0}
     command:
@@ -6,13 +32,15 @@ services:
       - --storage.tsdb.path=/prometheus
       - --web.enable-lifecycle
     ports:
-      - "${PROMETHEUS_PORT:-9090}:9090"
+      - "${PROMETHEUS_BIND_ADDRESS:-127.0.0.1}:${PROMETHEUS_PORT:-9090}:9090"
     volumes:
       - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro,Z
       - ./monitoring/prometheus/rules:/etc/prometheus/rules:ro,Z
       - prometheus_data:/prometheus
     depends_on:
       api:
+        condition: service_healthy
+      ml-metrics-exporter:
         condition: service_healthy
     restart: unless-stopped
     healthcheck:
@@ -25,12 +53,13 @@ services:
   grafana:
     image: ${GRAFANA_IMAGE:-grafana/grafana:12.0.0}
     ports:
-      - "${GRAFANA_PORT:-3000}:3000"
+      - "${GRAFANA_BIND_ADDRESS:-127.0.0.1}:${GRAFANA_PORT:-3000}:3000"
     environment:
       GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
       GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-change-me}
       GF_USERS_ALLOW_SIGN_UP: "false"
-      GF_AUTH_ANONYMOUS_ENABLED: "false"
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
     volumes:
       - grafana_data:/var/lib/grafana
       - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro,Z
