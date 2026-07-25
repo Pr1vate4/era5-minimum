@@ -284,3 +284,37 @@
 **Decision:** the factorized logistic entropy model is a training-only estimated-rate proxy. The canonical Huffman serialized bitstream remains the source of actual compression ratio. Estimated rate and actual serialized rate must be reported separately. The smoke configuration remains synthetic until a real manifest is available.
 
 **Consequences:** rate-distortion experiments can optimize an explicit proxy without conflating it with serialized codec measurements; reports must preserve both metrics and identify smoke results as synthetic.
+
+
+## DEC-030 — Scientific local evaluator standardizes physical metrics
+
+**Status:** accepted
+**Date:** 2026-07-25
+
+**Context:** codec research requires latitude-weighted physical RMSE, NRMSE by train std, PSNR by train range, equal-channel grouped scores, and diagnostic conversions (MSLP Pa/hPa, TP6H m/mm, Z/g, wind speed) to compare PCA, ConvAE, and CRA5 adapter on an honest scientific basis.
+
+**Decision:** the local evaluator computes all metrics after inverse normalization, applies latitude weights to spatial means, uses train-only statistics, and preserves per-channel results. MSLP uses Pa/hPa, TP6H uses m/mm per 6h, each Z* also reports Z/g with g=9.80665, and U10/V10 include latitude-weighted wind-speed RMSE. PSNR returns `null` with an explicit status when train range is zero or reconstruction is perfect. Tensor compression ratio and actual serialized compression ratio remain separate metrics. The evaluator validates `train_only=true` and required metric groups before accepting artifacts.
+
+**Consequences:** all three codec paths (PCA, ConvAE, CRA5) use identical metric formulas. Reports remain comparable across experiments. Physical units prevent unit-conversion errors, and grouped scores preserve equal-channel weighting over surface and pressure subsets. The evaluator enforces honest separation of tensor ratio from serialized ratio and rejects artifacts missing provenance.
+
+## DEC-031 — Seven-day temporal embargo before validation
+
+**Status:** accepted
+**Date:** 2026-07-25
+
+**Context:** leakage-safe splits require a temporal buffer between training and validation to prevent autocorrelated adjacent frames from leaking validation information into the training sample.
+
+**Decision:** training timestamps end at 2019-12-24T18:00:00, creating a seven-day (168-hour) embargo before validation starts at 2020-01-01T00:00:00. Sample manifests reject any training timestamp less than seven days before a validation timestamp. Validation remains 2020 and test remains 2021.
+
+**Consequences:** training sample selection cannot accidentally include timestamps adjacent to validation or test. The embargo is explicit in manifest metadata and enforced by automated tests. Experiments using manifests without the required embargo are rejected before fitting begins.
+
+## DEC-032 — CRA5 transfer uses external checkpoint and isolated runtime
+
+**Status:** accepted
+**Date:** 2026-07-25
+
+**Context:** the official CRA5-159v checkpoint provides a 159-variable VAEformer pretrained through 2017. Using it as initialization requires explicit provenance, channel mapping, and isolated runtime because CRA5 upstream pins older PyTorch and builds C++ entropy extensions incompatible with the project's canonical Python 3.12 environment.
+
+**Decision:** CRA5-159v checkpoint (SHA-256 `36dfdf0458bb9ed9ecfd1dcdbd75bf9d2599f2320041e769d6c766f3d8563a11`, size 1,450,747,681 bytes, upstream commit `2b9e06d8ca31f7b27c5039c9b5fc3334a43b4976`) is cached outside Git under `~/.cache/era5-minimum/cra5/`. Mapping from CRA5-159 to ERA5-28 copies 26 channels by explicit index; `sst` and `tcwv` use learned-boundary zero initialization. A versioned bridge protocol isolates the main Python 3.12 process from an explicitly configured CRA5 runtime. Provenance records upstream commit, checkpoint hash, size, URL, and license note. Checkpoint bytes never enter the repository or run artifacts. Transfer results report the external initialization, not training from scratch.
+
+**Consequences:** the project preserves Python 3.12 and canonical dependencies in `pyproject.toml`. CRA5 runtime remains an optional external component with explicit provenance. Channel mapping prevents silent substitution or reordering. Transfer results are eligible for comparison against PCA and ConvAE because normalization, splits, and metrics use identical repository rules. Experiments mark whether CRA5 runtime was successfully verified on GPU or remained blocked.
