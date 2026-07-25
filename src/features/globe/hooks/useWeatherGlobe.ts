@@ -1,12 +1,11 @@
 import { useEffect, useState } from 'react'
+import { buildApiUrl } from '../../../app/settings'
+import { useAppSettings } from '../../../hooks/useAppSettings'
 import { getGlobeParameterConfig } from '../data/globeParameterConfig'
 import type { GlobeChannel, GlobeFrameAsset, PressureLevel } from '../types/globe'
 
 const DISPLAY_WIDTH = 720
 const DISPLAY_HEIGHT = 360
-// Vite proxies /api to the local container. Production deployments can set an
-// explicit API origin without changing the client bundle's request code.
-const API_BASE_URL = (import.meta.env.VITE_WEATHER_API_BASE_URL ?? '').replace(/\/$/, '')
 
 type WeatherVariable = {
   logical_name: string
@@ -36,10 +35,6 @@ export type LiveWeatherLayer = {
   samplingNote: string
 }
 
-function apiUrl(path: string) {
-  return `${API_BASE_URL}${path}`
-}
-
 function toFrame(variable: WeatherVariable, timestamp: string): GlobeFrameAsset | null {
   const pressure = variable.logical_name.match(/^([TUVZQ])(1000|925|850|700)$/)
   const channel = (pressure ? pressure[1] : variable.logical_name) as GlobeChannel
@@ -65,19 +60,34 @@ function toFrame(variable: WeatherVariable, timestamp: string): GlobeFrameAsset 
 }
 
 export function useWeatherGlobeCatalog(enabled: boolean) {
+  const { settings } = useAppSettings()
+  const { baseUrl, timeoutMs } = settings.api
   const [frames, setFrames] = useState<GlobeFrameAsset[]>([])
   const [loading, setLoading] = useState(enabled)
   const [error, setError] = useState<string | null>(null)
   const [revision, setRevision] = useState(0)
 
   useEffect(() => {
-    if (!enabled) return
+    if (!enabled) {
+      setFrames([])
+      setLoading(false)
+      setError(null)
+      return
+    }
+
     const controller = new AbortController()
+    let active = true
+    let timedOut = false
+    const timeoutId = window.setTimeout(() => {
+      timedOut = true
+      controller.abort()
+    }, timeoutMs)
+
     setLoading(true)
     setError(null)
     Promise.all([
-      fetch(apiUrl('/api/v1/variables'), { signal: controller.signal }),
-      fetch(apiUrl('/api/v1/timestamps'), { signal: controller.signal }),
+      fetch(buildApiUrl(baseUrl, '/api/v1/variables'), { signal: controller.signal }),
+      fetch(buildApiUrl(baseUrl, '/api/v1/timestamps'), { signal: controller.signal }),
     ])
       .then(async ([variablesResponse, timestampsResponse]) => {
         if (!variablesResponse.ok || !timestampsResponse.ok) {
@@ -89,7 +99,7 @@ export function useWeatherGlobeCatalog(enabled: boolean) {
         ])
       })
       .then(([variables, timestamps]) => {
-        if (controller.signal.aborted) return
+        if (!active) return
         const nextFrames = variables.flatMap((variable) =>
           timestamps.flatMap((timestamp) => {
             const frame = toFrame(variable, timestamp)
@@ -99,20 +109,34 @@ export function useWeatherGlobeCatalog(enabled: boolean) {
         setFrames(nextFrames)
       })
       .catch((caught: unknown) => {
-        if (controller.signal.aborted) return
+        if (!active) return
         setFrames([])
-        setError(caught instanceof Error ? caught.message : 'Не удалось загрузить каталог ERA5.')
+        setError(
+          timedOut
+            ? `API не ответил за ${timeoutMs / 1000} с.`
+            : caught instanceof Error
+              ? caught.message
+              : 'Не удалось загрузить каталог ERA5.',
+        )
       })
       .finally(() => {
-        if (!controller.signal.aborted) setLoading(false)
+        window.clearTimeout(timeoutId)
+        if (active) setLoading(false)
       })
-    return () => controller.abort()
-  }, [enabled, revision])
+
+    return () => {
+      active = false
+      window.clearTimeout(timeoutId)
+      controller.abort()
+    }
+  }, [baseUrl, enabled, revision, timeoutMs])
 
   return { frames, loading, error, reload: () => setRevision((value) => value + 1) }
 }
 
 export function useWeatherGlobeLayer(frame: GlobeFrameAsset | undefined, enabled: boolean) {
+  const { settings } = useAppSettings()
+  const { baseUrl, timeoutMs } = settings.api
   const [layer, setLayer] = useState<LiveWeatherLayer | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -126,6 +150,12 @@ export function useWeatherGlobeLayer(frame: GlobeFrameAsset | undefined, enabled
       return
     }
     const controller = new AbortController()
+    let active = true
+    let timedOut = false
+    const timeoutId = window.setTimeout(() => {
+      timedOut = true
+      controller.abort()
+    }, timeoutMs)
     const params = new URLSearchParams({
       variable: frame.apiVariable,
       timestamp: frame.timestamp,
@@ -135,13 +165,15 @@ export function useWeatherGlobeLayer(frame: GlobeFrameAsset | undefined, enabled
     if (frame.level) params.set('level', String(frame.level))
     setLoading(true)
     setError(null)
-    fetch(apiUrl(`/api/v1/layers?${params}`), { signal: controller.signal })
+    fetch(buildApiUrl(baseUrl, `/api/v1/layers?${params}`), {
+      signal: controller.signal,
+    })
       .then(async (response) => {
         if (!response.ok) throw new Error(`HTTP ${response.status}: ${await response.text()}`)
         return response.json() as Promise<WeatherLayerResponse>
       })
       .then((response) => {
-        if (controller.signal.aborted) return
+        if (!active) return
         if (response.is_mock) throw new Error('API вернул mock-слой вместо реальных данных.')
         const values = new Float32Array(response.shape[0] * response.shape[1])
         let sum = 0
@@ -173,15 +205,27 @@ export function useWeatherGlobeLayer(frame: GlobeFrameAsset | undefined, enabled
         })
       })
       .catch((caught: unknown) => {
-        if (controller.signal.aborted) return
+        if (!active) return
         setLayer(null)
-        setError(caught instanceof Error ? caught.message : 'Не удалось загрузить слой ERA5.')
+        setError(
+          timedOut
+            ? `API не ответил за ${timeoutMs / 1000} с.`
+            : caught instanceof Error
+              ? caught.message
+              : 'Не удалось загрузить слой ERA5.',
+        )
       })
       .finally(() => {
-        if (!controller.signal.aborted) setLoading(false)
+        window.clearTimeout(timeoutId)
+        if (active) setLoading(false)
       })
-    return () => controller.abort()
-  }, [enabled, frame?.apiVariable, frame?.level, frame?.timestamp, revision])
+
+    return () => {
+      active = false
+      window.clearTimeout(timeoutId)
+      controller.abort()
+    }
+  }, [baseUrl, enabled, frame?.apiVariable, frame?.level, frame?.timestamp, revision, timeoutMs])
 
   return { layer, loading, error, reload: () => setRevision((value) => value + 1) }
 }
@@ -196,8 +240,16 @@ function renderLayerTexture(frame: GlobeFrameAsset, values: Float32Array) {
   const configuration = getGlobeParameterConfig(frame.channel)
   const min = frame.min ?? configuration.fallbackRange[0]
   const max = frame.max ?? configuration.fallbackRange[1]
-  values.forEach((value, index) => {
-    const offset = index * 4
+  // Surface textures use -180..180 ordering. Rotate ERA5's 0..360 columns so
+  // masked coastlines (most visibly SST) align with the GeoJSON coastline.
+  const longitudeShift =
+    frame.longitudeRange === '0-360' ? Math.floor(frame.width / 2) : 0
+  values.forEach((value, sourceIndex) => {
+    const sourceRow = Math.floor(sourceIndex / frame.width)
+    const sourceColumn = sourceIndex % frame.width
+    const targetColumn =
+      (sourceColumn - longitudeShift + frame.width) % frame.width
+    const offset = (sourceRow * frame.width + targetColumn) * 4
     if (!Number.isFinite(value)) {
       image.data[offset + 3] = 0
       return

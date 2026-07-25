@@ -5,6 +5,7 @@ import {
   Images,
   LayoutDashboard,
   LineChart,
+  Settings2,
   TableProperties,
   TrendingUp,
   Waves,
@@ -92,6 +93,14 @@ export const navigationItems: NavigationItem[] = [
     shortTitle: 'Ресурсы',
     description: 'Использование GPU, VRAM и compute-бюджета',
     icon: Gauge,
+  },
+  {
+    id: 'settings',
+    path: '/settings',
+    title: 'Настройки приложения',
+    shortTitle: 'Настройки',
+    description: 'Параметры интерфейса, глобуса, данных и подключения сервисов',
+    icon: Settings2,
   },
 ]
 

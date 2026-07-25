@@ -143,21 +143,11 @@ export default function OverviewPage() {
         />
       </div>
 
-      <div className="grid gap-3 lg:grid-cols-[1.35fr_1fr]">
+      <div className="grid gap-3">
         <ContentCard title="Итоговый вывод">
           <p className="text-[13px] leading-6 text-slate-600">
             {buildConclusion(overview)}
           </p>
-        </ContentCard>
-        <ContentCard title="Контрольный ориентир">
-          <dl className="grid gap-3 text-[13px]">
-            <InfoRow label="Референс" value="VAEformer / CRA5" />
-            <InfoRow
-              label="Критерии"
-              value={`${overview.passedCriteria} из ${overview.criteriaCount || 0} пройдено`}
-            />
-            <InfoRow label="Команда" value={overview.meta.team ?? 'Нет данных'} />
-          </dl>
         </ContentCard>
       </div>
     </div>
@@ -194,13 +184,4 @@ function formatDate(value: string | undefined) {
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return value
   return new Intl.DateTimeFormat('ru-RU', { dateStyle: 'long', timeZone: 'UTC' }).format(date)
-}
-
-function InfoRow({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex items-center justify-between gap-4 border-b border-slate-100 pb-2 last:border-0 last:pb-0">
-      <dt className="text-slate-500">{label}</dt>
-      <dd className="text-right font-semibold text-slate-800">{value}</dd>
-    </div>
-  )
 }

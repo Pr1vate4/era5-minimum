@@ -43,28 +43,9 @@ export function TopHeader() {
             className="h-full w-full object-cover"
           />
         </div>
-        <span className="hidden whitespace-nowrap text-[15px] font-semibold text-black sm:block">
+        <span className="hidden whitespace-nowrap text-[15px] font-semibold text-slate-950 sm:block">
           МетеоКод
         </span>
-      </div>
-
-      <div className="flex shrink-0 items-center gap-3">
-        <time
-          dateTime={data?.meta.generated_at}
-          className="hidden whitespace-nowrap text-[13px] font-medium text-slate-500 lg:block"
-        >
-          {formatGeneratedDate(data?.meta.generated_at)}
-        </time>
-        <button
-          type="button"
-          onClick={exportReport}
-          disabled={!data}
-          className="inline-flex h-9 items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-3 text-[13px] font-semibold text-slate-700 shadow-sm transition-colors duration-150 hover:border-slate-400 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          <Download className="h-4 w-4" aria-hidden="true" />
-          <span className="hidden md:inline">Экспорт отчёта</span>
-          <span className="sr-only md:hidden">Экспорт отчёта</span>
-        </button>
       </div>
     </header>
   )

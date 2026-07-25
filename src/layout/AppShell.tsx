@@ -3,6 +3,7 @@ import { Outlet, useLocation } from 'react-router-dom'
 import { ErrorState } from '../components/ErrorState'
 import { LoadingSkeleton } from '../components/LoadingSkeleton'
 import { Sidebar } from '../components/Sidebar'
+import { useAppSettings } from '../hooks/useAppSettings'
 import { useResults } from '../hooks/useResults'
 import { TopHeader } from './TopHeader'
 
@@ -18,6 +19,13 @@ function ScrollToTop() {
 
 export function AppShell() {
   const { loading, error, reload } = useResults()
+  const { settings } = useAppSettings()
+  const { pathname } = useLocation()
+  const isSettingsPage = pathname === '/settings'
+  const contentSpacing =
+    settings.interface.density === 'compact'
+      ? 'px-3 py-3 lg:px-4'
+      : 'px-5 py-5 lg:px-7'
 
   return (
     <div className="min-h-screen overflow-x-hidden bg-[#F7F8FA] text-[#101828]">
@@ -26,13 +34,17 @@ export function AppShell() {
       <Sidebar />
 
       <main className="ml-[60px] min-h-[calc(100vh-56px)] overflow-x-hidden pt-14">
-        <div className="w-full px-5 py-5 lg:px-7">
-          {loading ? (
+        <div className={`w-full ${contentSpacing}`}>
+          {isSettingsPage ? (
+            <Suspense fallback={<LoadingSkeleton />}>
+              <Outlet />
+            </Suspense>
+          ) : loading ? (
             <LoadingSkeleton />
           ) : error ? (
             <ErrorState
               title="Не удалось загрузить результаты"
-              message="Проверьте доступность public/data/results.json и повторите попытку."
+              message={`Проверьте источник «${settings.data.resultsUrl}» в настройках данных и повторите попытку.`}
               details={error}
               onRetry={reload}
             />
