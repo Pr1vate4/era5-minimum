@@ -125,7 +125,7 @@ export default function CodecPage() {
         >
           <CodecResults
             job={workspace.job}
-            sourceFile={workspace.file}
+            sourceDescription={`${workspace.file.name} · ${formatBytes(workspace.file.size)}`}
             resolveDownload={(path) =>
               /^(https?:)?\/\//.test(path)
                 ? path
@@ -136,6 +136,12 @@ export default function CodecPage() {
       ) : null}
     </div>
   )
+}
+
+function formatBytes(value: number) {
+  if (value < 1024) return `${value} Б`
+  if (value < 1024 ** 2) return `${(value / 1024).toFixed(1)} КиБ`
+  return `${(value / 1024 ** 2).toFixed(1)} МиБ`
 }
 
 function ServiceBadge({

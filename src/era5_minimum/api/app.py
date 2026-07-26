@@ -36,7 +36,17 @@ from era5_minimum.api.schemas import (
     SummaryArtifact,
 )
 from era5_minimum.api.weather_data_service import WeatherDataService
-from era5_minimum.api.codec_service import CodecInputError, CodecService, CodecUnavailableError
+from era5_minimum.api.codec_service import (
+    CodecInputError,
+    CodecService,
+    CodecUnavailableError,
+    get_codec_service,
+)
+from era5_minimum.api.era5_frame_service import Era5FrameError
+from era5_minimum.api.era5_frames import (
+    handle_era5_frame_error,
+    router as era5_frame_router,
+)
 
 DEFAULT_ARTIFACTS_ROOT = Path(
     os.getenv("ERA5_ARTIFACTS_ROOT", "demo/mock")
@@ -46,12 +56,6 @@ DEFAULT_ARTIFACTS_ROOT = Path(
 def get_repository() -> ArtifactRepository:
     """Return the default artifact repository dependency."""
     return ArtifactRepository(artifacts_root=DEFAULT_ARTIFACTS_ROOT)
-
-
-@lru_cache(maxsize=1)
-def get_codec_service() -> CodecService:
-    """Return the process-local immutable N128-equivalent codec service."""
-    return CodecService()
 
 
 router = APIRouter()
@@ -388,12 +392,14 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
     api.include_router(router)
+    api.include_router(era5_frame_router)
     api.add_exception_handler(ExperimentNotFoundError, handle_experiment_not_found)
     api.add_exception_handler(UnsupportedChannelError, handle_unsupported_channel)
     api.add_exception_handler(TimestampNotFoundError, handle_timestamp_not_found)
     api.add_exception_handler(ArtifactNotFoundError, handle_artifact_not_found)
     api.add_exception_handler(MalformedJSONError, handle_malformed_json)
     api.add_exception_handler(InvalidArtifactError, handle_invalid_artifact)
+    api.add_exception_handler(Era5FrameError, handle_era5_frame_error)
     api.add_middleware(PrometheusMetricsMiddleware, router=api.router)
     api.add_api_route(METRICS_PATH, metrics, methods=["GET"], include_in_schema=False)
     initialize_monitoring_metrics()

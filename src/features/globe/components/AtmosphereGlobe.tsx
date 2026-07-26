@@ -1,5 +1,11 @@
 import { Expand, Globe2, Minimize2, RotateCcw } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
+import {
+  FrameCompressionButton,
+  FrameCompressionNotice,
+  FrameCompressionReport,
+} from '../../codec/CurrentFrameCompression'
+import { useCurrentFrameCompression } from '../../codec/useCurrentFrameCompression'
 import { useAppSettings } from '../../../hooks/useAppSettings'
 import { locateGlobeGridPoint } from '../data/globeCoordinateUtils'
 import { useGlobeControls } from '../hooks/useGlobeControls'
@@ -74,6 +80,10 @@ export default function AtmosphereGlobe({
   const [textureRevision, setTextureRevision] = useState(0)
   const [isFullscreen, setIsFullscreen] = useState(false)
   const isEarthMode = selection.displayMode === 'earth'
+  const frameCompression = useCurrentFrameCompression(
+    selection.timestamp || undefined,
+    weatherApiEnabled && !isEarthMode,
+  )
   const weatherLayer = useWeatherGlobeLayer(selection.frame, weatherApiEnabled && !isEarthMode)
   const frame = weatherApiEnabled ? weatherLayer.layer?.frame ?? selection.frame : selection.frame
   const cloudWeatherLayer = useWeatherGlobeLayer(
@@ -204,7 +214,17 @@ export default function AtmosphereGlobe({
             </p>
           </div>
         </div>
-        <div className="flex shrink-0 items-center justify-end gap-2 sm:justify-start">
+        <div className="flex shrink-0 flex-wrap items-center justify-end gap-2 sm:justify-start">
+          {weatherApiEnabled && !isEarthMode ? (
+            <FrameCompressionButton
+              timestamp={selection.timestamp || undefined}
+              frameReady={Boolean(frame) && !weatherLayer.loading && !weatherLayer.error}
+              serviceLoading={frameCompression.serviceLoading}
+              serviceReady={frameCompression.service?.ready === true}
+              processing={frameCompression.processing}
+              onCompress={frameCompression.compressCurrentFrame}
+            />
+          ) : null}
           <IconButton label="Сбросить вид" title="Вернуть вид на Европу и Африку" onClick={resetView}>
             <RotateCcw className="h-[18px] w-[18px]" aria-hidden="true" />
           </IconButton>
@@ -228,6 +248,17 @@ export default function AtmosphereGlobe({
         autoRotate={autoRotate}
         onAutoRotateChange={setAutoRotate}
       />
+
+      {weatherApiEnabled && !isEarthMode ? (
+        <FrameCompressionNotice
+          processing={frameCompression.processing}
+          job={frameCompression.job}
+          error={frameCompression.error}
+          service={frameCompression.service}
+          serviceError={frameCompression.serviceError}
+          onRetryService={frameCompression.retryService}
+        />
+      ) : null}
 
       {selection.displayMode === 'data' && frame ? (
         <GlobeColorLegend frame={frame} mode={selection.mode} />
@@ -348,6 +379,14 @@ export default function AtmosphereGlobe({
           valuesError={weatherApiEnabled ? weatherLayer.error : valuesState.error}
         />
       </div>
+
+      {frameCompression.job ? (
+        <FrameCompressionReport
+          job={frameCompression.job}
+          jobTimestamp={frameCompression.jobTimestamp}
+          codecBaseUrl={settings.services.codecBaseUrl}
+        />
+      ) : null}
 
       {reducedMotion ? (
         <p className="sr-only">

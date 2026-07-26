@@ -15,6 +15,7 @@ import uuid
 import zipfile
 import zlib
 from dataclasses import dataclass
+from functools import lru_cache
 from pathlib import Path
 from threading import Lock
 from typing import Any
@@ -24,9 +25,15 @@ import numpy as np
 from era5_minimum.api.monitoring import record_codec_job
 from era5_minimum.codec.acceptance import AcceptanceError, WeatherCodec, compression_metrics
 from era5_minimum.data.channel_spec import CHANNEL_NAMES
+from era5_minimum.data.model_input import (
+    CANONICAL_FRAME_SHAPE,
+    NPZ_CHANNEL_ORDER_KEY,
+    NPZ_DATA_KEY,
+    ModelInputContractError,
+    validate_model_input,
+)
 
 
-CANONICAL_FRAME_SHAPE = (1, len(CHANNEL_NAMES), 360, 720)
 MAX_UPLOAD_BYTES = int(os.getenv("ERA5_CODEC_MAX_UPLOAD_BYTES", str(64 * 1024 * 1024)))
 DEFAULT_MODEL_DIR = Path(os.getenv("ERA5_CODEC_MODEL_DIR", "artifacts/model-n32"))
 _MAX_JOBS = 4
@@ -88,27 +95,27 @@ def _read_npz(payload: bytes) -> tuple[np.ndarray, tuple[str, ...] | None]:
 
     try:
         with np.load(io.BytesIO(payload), allow_pickle=False) as archive:
-            if "data" not in archive:
+            if NPZ_DATA_KEY not in archive:
                 raise CodecInputError("NPZ must contain a float32 'data' array")
-            values = np.asarray(archive["data"])
+            values = np.asarray(archive[NPZ_DATA_KEY])
             order = None
-            if "channel_order" in archive:
-                order = tuple(str(value) for value in archive["channel_order"].tolist())
+            if NPZ_CHANNEL_ORDER_KEY in archive:
+                order = tuple(
+                    str(value)
+                    for value in archive[NPZ_CHANNEL_ORDER_KEY].tolist()
+                )
     except (OSError, ValueError, KeyError, zipfile.BadZipFile) as exc:
         raise CodecInputError("cannot read a safe NPZ archive") from exc
 
-    if values.shape == CANONICAL_FRAME_SHAPE[1:]:
-        values = values[None, ...]
-    if values.shape != CANONICAL_FRAME_SHAPE:
-        raise CodecInputError(
-            "data must have shape [1, 28, 360, 720] (or [28, 360, 720]), "
-            f"got {tuple(values.shape)}"
+    try:
+        canonical = validate_model_input(
+            values,
+            channel_order=order,
+            allow_unbatched=True,
         )
-    if values.dtype != np.float32:
-        raise CodecInputError(f"data must use float32 physical units, got {values.dtype}")
-    if order is not None and order != CHANNEL_NAMES:
-        raise CodecInputError("channel_order does not match the canonical 28-channel ERA5 contract")
-    return values, order
+    except ModelInputContractError as exc:
+        raise CodecInputError(str(exc)) from exc
+    return canonical, order
 
 
 class CodecService:
@@ -156,8 +163,6 @@ class CodecService:
     def create_job(self, *, payload: bytes, filename: str, target_ratio: int) -> dict[str, Any]:
         """Compress one uploaded frame and retain its downloads in process memory."""
 
-        if target_ratio != 32:
-            raise CodecInputError("only the installed N128-equivalent profile is available; 64× is not a supported tensor profile")
         if not filename.lower().endswith(".npz"):
             raise CodecInputError("only canonical .npz uploads are supported")
         if not payload:
@@ -165,14 +170,54 @@ class CodecService:
         if len(payload) > MAX_UPLOAD_BYTES:
             raise CodecInputError(f"uploaded file exceeds the {MAX_UPLOAD_BYTES // (1024 * 1024)} MiB limit")
 
-        values, _ = _read_npz(payload)
+        values, order = _read_npz(payload)
+        return self.create_job_from_frame(
+            values=values,
+            channel_order=order or CHANNEL_NAMES,
+            ocean_mask=np.isfinite(values[0, CHANNEL_NAMES.index("sst")]),
+            target_ratio=target_ratio,
+        )
+
+    def create_job_from_frame(
+        self,
+        *,
+        values: np.ndarray,
+        channel_order: tuple[str, ...],
+        ocean_mask: np.ndarray,
+        target_ratio: int,
+        source: dict[str, str] | None = None,
+    ) -> dict[str, Any]:
+        """Compress one validated physical frame through the shared codec path."""
+
+        if target_ratio != 32:
+            raise CodecInputError(
+                "only the installed N32 model is available; 64x is not a "
+                "supported tensor profile"
+            )
+        try:
+            values = validate_model_input(
+                values,
+                channel_order=channel_order,
+                allow_unbatched=False,
+            )
+        except ModelInputContractError as exc:
+            raise CodecInputError(str(exc)) from exc
+        mask = np.asarray(ocean_mask, dtype=bool)
+        if mask.shape != CANONICAL_FRAME_SHAPE[-2:]:
+            raise CodecInputError(
+                "ocean_mask must have shape [360, 720], "
+                f"got {tuple(mask.shape)}"
+            )
+
         codec = self._get_codec()
         started = time.perf_counter()
         try:
-            ocean_mask = np.isfinite(values[0, CHANNEL_NAMES.index("sst")])
-            model_input, _, _ = codec.preprocess(values, ocean_mask=ocean_mask)
+            model_input, _, _ = codec.preprocess(values, ocean_mask=mask)
             result = codec.reconstruct(model_input)
-            physical = codec.postprocess(result.reconstruction_normalized, ocean_mask=ocean_mask)
+            physical = codec.postprocess(
+                result.reconstruction_normalized,
+                ocean_mask=mask,
+            )
         except (AcceptanceError, ValueError, RuntimeError) as exc:
             record_codec_job(status="error")
             raise CodecInputError(f"model could not process the frame: {exc}") from exc
@@ -208,6 +253,8 @@ class CodecService:
             "downloads": {"bitstream": f"{root}/bitstream", "reconstruction": f"{root}/reconstruction"},
             "previews": {"original": f"{root}/preview/original.png", "reconstruction": f"{root}/preview/reconstruction.png"},
         }
+        if source is not None:
+            job_payload["source"] = dict(source)
         artifact = CodecArtifact(
             bitstream=result.bitstream,
             reconstruction=reconstruction_buffer.getvalue(),
@@ -227,3 +274,10 @@ class CodecService:
 
         with self._lock:
             return self._jobs.get(identifier)
+
+
+@lru_cache(maxsize=1)
+def get_codec_service() -> CodecService:
+    """Return the process-local immutable N32 codec service."""
+
+    return CodecService()
