@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/images/meteocode-demo.gif" width="900" alt="Демонстрация МетеоКода">
+  <img src="docs/images/meteocode-demo.gif" width="500" alt="Демонстрация МетеоКода">
 </p>
 
 # МетеоКод / ERA5-Minimum
